@@ -35,7 +35,7 @@ from notes_app.models import (
 from notes_app import services
 
 
-DEMO_PASSWORD = "Demo1234!"
+DEMO_PASSWORD = "demo1234"
 DEMO_USERNAME_PREFIX = "demo_"
 DEMO_GROUP_PREFIX = "demo_"
 
