@@ -45,3 +45,21 @@
 ## Далі
 
 Далі: [Async and realtime](../09_async_and_realtime/README.md).
+
+<!-- restored-full-chapters:start -->
+
+## Повні відновлені глави
+
+Цей блок веде до повних навчальних матеріалів, перенесених з `archive/` без скорочення змісту.
+
+- [CI/CD та GitHub Actions: автоматичне тестування Django-проєкту](ci_cd_full.md)
+- [Тестування Django-застосунку: повний довідник](django_testing_full.md)
+- [Mock та patch: як підміняти email, API і payment у тестах](mocking_and_patching_full.md)
+- [pytest: короткі тести, fixtures і pytest-django](pytest_basics_full.md)
+- [Selenium WebDriver: автоматизація браузера від першого скрипту до Django E2E](selenium_full.md)
+- [Тестові дані та fixtures: як готувати стан для тестів](test_data_and_fixtures_full.md)
+- [Основи тестування: повний навчальний посібник](testing_foundations_full.md)
+- [Практичний проєкт: тестуємо notes_chat_app від model до Selenium](testing_practice_project_full.md)
+- [unittest: перші тести стандартними засобами Python](unittest_basics_full.md)
+
+<!-- restored-full-chapters:end -->

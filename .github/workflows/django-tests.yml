@@ -30,34 +30,38 @@ on:
 # ── Jobs ──────────────────────────────────────────────────────────────────────
 jobs:
 
-  # ── Job 1: Unit + Integration + WebSocket Consumer тести (~30 секунд) ─────────
-  #
-  # Що тестується:
-  #   test_models    — ORM моделі, валідатори, defaults
-  #   test_services  — бізнес-логіка (create/update/delete)
-  #   test_forms     — валідація форм, security filtering
-  #   test_views     — HTTP views, access control, redirect ланцюги
-  #   test_consumers — WebSocket Consumer (WebsocketCommunicator, без браузера)
-  #
-  # Сервіси не потрібні:
-  #   БД     → SQLite (DATABASE_URL не встановлено → settings.py бере SQLite)
-  #   Channels → InMemoryChannelLayer (REDIS_URL не встановлено → settings.py бере InMemory)
+  # ── Job 1: Unit + Integration + WebSocket Consumer тести ──────────────────────
   unit-and-integration:
     name: Unit, Integration & Consumer Tests
     runs-on: ubuntu-latest
 
+    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: notes_db
+          POSTGRES_USER: notes_user
+          POSTGRES_PASSWORD: notes_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://notes_user:notes_pass@localhost:5432/notes_db
+
     steps:
-      # 1. Завантажити репозиторій
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Встановити Python 3.12
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      # 3. Кешувати pip залежності
       - name: Cache pip dependencies
         uses: actions/cache@v4
         with:
@@ -66,15 +70,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      # 4. Встановити залежності
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # 5. Перевірити конфігурацію Django
       - name: Django system check
         run: python manage.py check
 
-      # 6. Запустити unit + integration + consumer тести
       - name: Run unit, integration and consumer tests
         run: |
           python manage.py test \
@@ -85,7 +86,6 @@ jobs:
             notes_app.tests.test_consumers \
             -v 2
 
-      # 7. Генерувати coverage report
       - name: Generate coverage report
         run: |
           coverage run manage.py test \
@@ -97,7 +97,6 @@ jobs:
           coverage report --show-missing
           coverage xml -o coverage.xml
 
-      # 8. Зберегти coverage.xml як artifact
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
@@ -105,26 +104,62 @@ jobs:
           path: coverage.xml
 
 
-  # ── Job 2: Selenium E2E тести ────────────────────────────────────────────────
+  # ── Job 2: Selenium E2E тести ─────────────────────────────────────────────────
   #
-  # Що тестується:
-  #   test_selenium — реальний браузер: login flow, note workflow, chat page,
-  #                   WebSocket chat (ChannelsLiveServerTestCase → Daphne ASGI)
+  # Selenium через selenium/standalone-chrome контейнер (як у docker-compose.yml).
   #
-  # ЧОМУ БЕЗ service container для Selenium:
-  #   selenium/standalone-chrome бачить свій власний localhost, а не runner.
-  #   Рішення: використовуємо Chrome що вже є на ubuntu-latest.
-  #   SELENIUM_REMOTE_URL не встановлено → _make_headless_driver() бере
-  #   локальний headless Chrome; Selenium Manager завантажує потрібний chromedriver.
+  # Мережева схема:
+  #   runner (Django test server на 0.0.0.0:PORT)
+  #   ↕  через host.docker.internal (bridge gateway)
+  #   selenium container → SELENIUM_REMOTE_URL = http://localhost:4444/wd/hub
   #
-  # ChannelsLiveServerTestCase (SeleniumWebSocketChatTest):
-  #   Запускає реальний Daphne ASGI сервер у окремому потоці.
-  #   Потребує file-based test DB (не :memory:) — вже налаштовано в settings.py
-  #   TEST.NAME = BASE_DIR / "test_db.sqlite3".
+  # --add-host=host.docker.internal:host-gateway:
+  #   Додає запис у /etc/hosts selenium-контейнера.
+  #   host.docker.internal → IP Docker gateway (= IP runner-машини).
+  #   Chrome всередині контейнера відкриває http://host.docker.internal:PORT
+  #   і бачить Django test server, що слухає на 0.0.0.0.
+  #
+  # WEB_HOST=host.docker.internal:
+  #   _DockerLiveServerMixin в test_selenium.py бачить WEB_HOST і:
+  #   1. Прив'язує Django test server до 0.0.0.0 (не тільки 127.0.0.1)
+  #   2. Замінює 0.0.0.0 на host.docker.internal у live_server_url
+  #   Тож Selenium отримує URL http://host.docker.internal:PORT — досяжний із контейнера.
   selenium-e2e:
     name: Selenium E2E Tests
     runs-on: ubuntu-latest
     needs: unit-and-integration
+
+    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: notes_db
+          POSTGRES_USER: notes_user
+          POSTGRES_PASSWORD: notes_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      selenium:
+        image: selenium/standalone-chrome:latest
+        ports:
+          - 4444:4444
+        options: >-
+          --add-host=host.docker.internal:host-gateway
+          --shm-size=2gb
+          --health-cmd "curl -f http://localhost:4444/wd/hub/status"
+          --health-interval 5s
+          --health-timeout 10s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://notes_user:notes_pass@localhost:5432/notes_db
+      SELENIUM_REMOTE_URL: http://localhost:4444/wd/hub
+      WEB_HOST: host.docker.internal
 
     steps:
       - name: Checkout repository
@@ -146,7 +181,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # Без SELENIUM_REMOTE_URL → _make_headless_driver() → локальний headless Chrome
-      # Chrome вже встановлений на ubuntu-latest; Selenium Manager скачає chromedriver
+      # SELENIUM_REMOTE_URL → _make_headless_driver() → Remote WebDriver → selenium контейнер
+      # WEB_HOST=host.docker.internal → Django test server bind 0.0.0.0, URL = host.docker.internal
       - name: Run Selenium E2E tests
         run: python manage.py test notes_app.tests.test_selenium -v 2

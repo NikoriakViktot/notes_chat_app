@@ -45,3 +45,21 @@
 ## Далі
 
 Далі: [Testing and quality](../08_testing_and_quality/README.md).
+
+<!-- restored-full-chapters:start -->
+
+## Повні відновлені глави
+
+Цей блок веде до повних навчальних матеріалів, перенесених з `archive/` без скорочення змісту.
+
+- [Автентифікація vs Авторизація — Основи](auth_basics_full.md)
+- [Архітектура безпеки Django](django_security_architecture_full.md)
+- [OWASP Top 10 — 10 Найнебезпечніших Вразливостей](owasp_top_10_full.md)
+- [Дозволи та Групи — Permissions & Groups](permissions_full.md)
+- [Основи Безпеки Вебзастосунків — Security Foundations](security_foundations_full.md)
+- [Типові помилки безпеки — Security Misconceptions](security_misconceptions_full.md)
+- [Сесії, Login/Logout та Власність даних](sessions_flow_full.md)
+- [SIEM — Системи Управління Подіями Безпеки](siem_full.md)
+- [Zero Trust Architecture — Архітектура Нульової Довіри](zero_trust_full.md)
+
+<!-- restored-full-chapters:end -->

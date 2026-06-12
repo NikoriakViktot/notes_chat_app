@@ -45,3 +45,21 @@
 ## Далі
 
 Далі: [Linux and DevOps](../10_linux_and_devops/README.md).
+
+<!-- restored-full-chapters:start -->
+
+## Повні відновлені глави
+
+Цей блок веде до повних навчальних матеріалів, перенесених з `archive/` без скорочення змісту.
+
+- [01 — Синхронне та асинхронне виконання](async_01_sync_vs_async_full.md)
+- [02 — Python asyncio: як виконується async-код](async_02_asyncio_full.md)
+- [03 — WSGI та ASGI: як Django отримав async-підтримку](async_03_asgi_full.md)
+- [04 — Django Async Views: як писати та коли використовувати](async_04_django_async_views_full.md)
+- [05 — Async ORM: чому async view не робить БД асинхронною](async_05_async_orm_full.md)
+- [06 — sync_to_async: міст між sync і async кодом](async_06_sync_to_async_full.md)
+- [07 — Async HTTP Clients: правильні зовнішні запити](async_07_async_http_clients_full.md)
+- [08 — Benchmarking: як об'єктивно порівняти sync і async Django](async_08_benchmarking_full.md)
+- [09 — Real-World Use Cases: коли async Django справді потрібен](async_09_async_use_cases_full.md)
+
+<!-- restored-full-chapters:end -->

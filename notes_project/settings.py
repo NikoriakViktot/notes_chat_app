@@ -115,40 +115,24 @@ MESSAGE_TAGS = {
 }
 
 _DATABASE_URL = os.environ.get("DATABASE_URL")
+if not _DATABASE_URL:
+    raise Exception("DATABASE_URL не встановлено. Запускай через docker compose.")
 
-if _DATABASE_URL:
-    # Docker: PostgreSQL (задається через DATABASE_URL у docker-compose.yml)
-    _m = re.match(r"postgres://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)", _DATABASE_URL)
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": _m.group(5),
-            "USER": _m.group(1),
-            "PASSWORD": _m.group(2),
-            "HOST": _m.group(3),
-            "PORT": _m.group(4),
-            # CONN_MAX_AGE = 0: вимикаємо persistent DB connections.
-            # В async-режимі одне з'єднання може бути використане одночасно
-            # кількома coroutines, що призводить до race conditions.
-            "CONN_MAX_AGE": 0,
-        }
+_m = re.match(r"postgres://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)", _DATABASE_URL)
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": _m.group(5),
+        "USER": _m.group(1),
+        "PASSWORD": _m.group(2),
+        "HOST": _m.group(3),
+        "PORT": _m.group(4),
+        # CONN_MAX_AGE = 0: вимикаємо persistent DB connections.
+        # В async-режимі одне з'єднання може бути використане одночасно
+        # кількома coroutines, що призводить до race conditions.
+        "CONN_MAX_AGE": 0,
     }
-else:
-    # Локально (без Docker): SQLite для швидкого старту
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-            "CONN_MAX_AGE": 0,
-            # TEST: файлова БД замість in-memory (:memory:).
-            # ChannelLiveServerTestCase запускає реальний Daphne в окремому потоці.
-            # In-memory SQLite недоступна між потоками → ImproperlyConfigured.
-            # Файлова тестова БД автоматично видаляється після тестів Django.
-            "TEST": {
-                "NAME": BASE_DIR / "test_db.sqlite3",
-            },
-        }
-    }
+}
 
 # ── Channel Layers (Django Channels pub/sub) ──────────────────────────────────
 #

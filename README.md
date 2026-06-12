@@ -102,13 +102,44 @@ flowchart TD
 
 ## Документація
 
-- [Головна карта документації](docs/README.md)
-- [Learning path](docs/LEARNING_PATH.md)
-- [Архітектура](docs/ARCHITECTURE.md)
-- [Фінальний проєкт](docs/12_final_project/README.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [Glossary](docs/GLOSSARY.md)
-- [Teaching guide](docs/TEACHING_GUIDE.md)
+Документація побудована на [MkDocs + Material](https://squidfunk.github.io/mkdocs-material/).
+
+**Онлайн:** https://nikoriakviktor.github.io/notes_chat_app/
+
+### Локальний перегляд
+
+```bash
+source .venv/bin/activate
+pip install -r requirements-docs.txt
+mkdocs serve
+```
+
+Відкрий у браузері: **http://localhost:8000**
+
+`mkdocs serve` автоматично перезавантажує при зміні будь-якого `.md` файлу.
+
+### Публікація на GitHub Pages
+
+```bash
+git add mkdocs.yml requirements-docs.txt docs/ .github/workflows/docs.yml
+git commit -m "docs: update documentation"
+git push
+```
+
+GitHub Actions автоматично збудує сайт і задеплоїть у гілку `gh-pages`.
+Статус: https://github.com/NikoriakViktot/notes_chat_app/actions
+
+> **Перший деплой:** зайди в **Settings → Pages**, вибери Source = `gh-pages` / `/ (root)`, натисни Save.
+
+### Структура документації
+
+| Розділ | Опис |
+|--------|------|
+| [Книга](docs/00_getting_started/README.md) | 12 модулів: Web → Django → DB → Forms → Frontend → Architecture → Auth → Testing → Async → Linux → Deploy |
+| [Notes Chat App](docs/12_final_project/README.md) | Архітектура, моделі, тести, деплоймент фінального проєкту |
+| [Практика](docs/tutorials/README.md) | Туторіали та labs |
+| [Довідник](docs/reference/README.md) | Cheatsheets, глосарій, troubleshooting |
+| [Викладачу](docs/TEACHING_GUIDE.md) | Teaching guide, learning path |
 
 ## Навчальний маршрут
 

@@ -45,3 +45,22 @@
 ## Далі
 
 Далі: [Application architecture](../06_application_architecture/README.md).
+
+<!-- restored-full-chapters:start -->
+
+## Повні відновлені глави
+
+Цей блок веде до повних навчальних матеріалів, перенесених з `archive/` без скорочення змісту.
+
+- [Advanced Django Templates — Архітектура Production-рівня](advanced_templates_full.md)
+- [Bootstrap 5 — Архітектура та Компоненти](bootstrap_5_full.md)
+- [CSS — Каскадні таблиці стилів](css_basics_full.md)
+- [Основи Дизайну для Django-проєктів](design_foundations_full.md)
+- [DESIGN_README — Дизайн Django-застосунку від нуля](design_readme_full.md)
+- [Django Admin — Адміністрування](django_admin_full.md)
+- [Django Admin + Unfold — Архітектура внутрішніх інструментів](django_admin_unfold_full.md)
+- [Django Template Architecture + Bootstrap 5](django_templates_bootstrap_full.md)
+- [Шаблони Django](django_templates_full.md)
+- [HTML — Основи мови розмітки](html_basics_full.md)
+
+<!-- restored-full-chapters:end -->

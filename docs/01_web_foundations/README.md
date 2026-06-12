@@ -45,3 +45,14 @@
 ## Далі
 
 Далі: [Django core](../02_django_core/README.md).
+
+<!-- restored-full-chapters:start -->
+
+## Повні відновлені глави
+
+Цей блок веде до повних навчальних матеріалів, перенесених з `archive/` без скорочення змісту.
+
+- [Урок: Мережевий фундамент — від проводу до Python](network_foundation_full.md)
+- [Мережевий фундамент — Mermaid-схеми](network_mermaid_full.md)
+
+<!-- restored-full-chapters:end -->

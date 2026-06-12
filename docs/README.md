@@ -68,3 +68,28 @@
 ## Архів
 
 Старі плоскі docs збережено у `../archive/legacy_docs/docs_flat/`. Вони є історичними джерелами і можуть містити старі назви або шляхи.
+
+<!-- restored-full-chapters:start -->
+
+## Повна відновлена бібліотека
+
+Нижче наведено повні глави, відновлені з `archive/legacy_docs/docs_flat/` у відповідні розділи `docs/`.
+Короткі README залишаються навігацією, але не замінюють повні матеріали.
+
+| Розділ | Повних глав | Директорія |
+| --- | ---: | --- |
+| 01 Web foundations | 2 | [docs/01_web_foundations](01_web_foundations/README.md) |
+| 02 Django core | 6 | [docs/02_django_core](02_django_core/README.md) |
+| 03 Database and ORM | 8 | [docs/03_database_and_orm](03_database_and_orm/README.md) |
+| 04 Forms and validation | 2 | [docs/04_forms_and_validation](04_forms_and_validation/README.md) |
+| 05 Frontend and templates | 10 | [docs/05_frontend_and_templates](05_frontend_and_templates/README.md) |
+| 06 Application architecture | 6 | [docs/06_application_architecture](06_application_architecture/README.md) |
+| 07 Auth and security | 9 | [docs/07_auth_and_security](07_auth_and_security/README.md) |
+| 08 Testing and quality | 9 | [docs/08_testing_and_quality](08_testing_and_quality/README.md) |
+| 09 Async and realtime | 9 | [docs/09_async_and_realtime](09_async_and_realtime/README.md) |
+| 10 Linux and DevOps | 10 | [docs/10_linux_and_devops](10_linux_and_devops/README.md) |
+| 11 Deployment | 8 | [docs/11_deployment](11_deployment/README.md) |
+| Legacy course indexes | 7 | [docs/reference/legacy_indexes](reference/legacy_indexes/README.md) |
+| Legacy source notes | 2 | [docs/reference/legacy_source](reference/legacy_source/README.md) |
+
+<!-- restored-full-chapters:end -->
