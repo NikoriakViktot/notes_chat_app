@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, async_views
+from . import views
 
 app_name = "notes_app"
 
@@ -61,18 +61,4 @@ urlpatterns = [
     # Реальний WebSocket: ws://host/ws/groups/<pk>/chat/ → notes_project/routing.py
     path('groups/<int:pk>/chat/', views.group_chat, name='group_chat'),
 
-    # ── Notes ASYNC (нові async views — для порівняння зі sync) ──────────────
-    #
-    # Порівнюй синхронний і асинхронний варіант:
-    #   Sync:  http://127.0.0.1:8000/notes/           → views.note_list
-    #   Async: http://127.0.0.1:8001/async/notes/     → async_views.async_note_list
-    #
-    # Обидва мають однаковий результат — різна архітектура виконання.
-    # Async варіант дає реальну перевагу тільки під ASGI (uvicorn --port 8001).
-    #
-    path('async/notes/', async_views.async_note_list, name='async_note_list'),
-    path('async/notes/create/', async_views.async_note_create, name='async_note_create'),
-    path('async/notes/<int:pk>/', async_views.async_note_detail, name='async_note_detail'),
-    path('async/notes/<int:pk>/delete/', async_views.async_note_delete, name='async_note_delete'),
-    path('async/notes/<int:pk>/pin/', async_views.async_note_toggle_pin, name='async_note_toggle_pin'),
 ]
