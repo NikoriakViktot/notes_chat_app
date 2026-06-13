@@ -190,7 +190,20 @@ if _REDIS_URL:
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {"hosts": [_REDIS_URL]},
+            "CONFIG": {
+                "hosts": [{
+                    "address": _REDIS_URL,
+                    # socket_timeout=None: без обмеження на читання.
+                    # channels_redis викликає bzpopmin з brpop_timeout=5 сек.
+                    # Якщо socket_timeout <= 5 → client-side timeout спрацьовує
+                    # раніше за server-side → TimeoutError при idle WS з'єднаннях.
+                    "socket_timeout": None,
+                    "socket_connect_timeout": 5,
+                    # health_check_interval=30: Redis пінгує кожні 30 сек,
+                    # виявляє і відновлює обірвані з'єднання (idle WS → stale TCP).
+                    "health_check_interval": 30,
+                }],
+            },
         }
     }
 else:

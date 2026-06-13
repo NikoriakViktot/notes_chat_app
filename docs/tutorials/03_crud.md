@@ -1,143 +1,811 @@
 # Туторіал 03 — Domain Design, ORM і архітектура selectors/services
 
-**Мета:** навчитись проектувати схему даних методично, написати Django-моделі з усіма типами зв'язків і організувати бізнес-логіку у шари `selectors.py` / `services.py`.
+> Цей туторіал проводить через **повний цикл** від проектування БД до готового застосунку:
+> методологія DOMAIN→SCHEMA → типи зв'язків → Django-моделі → міграції →
+> QuerySet API → selectors/services архітектура → тонкі views.
+>
+> **Проєкт — персональний менеджер нотаток** з усіма типами зв'язків між таблицями.
 
 ---
 
-## 7-крокова методологія DOMAIN → SCHEMA
+## Зміст
 
-**Помилка №1:** починати з `class Note(models.Model)` і додавати поля «на ходу».
-30 хвилин на проектування = тижні зекономленого часу на рефакторинг.
+**Теорія** _(читати перед кодом)_
+- [01 · DOMAIN → SCHEMA — 7 кроків методологія](#01--domain--schema)
+- [02 · RELATIONSHIP TYPES — OneToOne, ForeignKey, ManyToMany](#02--relationship-types)
+- [03 · on_delete — стратегії видалення](#03--on_delete)
+- [04 · DJANGO ORM — QuerySet API](#04--django-orm)
+- [05 · N+1 ПРОБЛЕМА — select_related і prefetch_related](#05--n1-проблема)
+- [06 · transaction.atomic — атомарні операції](#06--transactionatomic)
+- [07 · APPLICATION LAYERS — selectors/services архітектура](#07--application-layers)
+
+**Покрокова реалізація**
+1. [Крок 0 — Від домену до схеми](#крок-0--від-домену-до-схеми)
+2. [Крок 1 — Проектуємо домен](#крок-1--проектуємо-домен)
+3. [Крок 2 — Сутності та зв'язки](#крок-2--сутності-та-звязки)
+4. [Крок 3 — ER-діаграма](#крок-3--er-діаграма)
+5. [Крок 4 — Django моделі](#крок-4--django-моделі)
+6. [Крок 5 — Міграції](#крок-5--міграції)
+7. [Крок 6 — QuerySet запити у shell](#крок-6--querysets-у-shell)
+8. [Крок 7 — selectors.py](#крок-7--selectorspy)
+9. [Крок 8 — services.py](#крок-8--servicespy)
+10. [Крок 9 — Тонкі views](#крок-9--тонкі-views)
+
+---
+
+## 01 · DOMAIN → SCHEMA
+
+> **"Design before code."**
+> Помилка №1 — починати з `class Note(models.Model)` і додавати поля «на ходу».
+> Через місяць — рефакторинг схеми = складна міграція яку важко відкотити в prod.
+> **30 хвилин на проектування = тижні зекономленого часу.**
+
+### 7-крокова методологія
 
 | # | Крок | Що робиш | Приклад |
 |---|------|----------|---------|
-| 1 | **ДОМЕН** | Описати словами що будуєш | «Користувач має записники. Записники містять нотатки. Нотатки мають теги і нагадування.» |
+| 1 | **ДОМЕН** | Описати словами що будуєш | «Юзер має записники. Записники містять нотатки. Нотатки мають теги і нагадування.» |
 | 2 | **СУТНОСТІ** | Знайди іменники в описі | `User`, `Notebook`, `Note`, `Tag`, `Reminder` |
-| 3 | **АТРИБУТИ** | Що ми знаємо про кожну сутність? | `Note` → `title`, `content`, `priority`, `is_pinned` |
+| 3 | **АТРИБУТИ** | Що ми знаємо про кожну сутність? | `Note` → `title`, `content`, `priority`, `is_pinned`, `is_archived` |
 | 4 | **ЗВ'ЯЗКИ** | Як сутності пов'язані? | `1:1` User↔Profile · `1:N` Notebook→Notes · `M:N` Note↔Tag |
 | 5 | **НОРМАЛІЗАЦІЯ** | Прибери дублювання | `author_name` у Note? — Ні, лише FK на User |
 | 6 | **on_delete** | Що при видаленні батька? | CASCADE / SET_NULL / PROTECT |
 | 7 | **DJANGO МОДЕЛЬ** | Тільки тепер пишемо `models.py` | ← Типова помилка: починати звідси |
 
+### Де живе "правда"
+
+**Нормалізація — кожен факт зберігається рівно в одному місці.**
+
+```
+❌ ДЕНОРМАЛІЗОВАНА СХЕМА (дублювання):
+NOTE таблиця:
+  author_name VARCHAR(150)  ← дублювання імені юзера!
+  author_email VARCHAR(254) ← і email теж!
+
+Проблема:
+  1. Юзер змінює ім'я → треба UPDATE всіх його нотаток
+  2. Розбіжність: note.author_name ≠ user.username → DATA INCONSISTENCY
+  3. Видалення юзера → orphan записи без автора
+
+✅ НОРМАЛІЗОВАНА СХЕМА:
+NOTE таблиця:
+  user_id BIGINT FK → auth_user  ← один факт: ця нотатка належить юзеру з id
+
+Ім'я юзера? → note.user.username (JOIN)
+Email юзера? → note.user.email (JOIN)
+Одне місце правди → ніякої розбіжності
+```
+
 ---
 
-## Типи зв'язків між таблицями
+## 02 · Relationship Types
 
 ### 1:1 — OneToOneField
 
 ```
-USER ──────────► USER_PROFILE
-  id PK              user_id UNIQUE FK
+USER ──────────────► USER_PROFILE
+  id PK                 user_id UNIQUE FK
 ```
 
 ```python
 class UserProfile(models.Model):
     user = models.OneToOneField(
-        User, on_delete=models.CASCADE,
+        User,
+        on_delete=models.CASCADE,
         related_name='profile',
     )
-    display_name = models.CharField(max_length=60)
-    timezone = models.CharField(max_length=40, default='UTC')
+    display_name = models.CharField(max_length=60, blank=True)
+    timezone     = models.CharField(max_length=40, default='UTC')
+    avatar_url   = models.URLField(blank=True)
 
-# Використання:
-user.profile.display_name    # реверс — атрибут, не QuerySet
+    def __str__(self):
+        return f'Profile({self.user.username})'
 ```
 
-**Коли:** "вертикальне партиціонування" — 5 базових полів у User, 20 опціональних у Profile.
+**SQL що генерує Django:**
+```sql
+CREATE TABLE "hello_app_userprofile" (
+    "id"           bigint NOT NULL PRIMARY KEY GENERATED BY DEFAULT AS IDENTITY,
+    "user_id"      bigint NOT NULL UNIQUE REFERENCES "auth_user" ("id") ON DELETE CASCADE,
+    "display_name" varchar(60) NOT NULL DEFAULT '',
+    "timezone"     varchar(40) NOT NULL DEFAULT 'UTC',
+    "avatar_url"   varchar(200) NOT NULL DEFAULT ''
+);
+```
+
+**Реверс — доступ з User:**
+```python
+user = User.objects.get(username='alice')
+user.profile              # → UserProfile (не QuerySet! UNIQUE FK → один об'єкт)
+user.profile.timezone     # → 'Europe/Kyiv'
+```
+
+**Коли використовувати 1:1?**
+- "Вертикальне партиціонування": 5 базових полів у User, 20 опціональних у Profile
+- Різний доступ: User змінюється часто, Profile рідко → окремий QuerySet
+- Різні права: `view_user` без `view_userprofile`
 
 ---
 
 ### 1:N — ForeignKey
 
 ```
-NOTEBOOK ──────► NOTE ◄── FK тут, на "Many" стороні
-  id PK              notebook_id FK
+NOTEBOOK ────────── NOTE
+  id PK              id PK
+  user_id FK         notebook_id NULL FK ← FK живе на "Many" стороні
+  title              title
+                     content
 ```
 
 ```python
 class Note(models.Model):
     notebook = models.ForeignKey(
-        'Notebook', on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='notes',
+        'Notebook',                  # ← рядок уникає кругових імпортів
+        on_delete=models.SET_NULL,   # Видалення записника → NULL (не CASCADE!)
+        null=True,                   # NULL обов'язковий при SET_NULL
+        blank=True,                  # Форма: поле необов'язкове
+        related_name='notes',        # notebook.notes.all() → QuerySet нотаток
     )
-
-# Використання:
-notebook.notes.all()      # реверс → QuerySet
-note.notebook.title       # пряме → атрибут
 ```
 
-**Правило:** FK живе **на "Many"-стороні**. `Notebook` не зберігає список нотаток — `Note` зберігає `notebook_id`.
+**КЛЮЧОВЕ ПРАВИЛО:** FK живе на «Many»-стороні.
+
+```
+ПОМИЛКА думати так:          ПРАВИЛЬНО думати так:
+Notebook має список notes    Note belongs to Notebook
+→ Notebook.notes = [...]    → Note.notebook_id = FK
+→ JOIN відбуватиметься       → Notebook.notes.all() = реверс
+
+Notebook НЕ зберігає список Note IDs!
+Це б порушило нормальну форму і ускладнило JOIN.
+```
+
+**Реверс — доступ з «One» сторони:**
+```python
+notebook = Notebook.objects.get(id=1)
+notebook.notes.all()                    # ← related_name='notes' → QuerySet
+notebook.notes.filter(is_pinned=True)   # Фільтруємо
+notebook.notes.count()                  # Кількість
+
+note = Note.objects.get(id=1)
+note.notebook                           # ← FK attr → Notebook об'єкт (або None)
+note.notebook_id                        # ← raw integer FK без JOIN
+note.notebook.title                     # ← JOIN: SELECT ... WHERE notebook_id=...
+```
 
 ---
 
 ### M:N — ManyToManyField
 
 ```
-NOTE ──► NOTE_TAGS (junction) ◄── TAG
- id PK     note_id FK                id PK
-           tag_id FK
+NOTE ────── NOTE_TAGS (junction) ────── TAG
+  id PK       note_id FK                 id PK
+  title       tag_id FK                  name
+              UNIQUE(note_id, tag_id)
 ```
 
 ```python
 class Note(models.Model):
-    tags = models.ManyToManyField('Tag', blank=True)
+    tags = models.ManyToManyField(
+        'Tag',
+        blank=True,              # Нотатка може бути без тегів
+        related_name='notes',    # tag.notes.all() → нотатки з цим тегом
+    )
+    # Django автоматично створює junction таблицю: hello_app_note_tags
+    # Не потрібно описувати NoteTag модель вручну
+```
 
-# Django сам створює junction: hello_app_note_tags(note_id, tag_id)
-note.tags.add(tag_py, tag_dj)    # INSERT × 2 у junction
-note.tags.all()                  # SELECT * JOIN
-tag_py.note_set.all()            # реверс
+**Операції з M:N:**
+```python
+note = Note.objects.get(id=1)
+tag_py = Tag.objects.get(name='python')
+tag_dj = Tag.objects.get(name='django')
+
+# Додати теги
+note.tags.add(tag_py, tag_dj)     # INSERT INTO note_tags (note_id, tag_id)
+
+# Повний список
+note.tags.all()                    # SELECT * FROM tags JOIN note_tags ...
+
+# Видалити конкретний тег
+note.tags.remove(tag_py)           # DELETE FROM note_tags WHERE ...
+
+# Замінити всі теги
+note.tags.set([tag_dj])           # DELETE старих + INSERT нових
+
+# Очистити всі
+note.tags.clear()                  # DELETE FROM note_tags WHERE note_id=...
+
+# Реверс — нотатки з тегом:
+tag_py.notes.all()                 # SELECT * FROM notes JOIN note_tags WHERE tag_id=...
 ```
 
 ---
 
-### on_delete — стратегії
+## 03 · on_delete
 
-| Стратегія | Що робить | Коли вибирати |
-|-----------|-----------|---------------|
-| `CASCADE` | Видалити дочірні автоматично | `Reminder` після видалення `Note` — нагадування без нотатки безглузде |
-| `SET_NULL` | FK → NULL, дочірні залишаються | `Note.notebook` — нотатка існує без записника (`null=True` обов'язково) |
-| `PROTECT` | `ProtectedError`, видалення заборонено | Заборонити видалення тегу поки він використовується |
-| `RESTRICT` | Заборонити (але дозволити каскад з вищого рівня) | Складні ієрархії |
-| `DO_NOTHING` | Залишити orphan-запис | Майже ніколи — тільки при ручному управлінні |
+> Що робить Django коли видаляється "батьківський" запис?
+> Це **бізнес-рішення**, а не технічне. Думай про дані юзера!
 
-> ⚠️ **Помилка:** CASCADE для всього → одне видалення User може стерти сотні рядків. Завжди свідомо вибирай стратегію — це бізнес-рішення.
+```python
+# CASCADE — видалити дочірні записи разом з батьком
+class Reminder(models.Model):
+    note = models.ForeignKey(Note, on_delete=models.CASCADE, related_name='reminders')
+    # Видалення Note → видаляються всі Reminder цієї Note
+    # Логіка: Reminder без Note безглузде → CASCADE правильний вибір
+
+# SET_NULL — FK стає NULL, дочірній запис залишається
+class Note(models.Model):
+    notebook = models.ForeignKey(
+        Notebook, on_delete=models.SET_NULL,
+        null=True, blank=True,  # ← null=True ОБОВ'ЯЗКОВИЙ при SET_NULL
+    )
+    # Видалення Notebook → Note.notebook = NULL
+    # Логіка: нотатка має бути збережена! Тільки записник видаляється.
+
+# PROTECT — забороняє видалення якщо є дочірні записи
+class Note(models.Model):
+    tag = models.ForeignKey(Tag, on_delete=models.PROTECT)
+    # Видалення Tag → ProtectedError (виняток)
+    # Логіка: не дай видалити тег поки він використовується
+
+# RESTRICT — схоже на PROTECT але дозволяє каскад з вищого рівня
+# Складні ієрархії, рідко використовується
+
+# SET_DEFAULT — FK стає default значенням
+class Note(models.Model):
+    notebook = models.ForeignKey(
+        Notebook, on_delete=models.SET_DEFAULT,
+        default=1,  # ← pk дефолтного записника
+    )
+
+# DO_NOTHING — залишає orphan запис (FK вказує на неіснуючий id)
+# УНИКАЙ: призводить до IntegrityError або брудних даних
+```
+
+### Матриця вибору on_delete
+
+| Якщо видалити... | Що хочемо з дочірніми? | on_delete |
+|------------------|------------------------|-----------|
+| Note | Видалити Reminder (не мають сенсу без Note) | CASCADE |
+| Notebook | Зберегти Note (нотатка важливіша за записник) | SET_NULL |
+| User | Видалити всі Note (контент belongs to user) | CASCADE |
+| Tag | Заборонити видалення (тег використовується) | PROTECT |
 
 ---
 
-## Django-моделі
+## 04 · Django ORM
+
+> ORM (Object-Relational Mapping) — пишеш Python, Django генерує SQL.
+
+### QuerySet — ліниві об'єкти
 
 ```python
-# hello_app/models.py
-from django.db import models
+# QuerySet LAZY: SQL не виконується поки не потрібні дані
+qs = Note.objects.filter(user=alice)   # ← НІЧОГО не відбулось у БД!
+qs = qs.filter(is_pinned=True)         # ← Тільки уточнення запиту
+qs = qs.order_by('-priority')          # ← Все ще нічого у БД
+
+# SQL ВИКОНУЄТЬСЯ тут — коли ітеруємо, рахуємо, конвертуємо:
+notes = list(qs)           # ← SELECT NOW!
+count = qs.count()         # ← SELECT COUNT(*)
+first = qs.first()         # ← SELECT ... LIMIT 1
+exists = qs.exists()       # ← SELECT 1 ... LIMIT 1 (дуже швидко)
+for note in qs: ...        # ← SELECT і ітерація
+note = qs.get(pk=1)        # ← SELECT WHERE pk=1
+
+# ПЕРЕВАГА LAZY:
+# Можна передати QuerySet у шаблон → SQL виконається тільки при рендерингу
+# Можна chain фільтри: qs.filter(A).filter(B) = одне SELECT з двома WHERE
+```
+
+### Фільтрація — lookups
+
+```python
+# Точна рівність:
+Note.objects.filter(priority=3)
+# SQL: WHERE priority = 3
+
+# Порівняння:
+Note.objects.filter(priority__gt=1)    # greater than → > 1
+Note.objects.filter(priority__gte=2)   # greater or equal → >= 2
+Note.objects.filter(priority__lt=3)    # less than → < 3
+Note.objects.filter(priority__lte=2)   # less or equal → <= 2
+
+# Рядки:
+Note.objects.filter(title__exact='Test')          # = 'Test' (case-sensitive)
+Note.objects.filter(title__iexact='test')          # = 'test' (case-insensitive)
+Note.objects.filter(title__contains='Django')      # LIKE '%Django%'
+Note.objects.filter(title__icontains='django')     # ILIKE '%django%'
+Note.objects.filter(title__startswith='Hello')     # LIKE 'Hello%'
+Note.objects.filter(title__endswith='.md')         # LIKE '%.md'
+
+# NULL:
+Note.objects.filter(notebook__isnull=True)         # IS NULL
+Note.objects.filter(notebook__isnull=False)        # IS NOT NULL
+
+# Списки:
+Note.objects.filter(priority__in=[1, 2])           # IN (1, 2)
+Note.objects.exclude(priority__in=[3, 4])          # NOT IN (3, 4)
+
+# Дати:
+Note.objects.filter(created_at__year=2026)
+Note.objects.filter(created_at__date=date(2026, 6, 13))
+Note.objects.filter(created_at__gte=datetime(2026, 1, 1))
+
+# FK:
+Note.objects.filter(notebook=my_notebook)          # WHERE notebook_id = X
+Note.objects.filter(notebook__title='Work')        # JOIN: WHERE notebook.title = 'Work'
+Note.objects.filter(notebook__user=request.user)   # 2 JOIN рівні
+
+# M:N:
+Note.objects.filter(tags=tag_python)               # нотатки з тегом python
+Note.objects.filter(tags__name='python')           # JOIN на Tag
+Note.objects.filter(tags__name__icontains='py')    # JOIN + LIKE
+```
+
+### Q об'єкти — складні умови
+
+```python
+from django.db.models import Q
+
+# OR умова:
+Note.objects.filter(Q(title__icontains='django') | Q(content__icontains='django'))
+# SQL: WHERE (title ILIKE '%django%' OR content ILIKE '%django%')
+
+# AND (за замовчуванням кілька filter = AND):
+Note.objects.filter(Q(is_pinned=True) & Q(priority=3))
+# SQL: WHERE is_pinned = TRUE AND priority = 3
+
+# NOT:
+Note.objects.filter(~Q(is_archived=True))
+# SQL: WHERE NOT is_archived = TRUE  (= WHERE is_archived = FALSE)
+
+# Комбінування:
+Note.objects.filter(
+    Q(user=alice) | Q(group__in=alice_groups)
+).filter(
+    is_archived=False
+)
+# SQL: WHERE (user_id = 1 OR group_id IN (...)) AND is_archived = FALSE
+```
+
+### Анотації і агрегати
+
+```python
+from django.db.models import Count, Avg, Max, Min, Sum, F
+
+# Count — кількість пов'язаних об'єктів
+Notebook.objects.annotate(note_count=Count('notes'))
+# SQL: SELECT *, COUNT(notes.id) AS note_count FROM notebooks LEFT JOIN notes ...
+# notebook.note_count доступний на кожному об'єкті
+
+# Фільтрований Count
+Notebook.objects.annotate(
+    active_count=Count('notes', filter=Q(notes__is_archived=False))
+)
+
+# Aggregate — одне значення на весь QuerySet
+Note.objects.aggregate(avg_priority=Avg('priority'))
+# → {'avg_priority': 1.8}
+
+Note.objects.filter(user=alice).aggregate(
+    total=Count('id'),
+    pinned=Count('id', filter=Q(is_pinned=True)),
+    max_priority=Max('priority'),
+)
+# → {'total': 42, 'pinned': 5, 'max_priority': 3}
+
+# F об'єкти — посилання на поле у SQL (без завантаження в Python)
+Note.objects.filter(views_count__gt=F('priority') * 100)
+# SQL: WHERE views_count > priority * 100
+# Без F: треба завантажити всі об'єкти в Python і фільтрувати в циклі!
+
+# update з F():
+Note.objects.all().update(views_count=F('views_count') + 1)
+# SQL: UPDATE ... SET views_count = views_count + 1
+# Атомарна операція! Без race condition.
+```
+
+### values() і values_list()
+
+```python
+# Повертає словники замість об'єктів (швидше при великих QuerySets)
+Note.objects.values('title', 'priority')
+# → [{'title': 'Test', 'priority': 1}, ...]
+
+# Повертає кортежі (ще швидше)
+Note.objects.values_list('title', 'priority')
+# → [('Test', 1), ('Django', 2), ...]
+
+# flat=True: одна колонка → плоский список
+Note.objects.values_list('id', flat=True)
+# → [1, 2, 3, 4, ...]
+
+# Зберегти всі id у список:
+note_ids = list(Note.objects.filter(user=alice).values_list('id', flat=True))
+```
+
+### order_by, distinct, only, defer
+
+```python
+# Сортування:
+Note.objects.order_by('priority')           # ASC
+Note.objects.order_by('-priority')          # DESC
+Note.objects.order_by('-is_pinned', '-priority', '-updated_at')  # Множинне
+
+# Прибрати дублікати (при JOIN):
+Note.objects.filter(tags__name='python').distinct()
+
+# Завантажити тільки певні поля (оптимізація):
+Note.objects.only('id', 'title', 'priority')   # Інші поля → dodatkovy SELECT при доступі
+Note.objects.defer('content')                   # Всі поля КРІМ content
+
+# Обмеження (LIMIT / OFFSET):
+Note.objects.all()[:10]                        # LIMIT 10
+Note.objects.all()[10:20]                      # LIMIT 10 OFFSET 10
+Note.objects.all()[0]                          # LIMIT 1 (= .first() але не None)
+```
+
+---
+
+## 05 · N+1 Проблема
+
+> Найпоширеніший перформанс-баг у Django — Django робить 1 + N SQL запитів замість 1.
+
+### Що таке N+1
+
+```python
+# 50 нотаток у базі. Кожна має ForeignKey на Notebook.
+notes = Note.objects.all()          # Query 1: SELECT * FROM notes  ← 50 рядків
+
+for note in notes:
+    print(note.notebook.title)       # Query 2, 3, 4, ..., 51!
+    # Кожен note.notebook.title → ОКРЕМИЙ SELECT FROM notebooks WHERE id=...
+    # 50 нотаток → 50 додаткових запитів → 51 TOTAL!
+```
+
+### Вирішення: select_related (ForeignKey / OneToOne)
+
+```python
+# select_related: Django робить JOIN → 1 запит замість 51
+notes = Note.objects.select_related('notebook').all()
+# SQL: SELECT notes.*, notebooks.* FROM notes LEFT JOIN notebooks ON notebook_id=notebooks.id
+
+for note in notes:
+    print(note.notebook.title)   # ← дані вже у пам'яті, жодного SQL!
+```
+
+### Вирішення: prefetch_related (ManyToMany / reverse FK)
+
+```python
+# prefetch_related: 2 запити замість 1 + N
+notes = Note.objects.prefetch_related('tags').all()
+# SQL query 1: SELECT * FROM notes
+# SQL query 2: SELECT tags.* FROM tags JOIN note_tags WHERE note_id IN (1,2,3,...)
+# Django сам склеює результати у пам'яті
+
+for note in notes:
+    for tag in note.tags.all():   # ← з кешу, жодного SQL!
+        print(tag.name)
+```
+
+### Комбінування
+
+```python
+# Реальний приклад: note_list view
+def get_user_notes(user, *, archived=False):
+    return Note.objects.filter(
+        user=user,
+        is_archived=archived,
+    ).select_related(
+        'notebook',   # FK → JOIN (1 запит)
+        'user',       # FK → JOIN (вже є, але явно)
+    ).prefetch_related(
+        'tags',       # M:N → 2 запити total
+    ).order_by('-is_pinned', '-priority', '-updated_at')
+
+# TOTAL: 2 SQL запити для будь-якої кількості нотаток ✓
+# БЕЗ оптимізації: 1 + N + N SQL (для N нотаток)
+```
+
+### Як виявити N+1: Django Debug Toolbar
+
+```bash
+pip install django-debug-toolbar
+```
+
+```python
+# settings.py:
+INSTALLED_APPS = ['debug_toolbar', ...]
+MIDDLEWARE = ['debug_toolbar.middleware.DebugToolbarMiddleware', ...MIDDLEWARE]
+INTERNAL_IPS = ['127.0.0.1']
+
+# urls.py:
+if settings.DEBUG:
+    import debug_toolbar
+    urlpatterns = [path('__debug__/', include(debug_toolbar.urls))] + urlpatterns
+```
+
+У браузері → бокова панель показує всі SQL запити з підсвіченням дублікатів.
+
+---
+
+## 06 · transaction.atomic
+
+> Атомарна операція: або ВСІ зміни зберігаються, або ЖОДНОЇ.
+
+### Проблема без atomic
+
+```python
+def create_note(user, title, tag_ids):
+    note = Note.objects.create(user=user, title=title)
+    # ← INSERT INTO note → id=42
+
+    # ПОМИЛКА ТУТ (наприклад, tag не існує):
+    tags = Tag.objects.filter(id__in=tag_ids, user=user)
+    note.tags.set(tags)   # ← Виняток через неправильний tag_id!
+
+    # СТАН БАЗИ:
+    # Note з id=42 існує (INSERT вже відбувся)
+    # Але теги не прикріплені
+    # НЕКОНСИСТЕНТНИЙ СТАН! "Сирота" без тегів
+```
+
+### Рішення — transaction.atomic
+
+```python
+from django.db import transaction
+
+def create_note(user, title, tag_ids):
+    with transaction.atomic():
+        note = Note.objects.create(user=user, title=title)
+        # ← Поки в atomic блоці → BEGIN TRANSACTION
+
+        tags = Tag.objects.filter(id__in=tag_ids, user=user)
+        note.tags.set(tags)
+        # ← Якщо виняток → ROLLBACK весь блок
+        # Note НЕ збережений у БД!
+
+    # ← Якщо все ОК → COMMIT
+    return note
+```
+
+### Вкладені atomic блоки — savepoints
+
+```python
+def complex_operation():
+    with transaction.atomic():      # ← BEGIN
+        do_operation_1()            # ← INSERT ...
+
+        with transaction.atomic():  # ← SAVEPOINT sp_1
+            do_operation_2()        # ← INSERT ...
+            # Якщо виняток тут → ROLLBACK TO sp_1
+            # operation_1 залишається!
+
+        do_operation_3()            # ← INSERT ...
+    # ← COMMIT (якщо все ОК)
+```
+
+### @transaction.atomic як декоратор
+
+```python
+@transaction.atomic
+def create_notebook(user, title, is_default=False):
+    """
+    Бізнес-правило: у юзера тільки ОДИН default записник.
+    Ці два запити мають бути атомарними:
+    1. Скинути попередній default
+    2. Встановити новий
+    """
+    if is_default:
+        Notebook.objects.filter(user=user, is_default=True).update(is_default=False)
+        # ← Якщо тут виняток → не буде ситуації "жоден default"
+    return Notebook.objects.create(user=user, title=title, is_default=is_default)
+    # ← Обидві операції або обидві відкатяться
+```
+
+---
+
+## 07 · Application Layers
+
+> Розподіл відповідальності між шарами — ключова архітектурна практика.
+
+### Проблема: "Товстий View"
+
+```python
+# ❌ АНТИПАТЕРН: вся логіка у view
+def note_list(request):
+    # View знає про QuerySet оптимізацію? Не його справа!
+    notes = Note.objects.filter(
+        user=request.user,
+        is_archived=False,
+    ).select_related('notebook').prefetch_related('tags')
+
+    # View знає про бізнес-правила? Не його справа!
+    if request.GET.get('q'):
+        notes = notes.filter(
+            Q(title__icontains=request.GET['q']) |
+            Q(content__icontains=request.GET['q'])
+        )
+
+    # Якщо цю логіку потрібна в API endpoint або Celery task → копіюємо?!
+    return render(request, 'note_list.html', {'notes': notes})
+```
+
+### Рішення: Тонкий View + selectors/services
+
+```
+HTTP REQUEST
+     │
+     ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  views.py                                                               │
+│  ✓ Парсить параметри request: request.GET.get('q', '')                 │
+│  ✓ Викликає selector або service                                        │
+│  ✓ render або redirect                                                  │
+│  ✗ НЕ містить QuerySet                                                  │
+│  ✗ НЕ містить бізнес-правила                                            │
+└────────────────────────────────────┬───────────────────────────────────┘
+                    READ ↓           │          WRITE ↓
+                    ▼                │          ▼
+┌───────────────────────────┐        │  ┌────────────────────────────────┐
+│  selectors.py              │        │  │  services.py                   │
+│  ✓ SELECT з фільтрами      │        │  │  ✓ CREATE / UPDATE / DELETE    │
+│  ✓ select_related          │        │  │  ✓ transaction.atomic()        │
+│  ✓ prefetch_related        │        │  │  ✓ бізнес-правила              │
+│  ✓ annotate                │        │  │  ✗ НЕ render / redirect        │
+│  ✗ НЕ INSERT/UPDATE/DELETE │        │  │  ✗ НЕ QuerySet без потреби     │
+└────────────────┬───────────┘        │  └───────────────────┬────────────┘
+                 └────────────────────┘                       │
+                                  PostgreSQL ◄─────────────────┘
+```
+
+### Матриця відповідальності
+
+| Шар | Робить | НЕ робить |
+|-----|--------|-----------|
+| `models.py` | Структура, поля, constraints, `__str__`, `Meta` | Бізнес-логіка, HTTP |
+| `selectors.py` | SELECT, filter, annotate, prefetch | INSERT / UPDATE / DELETE |
+| `services.py` | CREATE / UPDATE / DELETE, transaction | HTTP, render, redirect |
+| `views.py` | Парсити request, render, redirect | QuerySet, бізнес-логіка |
+
+**Правило перевірки:** якщо в `views.py` бачиш `Note.objects.filter(...)` → перенести у `selectors.py`.
+
+---
+
+## Крок 0 — Від домену до схеми
+
+**НЕПРАВИЛЬНО:** відразу кодувати моделі.
+
+**ПРАВИЛЬНО:** спочатку опиши словами:
+
+> "Юзер має профіль (1:1). Юзер створює записники (1:N).
+> Записники містять нотатки (1:N).
+> Нотатки мають теги (M:N) і нагадування (1:N).
+> Нотатка може бути без записника (SET_NULL)."
+
+Тепер вирізняємо **іменники = Сутності** і **дієслова = Зв'язки**.
+
+---
+
+## Крок 1 — Проектуємо домен
+
+| Що будуємо | Опис |
+|------------|------|
+| Менеджер нотаток | Юзер створює нотатки з тегами і нагадуваннями |
+| Записники | Групують нотатки (одна нотатка → один або жоден записник) |
+| Пріоритет | 1-3, впливає на сортування |
+| Закріплення | is_pinned → у топі списку |
+| Архів | is_archived → прихований від основного списку |
+
+---
+
+## Крок 2 — Сутності та зв'язки
+
+```
+User (built-in Django auth_user)
+  ↕ 1:1
+UserProfile (display_name, timezone)
+
+User
+  ↓ 1:N
+Notebook (title, color, is_default)
+
+User
+  ↓ 1:N
+Note (title, content, priority, is_pinned, is_archived)
+  ├── FK → Notebook (SET_NULL: нотатка без записника — ОК)
+  ├── M:N → Tag (через junction note_tags)
+  └── 1:N → Reminder (CASCADE: нагадування без нотатки безглузде)
+
+User
+  ↓ 1:N
+Tag (name, color, UniqueConstraint(user, name))
+```
+
+---
+
+## Крок 3 — ER-діаграма
+
+```
+auth_user                    hello_app_userprofile
+┌─────────────────────┐      ┌──────────────────────────────┐
+│ id          bigint  │──1:1►│ id           bigint PK       │
+│ username    varchar │      │ user_id      bigint UNIQUE FK│
+│ email       varchar │      │ display_name varchar(60)     │
+│ password    varchar │      │ timezone     varchar(40)     │
+│ is_staff    bool    │      └──────────────────────────────┘
+└──────┬──────────────┘
+       │ owns 1:N               owns 1:N
+       ▼                        ▼
+hello_app_notebook          hello_app_tag
+┌──────────────────┐         ┌──────────────────────────┐
+│ id     bigint PK │         │ id      bigint PK        │
+│ user_id bigint FK│         │ user_id bigint FK        │
+│ title  varchar   │         │ name    varchar(50)      │
+│ color  varchar(7)│         │ color   varchar(7)       │
+│ is_default bool  │         └─────────┬────────────────┘
+└──────┬───────────┘          UNIQUE(user_id, name)
+       │ contains 1:N                  │
+       ▼                               │ M:N via
+hello_app_note (центральна)            │ hello_app_note_tags
+┌───────────────────────────┐    ┌─────┴──────────────┐
+│ id           bigint PK    │    │ note_id  bigint FK  │
+│ user_id      bigint FK    │◄───│ tag_id   bigint FK  │
+│ notebook_id  bigint NullFK│    └────────────────────┘
+│ title        varchar(200) │    UNIQUE(note_id, tag_id)
+│ content      text         │
+│ priority     smallint     │    reminds 1:N
+│ is_pinned    bool         │────►hello_app_reminder
+│ is_archived  bool         │    ┌────────────────────┐
+│ created_at   timestamp    │    │ id         bigint  │
+│ updated_at   timestamp    │    │ note_id    bigint FK│
+└───────────────────────────┘    │ remind_at  timestamp│
+                                 │ is_sent    bool    │
+                                 └────────────────────┘
+```
+
+---
+
+## Крок 4 — Django моделі
+
+`hello_app/models.py`:
+
+```python
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db import models
 
 
 class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    user         = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     display_name = models.CharField(max_length=60, blank=True)
-    timezone = models.CharField(max_length=40, default='UTC')
+    timezone     = models.CharField(max_length=40, default='UTC')
 
     def __str__(self):
         return f'Profile({self.user.username})'
 
 
 class Tag(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tags')
-    name = models.CharField(max_length=50)
-    color = models.CharField(max_length=7, default='#808080')
+    user  = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tags')
+    name  = models.CharField(max_length=50)
+    color = models.CharField(max_length=7, default='#6c757d')  # Hex колір
 
     class Meta:
-        unique_together = ('user', 'name')
-        ordering = ['name']
+        ordering       = ['name']
+        constraints    = [
+            models.UniqueConstraint(fields=['user', 'name'], name='unique_user_tag'),
+        ]
 
     def __str__(self):
-        return self.name
+        return f'#{self.name}'
 
 
 class Notebook(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notebooks')
-    title = models.CharField(max_length=100)
-    color = models.CharField(max_length=7, default='#6c757d')
+    user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notebooks')
+    title      = models.CharField(max_length=100)
+    color      = models.CharField(max_length=7, default='#6c757d')
     is_default = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -149,84 +817,161 @@ class Notebook(models.Model):
 
 
 class Note(models.Model):
-    PRIORITY_LOW = 1
+    PRIORITY_LOW    = 1
     PRIORITY_MEDIUM = 2
-    PRIORITY_HIGH = 3
+    PRIORITY_HIGH   = 3
     PRIORITY_CHOICES = [
-        (PRIORITY_LOW, 'Низький'),
+        (PRIORITY_LOW,    'Низький'),
         (PRIORITY_MEDIUM, 'Середній'),
-        (PRIORITY_HIGH, 'Високий'),
+        (PRIORITY_HIGH,   'Високий'),
     ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notes')
+    user     = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notes')
     notebook = models.ForeignKey(
-        Notebook, on_delete=models.SET_NULL,    # SET_NULL: нотатка без записника
-        null=True, blank=True, related_name='notes'
+        Notebook, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='notes',
     )
-    tags = models.ManyToManyField(Tag, blank=True)  # M:N
+    tags = models.ManyToManyField(Tag, blank=True)
 
-    title = models.CharField(max_length=200)
-    content = models.TextField(blank=True)
-    priority = models.SmallIntegerField(choices=PRIORITY_CHOICES, default=PRIORITY_LOW)
-    is_pinned = models.BooleanField(default=False)
+    title       = models.CharField(max_length=200)
+    content     = models.TextField(blank=True)
+    priority    = models.SmallIntegerField(
+        choices=PRIORITY_CHOICES, default=PRIORITY_LOW,
+        validators=[MinValueValidator(1), MaxValueValidator(3)],
+    )
+    is_pinned   = models.BooleanField(default=False)
     is_archived = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-is_pinned', '-priority', '-updated_at']
 
     def __str__(self):
-        return self.title
+        return f'📌 {self.title}' if self.is_pinned else self.title
 
 
 class Reminder(models.Model):
-    note = models.ForeignKey(Note, on_delete=models.CASCADE, related_name='reminders')
+    note      = models.ForeignKey(Note, on_delete=models.CASCADE, related_name='reminders')
     remind_at = models.DateTimeField()
-    is_sent = models.BooleanField(default=False)
+    is_sent   = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['remind_at']
-```
 
-Після написання моделей — обов'язково два кроки:
-```bash
-python manage.py makemigrations
-python manage.py migrate
+    def __str__(self):
+        return f'Reminder({self.note.title}, {self.remind_at})'
 ```
 
 ---
 
-## Архітектура шарів: selectors/services
+## Крок 5 — Міграції
 
-```
-HTTP REQUEST
-     │
-     ▼
-┌────────────────────────────┐
-│  views.py                  │
-│  ✓ парсить request         │
-│  ✓ кличе selector/service  │
-│  ✓ render / redirect       │
-│  ✗ жодних QuerySet         │
-└────┬───────────────┬───────┘
-     │ READ →        │ WRITE →
-     ▼               ▼
-┌────────────┐  ┌───────────────────┐
-│ selectors  │  │ services          │
-│ SELECT only│  │ CREATE/UPDATE/DEL │
-└─────┬──────┘  └──────┬────────────┘
-      └────────┬────────┘
-               ▼
-          PostgreSQL
+```bash
+python manage.py makemigrations hello_app
 ```
 
-**Чому розділяти?** Один запит потрібен у View, Celery task, API endpoint, тесті. Без `selectors.py` — копіюєш QuerySet у 10 місцях.
+Переглянь що Django згенерував:
+```bash
+python manage.py sqlmigrate hello_app 0001
+```
 
-### selectors.py
+Вивід покаже реальний SQL — корисно для перевірки:
+```sql
+BEGIN;
+CREATE TABLE "hello_app_tag" (
+    "id"      bigint NOT NULL PRIMARY KEY,
+    "user_id" bigint NOT NULL REFERENCES "auth_user" ("id"),
+    "name"    varchar(50) NOT NULL,
+    "color"   varchar(7) NOT NULL
+);
+CREATE UNIQUE INDEX "unique_user_tag" ON "hello_app_tag" ("user_id", "name");
+-- ... і так для кожної таблиці
+COMMIT;
+```
+
+```bash
+python manage.py migrate
+```
+
+### Зміна моделі після першої міграції
+
+```bash
+# Додаємо нове поле:
+# views_count = models.PositiveIntegerField(default=0)
+
+python manage.py makemigrations hello_app
+# → Migrations for 'hello_app':
+#     hello_app/migrations/0002_note_views_count.py
+#       - Add field views_count to note
+
+python manage.py migrate
+# → Applying hello_app.0002_note_views_count... OK
+```
+
+---
+
+## Крок 6 — QuerySets у shell
+
+```bash
+python manage.py shell
+```
 
 ```python
-# hello_app/selectors.py
+from django.contrib.auth.models import User
+from hello_app.models import Note, Notebook, Tag, Reminder
+
+# Створюємо тестові дані
+alice = User.objects.create_user('alice', password='pass123')
+nb = Notebook.objects.create(user=alice, title='Work', is_default=True)
+
+# Теги
+tag_py = Tag.objects.create(user=alice, name='python', color='#3776AB')
+tag_dj = Tag.objects.create(user=alice, name='django', color='#092E20')
+
+# Нотатки
+note1 = Note.objects.create(
+    user=alice, notebook=nb, title='Django ORM',
+    content='Дуже потужний!', priority=Note.PRIORITY_HIGH, is_pinned=True
+)
+note1.tags.add(tag_py, tag_dj)
+
+note2 = Note.objects.create(
+    user=alice, title='Python tips', priority=Note.PRIORITY_MEDIUM
+)
+note2.tags.add(tag_py)
+
+# Нагадування
+Reminder.objects.create(note=note1, remind_at='2026-07-01 09:00:00')
+
+# Запити:
+Note.objects.filter(user=alice).count()                    # → 2
+Note.objects.filter(user=alice, is_pinned=True)            # → <QuerySet [<Note: 📌 Django ORM>]>
+Note.objects.filter(tags=tag_py)                           # → обидві нотатки
+Note.objects.filter(tags__name='django')                   # → note1
+
+# З оптимізацією:
+notes = Note.objects.filter(user=alice)\
+    .select_related('notebook')\
+    .prefetch_related('tags')
+
+for note in notes:
+    print(f'{note.title} → {note.notebook} → {list(note.tags.all())}')
+# Django ORM → Work → [#python, #django]
+# Python tips → None → [#python]
+
+# Annotate — кількість тегів на нотатку:
+from django.db.models import Count
+Note.objects.annotate(tag_count=Count('tags'))
+```
+
+---
+
+## Крок 7 — selectors.py
+
+`hello_app/selectors.py`:
+
+```python
 from django.db.models import Count, Q
 
 from .models import Note, Notebook, Tag
@@ -234,16 +979,19 @@ from .models import Note, Notebook, Tag
 
 def get_user_notes(user, *, archived=False, notebook=None, tag=None, search=None):
     """
-    Список нотаток.
-    select_related + prefetch_related — вирішує N+1 проблему.
+    Список нотаток юзера з оптимізованими JOIN.
+
+    Kwargs keyword-only (після *) — захист від позиційних аргументів:
+    get_user_notes(alice, True) → TypeError (не зрозуміло що True = archived)
+    get_user_notes(alice, archived=True) → OK, явно
     """
     qs = Note.objects.filter(
         user=user,
         is_archived=archived,
     ).select_related(
-        'notebook'       # FK → JOIN (1 запит замість N)
+        'notebook',   # FK: 1 JOIN, не N запитів
     ).prefetch_related(
-        'tags'           # M:N → 2-й запит (не N запитів)
+        'tags',       # M:N: 2-й SELECT IN (...), не N запитів
     )
 
     if notebook:
@@ -256,32 +1004,50 @@ def get_user_notes(user, *, archived=False, notebook=None, tag=None, search=None
         )
 
     return qs.order_by('-is_pinned', '-priority', '-updated_at')
+    # Порядок: закріплені першими → пріоритет → нещодавно оновлені
 
 
 def get_user_notebooks(user):
+    """Записники з кількістю активних нотаток."""
     return Notebook.objects.filter(user=user).annotate(
         note_count=Count('notes', filter=Q(notes__is_archived=False))
+        # annotate: notebook.note_count доступний у шаблоні
     ).order_by('-is_default', 'title')
 
 
 def get_user_tags(user):
+    """Теги з кількістю нотаток."""
     return Tag.objects.filter(user=user).annotate(
         note_count=Count('notes')
     ).order_by('name')
+
+
+def get_note_for_user(user, pk):
+    """
+    Повертає нотатку якщо belongs to user, або None.
+    Використовується у view замість get_object_or_404 коли потрібна м'якша обробка.
+    """
+    return Note.objects.filter(user=user, pk=pk).select_related('notebook').first()
 ```
 
-### services.py
+---
+
+## Крок 8 — services.py
+
+`hello_app/services.py`:
 
 ```python
-# hello_app/services.py
 from django.db import transaction
 
-from .models import Note, Tag
+from .models import Note, Notebook, Tag
 
 
 def create_note(*, user, title, content='', notebook=None, priority=1, tag_ids=None):
     """
+    Створює нотатку з тегами атомарно.
+
     transaction.atomic(): або Note і теги зберігаються разом, або нічого.
+    Захист тегів: filter(user=user) → чужі теги ігноруються (Mass Assignment захист).
     """
     with transaction.atomic():
         note = Note.objects.create(
@@ -292,83 +1058,129 @@ def create_note(*, user, title, content='', notebook=None, priority=1, tag_ids=N
             priority=priority,
         )
         if tag_ids:
-            # Перевіряємо що теги належать цьому user — безпека!
             valid_tags = Tag.objects.filter(id__in=tag_ids, user=user)
+            # filter(user=user): Захист! Юзер не може прикріпити чужі теги.
             note.tags.set(valid_tags)
     return note
 
 
-def update_note(note, *, title=None, content=None, priority=None, is_pinned=None, tag_ids=None):
-    """update_fields → UPDATE тільки змінених стовпців."""
+def update_note(note, *, title=None, content=None, priority=None,
+                is_pinned=None, is_archived=None, tag_ids=None):
+    """
+    Оновлює тільки передані поля.
+    update_fields → UPDATE тільки змінених стовпців (ефективніше).
+    """
     changed = []
     if title is not None:
-        note.title = title; changed.append('title')
+        note.title = title
+        changed.append('title')
     if content is not None:
-        note.content = content; changed.append('content')
+        note.content = content
+        changed.append('content')
     if priority is not None:
-        note.priority = priority; changed.append('priority')
+        note.priority = priority
+        changed.append('priority')
     if is_pinned is not None:
-        note.is_pinned = is_pinned; changed.append('is_pinned')
+        note.is_pinned = is_pinned
+        changed.append('is_pinned')
+    if is_archived is not None:
+        note.is_archived = is_archived
+        changed.append('is_archived')
 
     if changed:
+        changed.append('updated_at')  # Завжди оновлювати timestamp
         note.save(update_fields=changed)
+        # SQL: UPDATE hello_app_note SET title=..., updated_at=... WHERE id=...
+        # НЕ: UPDATE hello_app_note SET ... (всі поля)
 
     if tag_ids is not None:
         valid_tags = Tag.objects.filter(id__in=tag_ids, user=note.user)
-        note.tags.set(valid_tags)
+        note.tags.set(valid_tags)   # DELETE старих + INSERT нових
 
     return note
 
 
+def toggle_pin_note(note):
+    """Перемикає is_pinned і зберігає у БД."""
+    note.is_pinned = not note.is_pinned
+    note.save(update_fields=['is_pinned', 'updated_at'])
+    return note
+
+
 def delete_note(note):
-    note.delete()   # CASCADE видалить Reminders автоматично
+    """
+    Видаляє нотатку.
+    CASCADE автоматично видалить пов'язані Reminder.
+    """
+    note.delete()
+
+
+@transaction.atomic
+def create_notebook(user, title, is_default=False):
+    """
+    Бізнес-правило: у юзера ТІЛЬКИ ОДИН default записник.
+    Атомарно скидаємо старий і встановлюємо новий.
+    """
+    if is_default:
+        Notebook.objects.filter(user=user, is_default=True).update(is_default=False)
+        # UPDATE всіх default=False перед створенням нового
+    return Notebook.objects.create(user=user, title=title, is_default=is_default)
 ```
 
 ---
 
-## Тонкі views
+## Крок 9 — Тонкі views
+
+`hello_app/views.py`:
 
 ```python
-# hello_app/views.py
-from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
 
-from .models import Note
 from .forms import NoteForm
+from .models import Note
 from . import selectors, services
 
 
-@login_required
+@login_required   # ← AnonymousUser → redirect до /accounts/login/?next=...
 def note_list(request):
-    search = request.GET.get('q', '')
-    # View тільки парсить параметри і делегує selector
-    notes = selectors.get_user_notes(request.user, search=search or None)
-    tags = selectors.get_user_tags(request.user)
+    search   = request.GET.get('q', '')
+
+    # View тільки парсить параметри — логіка у selector
+    notes     = selectors.get_user_notes(
+        request.user,
+        archived=False,
+        search=search or None,
+    )
+    tags      = selectors.get_user_tags(request.user)
     notebooks = selectors.get_user_notebooks(request.user)
 
     return render(request, 'hello_app/note_list.html', {
-        'notes': notes,
-        'tags': tags,
+        'notes':     notes,
+        'tags':      tags,
         'notebooks': notebooks,
-        'search': search,
+        'search':    search,
     })
 
 
 @login_required
 def note_create(request):
     if request.method == 'POST':
-        form = NoteForm(request.POST)
+        form = NoteForm(request.POST, user=request.user)
         if form.is_valid():
             note = services.create_note(
-                user=request.user,
-                title=form.cleaned_data['title'],
-                content=form.cleaned_data.get('content', ''),
+                user     = request.user,
+                title    = form.cleaned_data['title'],
+                content  = form.cleaned_data.get('content', ''),
+                notebook = form.cleaned_data.get('notebook'),
+                priority = form.cleaned_data.get('priority', 1),
+                tag_ids  = [t.id for t in form.cleaned_data.get('tags', [])],
             )
             messages.success(request, f'Нотатку "{note.title}" створено!')
             return redirect('hello_app:note_detail', pk=note.pk)
     else:
-        form = NoteForm()
+        form = NoteForm(user=request.user)
 
     return render(request, 'hello_app/note_form.html', {'form': form, 'title': 'Нова нотатка'})
 
@@ -376,17 +1188,27 @@ def note_create(request):
 @login_required
 def note_edit(request, pk):
     note = get_object_or_404(Note, pk=pk, user=request.user)
+    # pk + user=request.user → 404 якщо чужа нотатка (IDOR захист)
 
     if request.method == 'POST':
-        form = NoteForm(request.POST, instance=note)
+        form = NoteForm(request.POST, instance=note, user=request.user)
         if form.is_valid():
-            services.update_note(note, **form.cleaned_data)
+            services.update_note(
+                note,
+                title    = form.cleaned_data['title'],
+                content  = form.cleaned_data.get('content', ''),
+                notebook = form.cleaned_data.get('notebook'),
+                priority = form.cleaned_data.get('priority'),
+                tag_ids  = [t.id for t in form.cleaned_data.get('tags', [])],
+            )
             messages.success(request, 'Нотатку оновлено!')
             return redirect('hello_app:note_detail', pk=note.pk)
     else:
-        form = NoteForm(instance=note)
+        form = NoteForm(instance=note, user=request.user)
 
-    return render(request, 'hello_app/note_form.html', {'form': form, 'note': note})
+    return render(request, 'hello_app/note_form.html', {
+        'form': form, 'note': note, 'title': f'Редагувати: {note.title}'
+    })
 
 
 @login_required
@@ -404,36 +1226,31 @@ def note_delete(request, pk):
 
 ---
 
-## N+1 проблема і як її вирішити
+## Структура файлів
 
-**N+1 проблема:** якщо у списку 50 нотаток, Django за замовчуванням виконає 51 SQL запит.
-
-```python
-# ❌ N+1 — 1 запит для списку + N для notebook кожної нотатки:
-notes = Note.objects.filter(user=user)
-for note in notes:
-    print(note.notebook.title)   # ← кожен цикл = +1 SQL
-
-# ✅ select_related — 1 JOIN, 1 запит:
-notes = Note.objects.filter(user=user).select_related('notebook')
-
-# ✅ prefetch_related для M:N (tags):
-notes = Note.objects.filter(user=user).prefetch_related('tags')
-# Django виконає 2 запити: 1 для notes, 1 для всіх tags відразу
 ```
-
----
-
-## Матриця відповідальності
-
-| Шар | Робить | НЕ робить |
-|-----|--------|-----------|
-| `models.py` | Структура, поля, зв'язки, constraints | Бізнес-логіка, HTTP |
-| `selectors.py` | SELECT, filter, annotate, prefetch | INSERT / UPDATE / DELETE |
-| `services.py` | CREATE / UPDATE / DELETE, transaction | HTTP, render, redirect |
-| `views.py` | Парсити request, render, redirect | QuerySet, бізнес-логіка |
-
-**Перевір себе:** якщо в `views.py` бачиш `Note.objects.filter(...)` — це сигнал перенести у `selectors.py`.
+hello_app/
+├── __init__.py
+├── admin.py            ← ModelAdmin реєстрація
+├── apps.py
+├── context_processors.py ← sidebar_context (якщо є)
+├── forms.py            ← NoteForm, NotebookForm, TagForm
+├── models.py           ← UserProfile, Tag, Notebook, Note, Reminder
+├── selectors.py        ← Тільки SELECT операції
+├── services.py         ← CREATE/UPDATE/DELETE + transaction.atomic
+├── views.py            ← Тонкі view-функції
+├── urls.py             ← path() маршрути
+├── migrations/
+│   ├── __init__.py
+│   ├── 0001_initial.py
+│   └── 0002_*.py
+└── templates/
+    └── hello_app/
+        ├── note_list.html
+        ├── note_detail.html
+        ├── note_form.html
+        └── note_confirm_delete.html
+```
 
 ---
 
@@ -441,30 +1258,31 @@ notes = Note.objects.filter(user=user).prefetch_related('tags')
 
 1. Намалюй ER-діаграму для системи "Бібліотека": `Book`, `Author`, `Genre`, `Review`.
    Вкажи типи зв'язків і `on_delete` для кожного FK.
-2. Реалізуй моделі з правильними `related_name`.
-3. Напиши `get_books_by_author(author)` в `selectors.py` з `prefetch_related('genres')`.
-4. Напиши `create_book(*, title, author_id, genre_ids)` в `services.py` з `transaction.atomic()`.
-5. Переконайся що View не містить жодного `Model.objects.*` виклику напряму.
+2. Реалізуй моделі з правильними `related_name`, `__str__`, `ordering`.
+3. Напиши `get_books_by_genre(genre)` у `selectors.py` з `select_related('author').prefetch_related('genres')`.
+4. Напиши `create_book(*, title, author_id, genre_ids)` у `services.py` з `transaction.atomic()`.
+5. Перевір у Django shell: зміни `author` у книзі і перевір що `updated_at` оновився.
 
 ---
 
 ## Чеклист самоперевірки
 
-- [ ] Я знаю різницю між `OneToOneField`, `ForeignKey` і `ManyToManyField`
-- [ ] Я розумію де живе FK (на "Many"-стороні)
-- [ ] Я свідомо вибираю `on_delete` стратегію для кожного FK
-- [ ] `selectors.py` містить тільки SELECT операції
-- [ ] `services.py` використовує `transaction.atomic()` для операцій запису
+- [ ] Я знаю різницю між `OneToOneField`, `ForeignKey`, `ManyToManyField`
+- [ ] Я знаю де живе FK (на "Many"-стороні)
+- [ ] Я свідомо вибираю `on_delete` для кожного FK (не просто CASCADE)
+- [ ] `selectors.py` містить тільки SELECT (filter, annotate, prefetch_related)
+- [ ] `services.py` використовує `transaction.atomic()` де потрібна атомарність
 - [ ] `views.py` не містить `Model.objects.*` напряму
-- [ ] Я розумію N+1 проблему і використовую `select_related` / `prefetch_related`
+- [ ] Я розумію N+1 і використовую `select_related`/`prefetch_related`
+- [ ] `Q` об'єкти — для OR умов у filter
 
 ---
 
 ## Далі
 
-Наступний крок: [04 — Templates and Bootstrap](04_templates_bootstrap.md) — 3-рівнева Template Inheritance, Crispy Forms, SaaS Dashboard.
+Наступний крок: [04 — Templates, Crispy Forms і Dashboard](04_templates_bootstrap.md) — 3-рівнева Template Inheritance, Crispy Forms, Context Processor, Sidebar.
 
 Модулі документації:
 - [Database and ORM](../03_database_and_orm/README.md)
-- [Application Architecture](../06_application_architecture/README.md)
 - [Application Architecture — Services & Selectors](../06_application_architecture/django_services_selectors.md)
+- [ORM Cheatsheet](../reference/orm_cheatsheet.md)
