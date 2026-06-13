@@ -1,4 +1,5 @@
 # GitHub Actions — MkDocs Build & Deploy to GitHub Pages
+# Based on: https://squidfunk.github.io/mkdocs-material/publishing-your-site/
 
 name: Docs — Build & Deploy
 
@@ -25,23 +26,27 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Configure Git Credentials
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: 3.x
 
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
+      - name: Set weekly cache key
+        run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-docs-${{ hashFiles('requirements-docs.txt') }}
+          key: mkdocs-material-${{ env.cache_id }}
+          path: ~/.cache
           restore-keys: |
-            ${{ runner.os }}-docs-
+            mkdocs-material-
 
-      - name: Install MkDocs dependencies
+      - name: Install MkDocs Material
         run: pip install -r requirements-docs.txt
-
-      - name: Build docs
-        run: mkdocs build
 
       - name: Deploy to GitHub Pages
         run: mkdocs gh-deploy --force
