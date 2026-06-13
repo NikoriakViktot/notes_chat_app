@@ -23,10 +23,15 @@ services:
 
   web:
     build: .
+    # Port 8001 exposed directly for dev access and Selenium tests.
+    # In production, remove this and access only through nginx on port 80.
     ports:
       - "8001:8001"
     volumes:
       - .:/app
+      # Named volume at /app/staticfiles shadows the bind-mount subdirectory
+      # so collectstatic writes here and nginx can read the same volume.
+      - staticfiles:/app/staticfiles
     environment:
       DATABASE_URL: postgres://notes_user:notes_pass@db:5432/notes_db
       REDIS_URL: redis://redis:6379/0
@@ -45,6 +50,27 @@ services:
       retries: 12
       start_period: 15s
 
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - staticfiles:/staticfiles:ro
+    depends_on:
+      web:
+        condition: service_healthy
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    command: http --url=${NGROK_DOMAIN} nginx:80
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    ports:
+      - "4040:4040"
+    depends_on:
+      - nginx
+
   selenium:
     image: selenium/standalone-chrome:latest
     ports:
@@ -58,3 +84,4 @@ services:
 
 volumes:
   postgres_data:
+  staticfiles:

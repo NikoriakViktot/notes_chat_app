@@ -240,6 +240,82 @@ docker compose run --rm web python manage.py seed_demo_data --reset
 python manage.py seed_demo_data --reset
 ```
 
+## ngrok — публічний доступ ззовні
+
+[ngrok](https://ngrok.com) створює захищений тунель від публічного URL до твого локального порту 80 (nginx).
+Зручно щоб показати проєкт без деплою або протестувати вебхуки.
+
+Твій статичний домен: **`https://fawn-natural-mayfly.ngrok-free.app`**
+
+### Варіант 1: через Docker Compose (рекомендовано)
+
+Додай у `.env`:
+
+```env
+NGROK_AUTHTOKEN=your_ngrok_authtoken_here
+NGROK_DOMAIN=fawn-natural-mayfly.ngrok-free.app
+```
+
+> **Важливо:** якщо ngrok вже запущений локально (`ngrok http 80`) — зупини його перед `docker compose up`. Один статичний домен не може бути активним двічі (помилка `ERR_NGROK_334`).
+
+Запусти:
+
+```bash
+docker compose up -d
+```
+
+ngrok-сервіс підніметься автоматично і прокине тунель до nginx:80.
+Веб-інтерфейс ngrok: **http://localhost:4040**
+
+### Варіант 2: локально (без Docker)
+
+Спочатку запусти стек (`docker compose up -d`), потім у окремому терміналі:
+
+#### Linux
+
+```bash
+# Встановлення
+curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+  | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+  && echo "deb https://ngrok-agent.s3.amazonaws.com bookworm main" \
+  | sudo tee /etc/apt/sources.list.d/ngrok.list \
+  && sudo apt update && sudo apt install ngrok
+
+# Авторизація
+ngrok config add-authtoken YOUR_AUTHTOKEN
+
+# Запуск
+ngrok http --url=fawn-natural-mayfly.ngrok-free.app 80
+```
+
+#### macOS
+
+```bash
+# Встановлення
+brew install ngrok
+
+# Авторизація
+ngrok config add-authtoken YOUR_AUTHTOKEN
+
+# Запуск
+ngrok http --url=fawn-natural-mayfly.ngrok-free.app 80
+```
+
+#### Windows
+
+```powershell
+# Встановлення через winget
+winget install ngrok
+
+# Авторизація
+ngrok config add-authtoken YOUR_AUTHTOKEN
+
+# Запуск
+ngrok http --url=fawn-natural-mayfly.ngrok-free.app 80
+```
+
+> Токен знаходиться в [ngrok Dashboard → Your Authtoken](https://dashboard.ngrok.com/get-started/your-authtoken). Зберігай його як пароль, не комітти в git.
+
 ## Тести
 
 ```bash

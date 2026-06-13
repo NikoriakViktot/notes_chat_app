@@ -7,7 +7,6 @@ Sidebar data (notebooks + tags) available in every template.
 Детальна документація: ADVANCED_TEMPLATES.md §1
 """
 from django.contrib.auth.models import Group
-from django.db import OperationalError
 from django.db.models import Q
 from .selectors import get_user_notebooks, get_user_tags
 from .models import TodoList, ShoppingList
@@ -33,7 +32,8 @@ def sidebar_context(request):
             Q(user=user) | Q(shared_with=user)
         ).distinct().count()
         sidebar_groups = list(user.groups.all())
-    except OperationalError:
+    except Exception:
+        # Catch all DB errors (OperationalError, InterfaceError from forked connections, etc.)
         todo_count = 0
         shopping_count = 0
         sidebar_groups = []

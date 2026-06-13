@@ -62,9 +62,11 @@ from notes_app.models import Note
 # Daphne вже встановлений у requirements.txt.
 try:
     from channels.testing import ChannelsLiveServerTestCase
+    from daphne.testing import DaphneProcess
     CHANNELS_LIVE_SERVER_AVAILABLE = True
 except ImportError:
     CHANNELS_LIVE_SERVER_AVAILABLE = False
+    DaphneProcess = None
 
 # Якщо встановлена ця змінна → запускаємо через Remote WebDriver (GitHub Actions / Docker)
 # Якщо не встановлена → локальний headless Chrome
@@ -471,6 +473,27 @@ class SeleniumGroupChatPageTest(_DockerLiveServerMixin, StaticLiveServerTestCase
 # 4. WEBSOCKET CHAT — реальне WebSocket з'єднання через Daphne ASGI сервер
 # ─────────────────────────────────────────────────────────────────────────────
 
+if CHANNELS_LIVE_SERVER_AVAILABLE and DaphneProcess is not None:
+    class _FreshConnectionDaphneProcess(DaphneProcess):
+        """Fix fork-related DB issues before Daphne starts serving."""
+        def run(self):
+            from django.conf import settings as _ds
+            from django.db import connections
+
+            # channels' set_database_connection() reads DATABASES["default"]["TEST"]["NAME"].
+            # If it's None, it computes "test_" + current NAME. But the test runner already
+            # set NAME = "test_notes_db", so we'd get "test_test_notes_db" — non-existent.
+            # Fix: mirror current NAME into TEST["NAME"] so set_database_connection() is a no-op.
+            current_name = _ds.DATABASES["default"]["NAME"]
+            _ds.DATABASES["default"].setdefault("TEST", {})["NAME"] = current_name
+
+            # Close connections inherited via fork so the subprocess creates fresh ones.
+            connections.close_all()
+            super().run()
+else:
+    _FreshConnectionDaphneProcess = None
+
+
 @unittest.skipUnless(
     SELENIUM_AVAILABLE and CHANNELS_LIVE_SERVER_AVAILABLE,
     "selenium або channels.testing недоступні"
@@ -496,10 +519,22 @@ class SeleniumWebSocketChatTest(_DockerLiveServerMixin, ChannelsLiveServerTestCa
       - Відправлене повідомлення з'являється у #chat-messages
       - Повний шлях: браузер → WS → Consumer → БД → group_send → DOM
     """
+    # Override the default DaphneProcess to close forked DB connections before serving.
+    ProtocolServerProcess = _FreshConnectionDaphneProcess
 
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
+        # Django test runner sets DEBUG=False via setup_test_environment().
+        # DaphneProcess uses fork() on Linux — the child inherits DEBUG=False,
+        # causing handle_uncaught_exception() to return minimal 500 pages for all views.
+        # Temporarily restore DEBUG=True so the forked subprocess gets correct settings.
+        from django.conf import settings as _s
+        _was_debug = _s.DEBUG
+        _s.DEBUG = True
+        try:
+            super().setUpClass()  # forks DaphneProcess here
+        finally:
+            _s.DEBUG = _was_debug
         if SELENIUM_AVAILABLE:
             cls.driver = _make_headless_driver()
             cls.driver.implicitly_wait(10)
