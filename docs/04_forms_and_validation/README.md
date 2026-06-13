@@ -44,14 +44,3 @@
 ## Далі
 
 Далі: [Frontend and templates](../05_frontend_and_templates/README.md).
-
-<!-- restored-full-chapters:start -->
-
-## Повні відновлені глави
-
-Цей блок веде до повних навчальних матеріалів, перенесених з `archive/` без скорочення змісту.
-
-- [Django Crispy Forms — від нуля до практики](crispy_forms_full.md)
-- [DJANGO FORMS — Від сирих даних до бази даних](django_forms_full.md)
-
-<!-- restored-full-chapters:end -->

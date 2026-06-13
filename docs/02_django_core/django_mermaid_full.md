@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/django_mermaid.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # Django Architecture — Mermaid-схеми
 
 > Усі схеми — візуалізація концепцій із `django_architecture.md`.

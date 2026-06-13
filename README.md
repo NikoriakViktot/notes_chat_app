@@ -104,7 +104,7 @@ flowchart TD
 
 Документація побудована на [MkDocs + Material](https://squidfunk.github.io/mkdocs-material/).
 
-**Онлайн:** https://nikoriakviktor.github.io/notes_chat_app/
+**Онлайн:** https://nikoriakviktot.github.io/notes_chat_app/
 
 ### Локальний перегляд
 
@@ -180,7 +180,7 @@ docker compose run --rm web python manage.py seed_demo_data --reset
 
 ### Автоматичний запуск у Docker
 
-`SEED_DEMO_DATA=1` в `docker-compose.yml` → сідер запускається автоматично при старті контейнера через `entrypoint.sh`.
+`SEED_DEMO_DATA=1` в `docker-compose.yml` → сідер запускається автоматично при старті контейнера через `entrypoint.sh` з прапором `--force` (обходить production-guard при `DEBUG=False`).
 
 ### Демо-користувачі
 
@@ -267,6 +267,8 @@ docker compose up -d
 ngrok-сервіс підніметься автоматично і прокине тунель до nginx:80.
 Веб-інтерфейс ngrok: **http://localhost:4040**
 
+**Архітектура мережі:** всі сервіси знаходяться в одній явній Docker-мережі `app-net`. ngrok стартує тільки після того, як nginx пройде health check (`GET /accounts/login/ → 200`), що усуває помилку `ERR_NGROK_8012` (не міг резолвити hostname `nginx`).
+
 ### Варіант 2: локально (без Docker)
 
 Спочатку запусти стек (`docker compose up -d`), потім у окремому терміналі:
@@ -325,14 +327,23 @@ python manage.py test
 
 Async HTTP demo modules у поточному working tree відсутні і не описуються як активна feature. Реальний async-компонент проєкту - WebSocket chat через ASGI, Channels і `GroupChatConsumer`.
 
-## Deployment status
+## Docker stack
 
-Проєкт має заготовки `Dockerfile`, `docker-compose.yml`, `entrypoint.sh` і `.env.example`, але Docker path зараз неузгоджений: compose/build налаштування згадують директорію `notes`, якої немає в корені. Production deployment треба доробити і перевірити.
+Повний стек працює через `docker compose up --build`:
+
+| Сервіс | Роль |
+|--------|------|
+| `db` (PostgreSQL 16) | база даних |
+| `redis` (Redis 7) | channel layer для WebSocket |
+| `web` (Uvicorn/ASGI) | Django-застосунок на порту 8001 |
+| `nginx` (1.27) | reverse proxy на порту 80, роздає staticfiles |
+| `ngrok` | публічний тунель → nginx:80 |
+| `selenium` | Chrome для E2E-тестів |
+
+Всі сервіси підключені до спільної bridge-мережі `app-net`. Ланцюг залежностей зі health checks: `db` → `redis` → `web` → `nginx` → `ngrok`.
 
 ## Подальший розвиток
 
-- Якщо потрібно повернути async HTTP demo, відновити `async_views.py`, `async_selectors.py`, `async_services.py` разом із routes.
-- Виправити Docker build context.
-- Винести `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS` у environment.
-- Увімкнути Redis channel layer для production.
+- Винести `SECRET_KEY` і `ALLOWED_HOSTS` у environment variables.
 - Додати production-ready logging і monitoring.
+- Якщо потрібно повернути async HTTP demo, відновити `async_views.py`, `async_selectors.py`, `async_services.py` разом із routes.

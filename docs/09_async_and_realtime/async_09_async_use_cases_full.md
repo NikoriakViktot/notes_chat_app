@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/09_async_use_cases.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # 09 — Real-World Use Cases: коли async Django справді потрібен
 
 ## Навіщо це потрібно

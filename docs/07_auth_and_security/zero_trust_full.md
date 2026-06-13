@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/ZERO_TRUST.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # Zero Trust Architecture — Архітектура Нульової Довіри
 
 > **"Never trust, always verify"** — жодного користувача, пристрою чи мережі

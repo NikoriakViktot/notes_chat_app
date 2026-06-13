@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/DJANGO_SELECTORS.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # Django Selectors — Шар читання даних
 
 > `selectors.py` — це окремий файл у кожному Django app,

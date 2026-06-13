@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/DJANGO_SECURITY_ARCHITECTURE.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # Архітектура безпеки Django
 
 > Django дотримується філософії **"безпечний за замовчуванням"** (secure by default).

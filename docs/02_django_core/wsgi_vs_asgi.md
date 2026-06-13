@@ -44,4 +44,6 @@
 
 ## Далі
 
+Детальніше про ASGI, Channels і async runtime: [WSGI та ASGI — повний розбір](../09_async_and_realtime/async_03_asgi_full.md).
+
 Далі: [Database and ORM](../03_database_and_orm/README.md).

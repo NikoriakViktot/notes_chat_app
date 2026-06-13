@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/PYTEST_BASICS.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # pytest: короткі тести, fixtures і pytest-django
 
 > Після цього файлу ти зможеш писати тести через `pytest`, запускати їх, використовувати fixtures, parametrization і підключати pytest до Django-проєкту.

@@ -12,6 +12,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - app-net
 
   redis:
     image: redis:7-alpine
@@ -20,6 +22,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - app-net
 
   web:
     build: .
@@ -38,6 +42,7 @@ services:
       SELENIUM_REMOTE_URL: http://selenium:4444/wd/hub
       WEB_HOST: web
       SEED_DEMO_DATA: "1"
+      NGROK_DOMAIN: ${NGROK_DOMAIN}
     depends_on:
       db:
         condition: service_healthy
@@ -49,6 +54,8 @@ services:
       timeout: 5s
       retries: 12
       start_period: 15s
+    networks:
+      - app-net
 
   nginx:
     image: nginx:1.27-alpine
@@ -60,6 +67,13 @@ services:
     depends_on:
       web:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/accounts/login/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app-net
 
   ngrok:
     image: ngrok/ngrok:latest
@@ -69,7 +83,10 @@ services:
     ports:
       - "4040:4040"
     depends_on:
-      - nginx
+      nginx:
+        condition: service_healthy
+    networks:
+      - app-net
 
   selenium:
     image: selenium/standalone-chrome:latest
@@ -81,7 +98,13 @@ services:
       interval: 5s
       timeout: 10s
       retries: 5
+    networks:
+      - app-net
 
 volumes:
   postgres_data:
   staticfiles:
+
+networks:
+  app-net:
+    driver: bridge

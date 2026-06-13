@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/DJANGO_SERVICES.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # Django Services — Шар бізнес-логіки
 
 > `services.py` — це окремий файл у кожному Django app,

@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/DJANGO_SERIALIZERS.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # Django Serializers — Transport Layer
 
 > `serializers.py` — це межа між HTTP і доменом.

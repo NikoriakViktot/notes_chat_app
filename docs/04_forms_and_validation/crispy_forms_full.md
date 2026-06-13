@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/CRISPY_FORMS.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # Django Crispy Forms — від нуля до практики
 
 > Джерело: [django-crispy-forms.readthedocs.io](https://django-crispy-forms.readthedocs.io/en/latest/)

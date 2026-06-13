@@ -45,18 +45,3 @@
 ## Далі
 
 Далі: [Auth and security](../07_auth_and_security/README.md).
-
-<!-- restored-full-chapters:start -->
-
-## Повні відновлені глави
-
-Цей блок веде до повних навчальних матеріалів, перенесених з `archive/` без скорочення змісту.
-
-- [Django Ninja + Rendering Architecture](django_ninja_templates_full.md)
-- [Django Selectors — Шар читання даних](django_selectors_full.md)
-- [Django Serializers — Transport Layer](django_serializers_full.md)
-- [Django Services — Шар бізнес-логіки](django_services_full.md)
-- [Django Tasks — Celery та Асинхронні Задачі](django_tasks_full.md)
-- [Django Services, Selectors & Serializers — Шар бізнес-логіки](services_selectors_full.md)
-
-<!-- restored-full-chapters:end -->

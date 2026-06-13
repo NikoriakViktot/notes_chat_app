@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/DJANGO_TEMPLATES_BOOTSTRAP.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # Django Template Architecture + Bootstrap 5
 
 > Django Template System — презентаційний шар MVT.

@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/DJANGO_SERVICES_SELECTORS.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # Django Services, Selectors & Serializers — Шар бізнес-логіки
 
 > Цей документ описує production-архітектуру бізнес-шару Django:

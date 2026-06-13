@@ -47,18 +47,3 @@
 ## Далі
 
 Далі: [Database and ORM](../03_database_and_orm/README.md).
-
-<!-- restored-full-chapters:start -->
-
-## Повні відновлені глави
-
-Цей блок веде до повних навчальних матеріалів, перенесених з `archive/` без скорочення змісту.
-
-- [Django Architecture — від запиту до відповіді](django_architecture_full.md)
-- [Django Architecture — Mermaid-схеми](django_mermaid_full.md)
-- [Django — Система команд та операційний lifecycle](management_commands_full.md)
-- [Структура проєкту Django](project_structure_full.md)
-- [Django URL Routing](url_routing_full.md)
-- [Django Views — FBV та CBV](views_full.md)
-
-<!-- restored-full-chapters:end -->

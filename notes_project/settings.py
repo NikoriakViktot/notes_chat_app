@@ -15,9 +15,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = "django-insecure-crispy-notes-dev-key-change-in-production"
 
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
+
+# CSRF_TRUSTED_ORIGINS — дозволені origins для HTTPS POST-запитів.
+# Потрібно коли запити йдуть через зворотній проксі (ngrok, nginx) по HTTPS:
+# Origin header містить https://your-domain.ngrok-free.app, Django перевіряє
+# чи є він у цьому списку. Без цього → 403 CSRF помилка.
+_ngrok_domain = os.environ.get('NGROK_DOMAIN', '')
+CSRF_TRUSTED_ORIGINS = [f'https://{_ngrok_domain}'] if _ngrok_domain else []
 
 INSTALLED_APPS = [
     # ── daphne ПЕРШИМ — перевизначає runserver щоб він запускався через ASGI.

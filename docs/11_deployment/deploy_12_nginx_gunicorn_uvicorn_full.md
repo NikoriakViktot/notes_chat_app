@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/12_nginx_gunicorn_uvicorn.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # 12. Nginx, Gunicorn і Uvicorn
 
 ## Навіщо це потрібно

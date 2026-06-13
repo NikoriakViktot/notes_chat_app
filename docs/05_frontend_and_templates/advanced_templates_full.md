@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/ADVANCED_TEMPLATES.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # Advanced Django Templates — Архітектура Production-рівня
 
 > Продовження `DJANGO_TEMPLATES_BOOTSTRAP.md` і `DJANGO_NINJA_TEMPLATES.md`.

@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/TESTING_PRACTICE_PROJECT.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # Практичний проєкт: тестуємо notes_chat_app від model до Selenium
 
 > Після цього файлу ти збереш повний навчальний сценарій тестування Django notes app: model, form, URL, view, permissions, service з email, mock, Selenium E2E, Docker headless і coverage.

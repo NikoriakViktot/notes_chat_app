@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/POSTGRESQL_ADVANCED.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # PostgreSQL Advanced — Архітектура, Docker та Production патерни
 
 > Продовження після `DJANGO_ORM_DEEP.md`.

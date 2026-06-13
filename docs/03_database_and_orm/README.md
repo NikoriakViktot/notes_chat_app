@@ -48,20 +48,3 @@
 ## Далі
 
 Далі: [Forms and validation](../04_forms_and_validation/README.md).
-
-<!-- restored-full-chapters:start -->
-
-## Повні відновлені глави
-
-Цей блок веде до повних навчальних матеріалів, перенесених з `archive/` без скорочення змісту.
-
-- [Архітектура проєкту Django та Еволюція бази даних](django_migrations_full.md)
-- [Django ORM — глибока механіка](django_orm_deep_full.md)
-- [Django ORM та Бази Даних](django_orm_full.md)
-- [Індекси PostgreSQL — Глибока механіка](indexing_deep_full.md)
-- [Django ORM та БД — Mermaid-схеми](orm_mermaid_full.md)
-- [PostgreSQL Advanced — Архітектура, Docker та Production патерни](postgresql_advanced_full.md)
-- [Реляційний фундамент та SQL](relational_db_foundations_full.md)
-- [Транзакції, Блокування та Конкурентність в Django + PostgreSQL](transactions_concurrency_full.md)
-
-<!-- restored-full-chapters:end -->

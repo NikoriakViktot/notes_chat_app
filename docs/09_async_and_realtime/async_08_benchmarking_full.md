@@ -1,6 +1,3 @@
-> Повний матеріал відновлено з `archive/legacy_docs/docs_flat/08_benchmarking.md`.
-> Зміст збережено; очевидні старі назви проєкту та навчальні шляхи актуалізовано для `notes_chat_app`.
-
 # 08 — Benchmarking: як об'єктивно порівняти sync і async Django
 
 ## Навіщо це потрібно
