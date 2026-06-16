@@ -453,6 +453,20 @@ Note.objects.all()[0]                          # LIMIT 1 (= .first() але не
 
 > Найпоширеніший перформанс-баг у Django — Django робить 1 + N SQL запитів замість 1.
 
+### Зв'язок з lazy evaluation
+
+N+1 виникає **саме тому**, що QuerySet ліниий. Студент вже знає, що `for note in notes:` матеріалізує один SELECT. Але щойно в шаблоні з'являється `note.notebook` — Django не знає, що `notebook` буде потрібен для кожної нотатки, і робить окремий SELECT для кожного:
+
+```
+{% for note in notes %}
+    {{ note.notebook.title }}   ← для кожного note: SELECT FROM notebooks WHERE id=?
+{% endfor %}
+```
+
+50 нотаток → шаблон «запитує» notebook 50 разів → **51 SQL запит** замість очікуваного одного.
+
+Це не баг Django — це закономірний наслідок lazy loading. Рішення — явно сказати Django заздалегідь, які зв'язки будуть потрібні.
+
 ### Що таке N+1
 
 ```python
@@ -849,8 +863,16 @@ class Note(models.Model):
 
     def __str__(self):
         return f'📌 {self.title}' if self.is_pinned else self.title
+```
 
+!!! note "PRIORITY_CHOICES у notes_chat_app"
+    Ця модель використовує 3 рівні (1–3) для навчального проєкту.
+    **`notes_chat_app`** (фінальний проєкт) має **4 рівні**: `PRIORITY_URGENT = 4` («🔴 Терміново»),
+    `PositiveSmallIntegerField` замість `SmallIntegerField`, та `MaxValueValidator(4)`.
+    Крім того, `notes_chat_app.Note` має поле `group = ForeignKey(Group)` для групового sharing
+    (додається у Кроці 5 — Автентифікація та безпека).
 
+```python
 class Reminder(models.Model):
     note      = models.ForeignKey(Note, on_delete=models.CASCADE, related_name='reminders')
     remind_at = models.DateTimeField()
@@ -1064,11 +1086,16 @@ def create_note(*, user, title, content='', notebook=None, priority=1, tag_ids=N
     return note
 
 
-def update_note(note, *, title=None, content=None, priority=None,
+def update_note(note, *, title=None, content=None, notebook=..., priority=None,
                 is_pinned=None, is_archived=None, tag_ids=None):
     """
     Оновлює тільки передані поля.
     update_fields → UPDATE тільки змінених стовпців (ефективніше).
+
+    notebook=... (Ellipsis) = "не передано" (notebook не змінюється).
+    notebook=None           = "прибрати записник" (SET_NULL).
+    notebook=<Notebook>     = "встановити записник".
+    Ellipsis відрізняє "не передано" від "передано None".
     """
     changed = []
     if title is not None:
@@ -1077,6 +1104,9 @@ def update_note(note, *, title=None, content=None, priority=None,
     if content is not None:
         note.content = content
         changed.append('content')
+    if notebook is not ...:              # Ellipsis = sentinel "не передано"
+        note.notebook = notebook         # None → SET_NULL; <Notebook> → встановити
+        changed.append('notebook')
     if priority is not None:
         note.priority = priority
         changed.append('priority')

@@ -1294,8 +1294,8 @@ READ:    GET  /notes/         → note_list view → QuerySet → шаблон
 UPDATE:  GET  /notes/42/edit/ → note_edit view → форма з instance=note
          POST /notes/42/edit/ → form.save(instance) → UPDATE → redirect
 
-DELETE:  GET  /notes/42/del/  → note_delete view → підтвердження
-         POST /notes/42/del/  → note.delete() → redirect → flash message
+DELETE:  GET  /notes/42/delete/  → note_delete view → підтвердження
+         POST /notes/42/delete/  → note.delete() → redirect → flash message
 ─────────────────────────────────────────────────────────────────────────
 ```
 

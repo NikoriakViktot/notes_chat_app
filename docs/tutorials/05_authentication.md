@@ -472,7 +472,7 @@ def note_detail(request, pk):
 | View | Захист | Як реалізовано |
 |------|--------|----------------|
 | `note_list` | `@login_required` | Selector `Q(user=user) \| Q(group__in=...)` |
-| `note_edit` | `@login_required` + owner | `get_object_or_404(Note, pk=pk, user=request.user)` |
+| `note_edit` | `@login_required` + owner | Q-filter для доступу, потім `note.user != request.user` для редагування |
 | `note_delete` | `@login_required` + owner | Те саме |
 | `notebook_edit` | `@login_required` + owner | `get_object_or_404(Notebook, pk=pk, user=request.user)` |
 | `notebook_delete` | `@login_required` + owner | Те саме |
@@ -1271,6 +1271,7 @@ Password change вимагає що юзер **вже залогінений** (
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
+from django.db.models import Q
 from .models import Note
 from .forms import NoteForm
 from . import services, selectors
@@ -1279,37 +1280,77 @@ from . import services, selectors
 @login_required
 def note_edit(request, pk):
     """
-    Редагування нотатки.
-    Перевірки:
-    1. @login_required  → AuthN: залогінений?
-    2. user=request.user → AuthZ: власник нотатки?
+    Редагування нотатки — два рівні перевірки:
+    1. @login_required          → AuthN: залогінений?
+    2. Q(user) | Q(group)       → read access: власна або групова нотатка?
+    3. note.user == request.user → AuthZ write: редагувати може лише власник
+
+    Чому Q-filter, а не get_object_or_404(..., user=request.user)?
+      get_object_or_404(Note, pk=pk, user=request.user) блокував би
+      членів групи від перегляду нотатки через URL /notes/<pk>/edit/.
+      Реальна логіка: член групи може ЧИТАТИ нотатку (бачить її),
+      але РЕДАГУВАТИ — лише власник.
     """
-    note = get_object_or_404(Note, pk=pk, user=request.user)
-    # ↑ SELECT * FROM note WHERE pk=<pk> AND user_id=<user_id>
-    # Якщо не знайдено (чужа нотатка або не існує) → 404
+    user_groups = request.user.groups.all()
+    note = get_object_or_404(
+        Note.objects.filter(Q(user=request.user) | Q(group__in=user_groups)),
+        pk=pk,
+    )
+    # ↑ SQL: SELECT * FROM note WHERE pk=<pk> AND (user_id=<uid> OR group_id IN (...))
+    # → 404 якщо ані власник, ані член групи
+
+    if note.user != request.user:
+        # Член групи може ПЕРЕГЛЯДАТИ нотатку, але не редагувати чужу
+        messages.error(request, 'Ти не можеш редагувати нотатку іншого користувача.')
+        return redirect('notes_app:note_detail', pk=pk)
 
     if request.method == 'POST':
         form = NoteForm(request.POST, instance=note, user=request.user)
         if form.is_valid():
-            services.update_note(note, form.cleaned_data)
-            messages.success(request, 'Нотатку оновлено.')
+            # tags — M2M поле; NoteForm.cleaned_data['tags'] → QuerySet об'єктів Tag
+            # tag_ids потрібні сервісу окремо (не передаємо dict напряму!)
+            tags = form.cleaned_data.get('tags')
+            tag_ids = [t.id for t in tags] if tags else []
+            services.update_note(
+                note,
+                title=form.cleaned_data['title'],
+                content=form.cleaned_data.get('content', ''),
+                priority=form.cleaned_data.get('priority', note.priority),
+                notebook=form.cleaned_data.get('notebook'),
+                is_pinned=form.cleaned_data.get('is_pinned', note.is_pinned),
+                group=form.cleaned_data.get('group'),
+                tag_ids=tag_ids,
+            )
+            # update_note(note, *, title, content, ...) — keyword-only args
+            # Не можна викликати як update_note(note, form.cleaned_data) → TypeError
+            messages.success(request, f'✅ Нотатку "{note.title}" оновлено!')
             return redirect('notes_app:note_detail', pk=note.pk)
     else:
         form = NoteForm(instance=note, user=request.user)
 
     return render(request, 'notes_app/note_form.html', {
         'form': form,
-        'title': 'Редагування нотатки',
+        'title': f'Редагувати: {note.title}',
         'note': note,
+        'action': 'Зберегти зміни',
     })
 
 
 @login_required
 def note_delete(request, pk):
-    note = get_object_or_404(Note, pk=pk, user=request.user)
+    # Аналогічно: Q-filter для доступу + owner check перед видаленням
+    user_groups = request.user.groups.all()
+    note = get_object_or_404(
+        Note.objects.filter(Q(user=request.user) | Q(group__in=user_groups)),
+        pk=pk,
+    )
+    if note.user != request.user:
+        messages.error(request, 'Ти не можеш видалити нотатку іншого користувача.')
+        return redirect('notes_app:note_list')
     if request.method == 'POST':
+        title = note.title
         services.delete_note(note)
-        messages.warning(request, 'Нотатку видалено.')
+        messages.warning(request, f'🗑️ Нотатку "{title}" видалено.')
         return redirect('notes_app:note_list')
     return render(request, 'notes_app/note_confirm_delete.html', {'note': note})
 ```
@@ -1320,12 +1361,22 @@ def note_delete(request, pk):
 # ✗ ДО (IDOR вразливість):
 note = get_object_or_404(Note, pk=pk)
 # SQL: SELECT * FROM note WHERE pk=43
-# Повертає нотатку Боба якщо pk=43!
+# Повертає нотатку Боба якщо pk=43 — жодної перевірки власника!
 
-# ✓ ПІСЛЯ (захищено):
-note = get_object_or_404(Note, pk=pk, user=request.user)
-# SQL: SELECT * FROM note WHERE pk=43 AND user_id=42
+# ✓ ПІСЛЯ для особистих об'єктів (Notebook, TodoList, тощо):
+notebook = get_object_or_404(Notebook, pk=pk, user=request.user)
+# SQL: SELECT * FROM notebook WHERE pk=43 AND user_id=42
 # pk=43 + user_id=42 → не знайдено → 404
+
+# ✓ ПІСЛЯ для спільних об'єктів (Note — може бути груповою):
+user_groups = request.user.groups.all()
+note = get_object_or_404(
+    Note.objects.filter(Q(user=request.user) | Q(group__in=user_groups)),
+    pk=pk,
+)
+# SQL: SELECT * FROM note WHERE pk=43 AND (user_id=42 OR group_id IN (1,3))
+# Власник АБО член групи — обидва отримують доступ для читання
+# Для запису: ще перевіряємо note.user == request.user окремо
 ```
 
 ---
@@ -1375,7 +1426,7 @@ class ShoppingList(models.Model):
         related_name='shopping_lists',
     )
     title = models.CharField(max_length=200)
-    store = models.CharField(max_length=100, blank=True)
+    store_name = models.CharField(max_length=100, blank=True)
 ```
 
 ### Чому `SET_NULL`, а не `CASCADE`?
@@ -1563,18 +1614,30 @@ def group_list(request):
 
 @login_required
 def group_create(request):
-    """Створення нової групи. Creator автоматично стає першим учасником."""
+    """
+    Створення нової групи. Creator автоматично стає першим учасником.
+
+    Валідація — через форму GroupCreateForm, а не вручну через request.POST.get().
+    Переваги форм над raw POST:
+      • clean_name() перевіряє унікальність назви автоматично
+      • Всі помилки доступні через form.errors → рендеримо в шаблоні
+      • Узгоджено з іншими view — один підхід у всьому проєкті
+      • DRY: логіка валідації в одному місці (forms.py), не в кожному view
+    """
     if request.method == 'POST':
-        name = request.POST.get('name', '').strip()
-        if not name:
-            messages.error(request, 'Назва групи не може бути порожньою.')
-        elif len(name) > 150:
-            messages.error(request, 'Назва занадто довга (максимум 150 символів).')
-        else:
-            group = services.create_group(name=name, creator=request.user)
-            messages.success(request, f'Групу «{group.name}» створено!')
+        form = GroupCreateForm(request.POST)
+        if form.is_valid():
+            group = services.create_group(
+                name=form.cleaned_data['name'],
+                creator=request.user,
+            )
+            messages.success(request, f'✅ Групу «{group.name}» створено! Ви перший учасник.')
             return redirect('notes_app:group_detail', pk=group.pk)
-    return render(request, 'notes_app/group_form.html', {'title': 'Нова група'})
+    else:
+        form = GroupCreateForm()
+    return render(request, 'notes_app/group_form.html', {
+        'form': form, 'title': 'Нова група', 'action': 'Створити',
+    })
 
 
 @login_required
@@ -1972,7 +2035,7 @@ notes_chat_app/
 
 | Концепція | Де у коді |
 |-----------|-----------|
-| **AuthN vs AuthZ** | `views.py` — `@login_required` + `get_object_or_404(Note, pk=pk, user=request.user)` |
+| **AuthN vs AuthZ** | `views.py` — `@login_required` + Q-filter для доступу + `note.user != request.user` для редагування |
 | **Middleware chain** | `settings.py` — `MIDDLEWARE` список + порядок |
 | **Session flow** | `settings.py` — `SESSION_COOKIE_*` + Django session framework |
 | **Login/Logout** | `templates/registration/login.html` + `urls.py` auth.urls |
@@ -1980,7 +2043,7 @@ notes_chat_app/
 | **Password Reset** | `templates/registration/password_reset_*.html` (5 файлів) |
 | **DEV email** | `docker compose logs -f web` — знайти URL `/accounts/reset/...` |
 | **Password Change** | `templates/registration/password_change_*.html` + dashboard dropdown |
-| **IDOR захист** | `views.py` — всі `get_object_or_404` з `user=request.user` |
+| **IDOR захист** | `views.py` — особисті об'єкти: `get_object_or_404(Notebook, pk=pk, user=...)`, спільні: Q-filter + owner check |
 | **404 не 403** | `views.py` — "не розкривати факт існування чужого об'єкта" |
 | **Group FK SET_NULL** | `models.py` — `Note.group` + `ShoppingList.group` |
 | **Q-filter** | `selectors.py` — `Q(user=user) \| Q(group__in=user_groups)` |
@@ -2000,7 +2063,7 @@ notes_chat_app/
 - [ ] `include("django.contrib.auth.urls")` підключено в `urls.py`
 - [ ] Шаблони `registration/login.html` і `registration/register.html` існують
 - [ ] `{% csrf_token %}` у кожній формі з `method="post"`
-- [ ] `get_object_or_404(Note, pk=pk, user=request.user)` у всіх mutating views
+- [ ] Особисті об'єкти: `get_object_or_404(Model, pk=pk, user=request.user)`; спільні (Note): Q-filter + `note.user != request.user` перед записом
 - [ ] Password Reset flow протестований (посилання у `docker compose logs web`)
 - [ ] `validlink` перевірка у `password_reset_confirm.html`
 - [ ] Q-filter `Q(user=user) | Q(group__in=user_groups)` у `selectors.py`

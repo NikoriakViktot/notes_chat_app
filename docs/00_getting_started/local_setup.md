@@ -1,65 +1,115 @@
-# Local Setup
+# Налаштування середовища
 
-> Локальний запуск потрібний, щоб перевіряти кожну концепцію руками.
+> **Рекомендований шлях:** одразу переходь до [Кроку 1 — Hello Django](../tutorials/01_hello_django/index.md).
+> Там є покрокове налаштування з перевіркою кожного кроку.
+>
+> Цей документ — для тих хто хоче зрозуміти опції запуску перед початком.
 
-## Що студент вивчить
+---
 
-- базову ментальну модель теми;
-- як тема працює у Django;
-- де її побачити у фінальному проєкті;
-- як перевірити, що розуміння не лише теоретичне.
+## Рекомендований шлях — туторіал
 
-## Передумови
+Якщо ти тут вперше — **не читай цей файл далі**, переходь одразу до:
 
-- Вміти відкрити репозиторій.
-- Розуміти, що всі шляхи в документації відносні до кореня `notes_chat_app`.
+**→ [Крок 1. Hello Django — Середовище та запуск](../tutorials/01_hello_django/environment.md)**
 
-## Linux/macOS/WSL
+Там є:
+- Установка Docker Desktop крок за кроком
+- Клонування репозиторію
+- `docker compose up --build` з поясненням кожного рядка виводу
+- Перша сторінка Django в браузері
+- Типові помилки і як їх виправити
+
+---
+
+## Два способи запуску
+
+### Спосіб A — Docker Compose (рекомендовано)
+
+`notes_chat_app` потребує PostgreSQL і Redis. Docker Compose піднімає все за одну команду:
 
 ```bash
+git clone https://github.com/NikoriakViktot/notes_chat_app.git
+cd notes_chat_app
+cp .env.example .env          # скопіювати конфігурацію
+docker compose up --build     # перший запуск (3–7 хвилин)
+```
+
+Після `Application startup complete` — відкрий `http://localhost`.
+
+**Демо облікові записи** (пароль: `demo1234`): `demo_alice`, `demo_bob`, `demo_carol`
+
+### Спосіб B — Локально без Docker
+
+!!! warning "Без PostgreSQL застосунок не запуститься"
+    `manage.py migrate` падає з `OperationalError` якщо немає `DATABASE_URL`.
+    Цей спосіб для досвідчених розробників з власним PostgreSQL і Redis.
+
+```bash
+# Передумови: PostgreSQL і Redis запущені локально
+
 python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
+source .venv/bin/activate          # Linux/macOS
+# .\.venv\Scripts\Activate.ps1     # Windows PowerShell
+
 pip install -r requirements.txt
+
+# Встановити змінні середовища:
+export DATABASE_URL=postgres://user:pass@localhost:5432/notes_db
+export REDIS_URL=redis://localhost:6379/0
+export SECRET_KEY=dev-key
+export DEBUG=True
+
 python manage.py migrate
-python manage.py runserver
-```
-
-## Windows PowerShell
-
-```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
-```
-
-## ASGI для чату
-
-```bash
+python manage.py seed_demo_data
 uvicorn notes_project.asgi:application --reload --port 8001
 ```
 
-## Де це знайти у фінальному проєкті
+---
 
-| Файл | Що подивитися |
-| --- | --- |
-| `manage.py` | Django command entrypoint |
-| `notes_project/asgi.py` | ASGI entrypoint |
+## `.env` файл
 
-## Практичне завдання
+При обох способах потрібен `.env` у корені проєкту:
 
-Після встановлення dependencies запустіть `python manage.py check`.
+```bash
+cp .env.example .env
+```
 
-## Контрольні питання
+Ключові змінні:
 
-- Що є входом у цей процес?
-- Який результат очікується?
-- Де найчастіше виникає помилка?
-- Яка команда або test допомагає перевірити зміну?
+```bash
+DATABASE_URL=postgres://notes_user:notes_password_dev@db:5432/notes_db
+REDIS_URL=redis://redis:6379/0
+SECRET_KEY=dev-secret-key-replace-in-production
+DEBUG=True
+SEED_DEMO_DATA=1     # автоматично заповнює демо-даними при старті
+```
 
-## Далі
+!!! danger "Ніколи не комітити `.env`"
+    `.env` вже є у `.gitignore`. Перевір: `git status` не повинен показувати `.env`.
 
-Далі: [Web foundations](../01_web_foundations/README.md).
+---
+
+## Типові проблеми при першому запуску
+
+| Симптом | Причина | Рішення |
+|---------|---------|---------|
+| `docker: command not found` | Docker не встановлений | Встановити Docker Desktop |
+| `port is already allocated` | Порт 80/5432 зайнятий | `docker compose down` або змінити порт |
+| `web-1 exited with code 1` | Помилка міграції або відсутній `.env` | `docker compose logs web` |
+| Чат не працює | Redis не стартував | `docker compose logs redis` |
+
+---
+
+## Наступний крок
+
+Все готово? Переходь до туторіалу:
+
+**→ [Крок 1. Hello Django](../tutorials/01_hello_django/index.md)**
+
+---
+
+## У книзі
+
+- [Частина X. Linux і DevOps](../10_linux_and_devops/README.md) — Docker архітектура, volumes, networks
+- [Крок 9. Deployment](../tutorials/09_deployment/index.md) — детально про кожен сервіс стеку

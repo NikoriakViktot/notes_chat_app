@@ -54,8 +54,10 @@ except ImportError:
 
 from django.contrib.auth.models import User, Group as DjangoGroup
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from django.utils import timezone
+from datetime import timedelta
 
-from notes_app.models import Note
+from notes_app.models import Note, Reminder
 
 # ChannelLiveServerTestCase — запускає реальний Daphne ASGI сервер.
 # Потрібен для тестування WebSocket через реальний браузер.
@@ -660,3 +662,119 @@ class SeleniumWebSocketChatTest(_DockerLiveServerMixin, ChannelsLiveServerTestCa
 
         status_text = self.driver.find_element(By.ID, 'status-text').text
         self.assertIn('Підключено', status_text)
+
+
+class SeleniumReminderToastTest(_DockerLiveServerMixin, StaticLiveServerTestCase):
+    """
+    E2E тести для browser toast-нотифікацій (reminders.js).
+
+    Перевіряємо що:
+      1. При завантаженні сторінки JS одразу викликає GET /reminders/check/.
+      2. Якщо є прострочені нагадування (за останню годину) — Bootstrap Toast з'являється.
+      3. Майбутні нагадування та нагадування старіші за 1 год — Toast не з'являється.
+
+    Ключовий момент: JS викликає checkReminders() відразу на DOMContentLoaded,
+    тому тест не чекає 60 секунд — лише час HTTP запиту (< 5 сек).
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        if not SELENIUM_AVAILABLE:
+            raise unittest.SkipTest('Selenium not available')
+        super().setUpClass()
+        cls.driver = _make_headless_driver()
+        cls.driver.implicitly_wait(5)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.driver.quit()
+        super().tearDownClass()
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            'reminder_selenium', email='rem@test.com', password='pass123'
+        )
+        self.note = Note.objects.create(
+            user=self.user, title='Selenium Reminder Note', content=''
+        )
+
+    def tearDown(self):
+        Reminder.objects.all().delete()
+        Note.objects.all().delete()
+        User.objects.filter(username='reminder_selenium').delete()
+
+    def _login_via_cookie(self):
+        self.client.force_login(self.user)
+        session_cookie = self.client.cookies['sessionid']
+        self.driver.get(f'{self.live_server_url}/')
+        self.driver.add_cookie({
+            'name': 'sessionid',
+            'value': session_cookie.value,
+            'path': '/',
+        })
+
+    def test_toast_appears_for_due_reminder(self):
+        """
+        Нагадування що настало 30 хвилин тому → Toast з'являється на сторінці нотаток.
+
+        Перевіряє повний шлях:
+          DOMContentLoaded → checkReminders() → GET /reminders/check/
+          → JSON {reminders: [...]} → showToast() → .toast.show у DOM
+        """
+        Reminder.objects.create(
+            note=self.note,
+            remind_at=timezone.now() - timedelta(minutes=30),
+            message='JS toast E2E test',
+        )
+        self._login_via_cookie()
+        self.driver.get(f'{self.live_server_url}/notes/')
+
+        toast = WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, '.toast.show'))
+        )
+        self.assertIn('Selenium Reminder Note', toast.text)
+
+    def test_toast_contains_reminder_message(self):
+        """Toast відображає текст повідомлення нагадування."""
+        Reminder.objects.create(
+            note=self.note,
+            remind_at=timezone.now() - timedelta(minutes=15),
+            message='Унікальний текст нагадування XYZ',
+        )
+        self._login_via_cookie()
+        self.driver.get(f'{self.live_server_url}/notes/')
+
+        toast = WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, '.toast.show'))
+        )
+        self.assertIn('Унікальний текст нагадування XYZ', toast.text)
+
+    def test_toast_not_shown_for_future_reminder(self):
+        """Майбутнє нагадування → Toast не з'являється."""
+        Reminder.objects.create(
+            note=self.note,
+            remind_at=timezone.now() + timedelta(hours=2),
+        )
+        self._login_via_cookie()
+        self.driver.get(f'{self.live_server_url}/notes/')
+
+        import time
+        time.sleep(3)  # Чекаємо DOMContentLoaded + fetch відповідь
+
+        toasts = self.driver.find_elements(By.CSS_SELECTOR, '.toast.show')
+        self.assertEqual(len(toasts), 0)
+
+    def test_toast_not_shown_for_old_reminder(self):
+        """Нагадування старіше 1 години → Toast не з'являється."""
+        Reminder.objects.create(
+            note=self.note,
+            remind_at=timezone.now() - timedelta(hours=2),
+        )
+        self._login_via_cookie()
+        self.driver.get(f'{self.live_server_url}/notes/')
+
+        import time
+        time.sleep(3)
+
+        toasts = self.driver.find_elements(By.CSS_SELECTOR, '.toast.show')
+        self.assertEqual(len(toasts), 0)

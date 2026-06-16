@@ -50,6 +50,8 @@ urlpatterns = [
     # ── Reminders ──────────────────────────────────────────────────────────────
     path('notes/<int:note_pk>/reminders/add/', views.reminder_create, name='reminder_create'),
     path('reminders/<int:pk>/delete/', views.reminder_delete, name='reminder_delete'),
+    # JSON endpoint для browser toast-нотифікацій (polling з reminders.js)
+    path('reminders/check/', views.reminders_check, name='reminders_check'),
 
     # ── Groups ─────────────────────────────────────────────────────────────────
     path('groups/', views.group_list, name='group_list'),

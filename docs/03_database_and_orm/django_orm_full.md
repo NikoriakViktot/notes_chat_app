@@ -1,510 +1,579 @@
-# Django ORM та Бази Даних
+# Django ORM — від основ до глибокої механіки
 
-Цей посібник пояснює, як Django взаємодіє з базою даних через ORM (Object-Relational Mapping), розкриває механізми "лінивих" обчислень та демонструє правильну архітектуру побудови запитів.
-
-## 1. Основний механізм (Core Mechanism)
-
-ORM — це міст між світом об'єктно-орієнтованого Python та світом реляційного SQL.
-
-* **Трансляція схем:** Ви створюєте Python-клас (Модель), а Django генерує SQL-команди `CREATE TABLE`.
-* **Трансляція даних:** Атрибути класу стають колонками, а екземпляри (instances) цього класу — рядками бази даних.
-* **Генерація запитів:** Ви викликаєте Python-методи (наприклад, `.filter()`), а ORM динамічно компілює їх у безпечні SQL-запити (`SELECT ... WHERE`), екрануючи змінні для захисту від SQL-ін'єкцій.
-
-## 2. Потік виконання (Execution Flow)
-
-Життєвий цикл даних у бекенді виглядає так:
-
-1. **Model definition:** models.py.
-Визначаєте структуру даних за допомогою Python-класів.
-
-
-2. **Migration:** makemigrations.
-Django порівнює класи зі станом БД і генерує інструкції для змін.
-
-
-3. **Execution:** migrate.
-Виконується SQL для фактичного створення або зміни таблиць у БД.
-
-
-4. **QuerySet:** selectors.py (або services.py).
-ORM-запити живуть у `selectors.py` (читання) або `services.py` (мутації). View отримує вже готові дані — не будує запити самостійно.
-
-
-5. **SQL Generation & Execution:** SQL Execution.
-При ітерації по QuerySet, ORM генерує чистий SQL і надсилає його до БД.
-
-
-6. **Reconstruction:** Python Objects.
-База повертає "сирі" рядки, які ORM автоматично упаковує назад у Python-об'єкти.
-
-
-> **Ментальна модель:**
-> Уявіть, що база даних — це гігантський, суворо організований склад із мільйонами коробок. Ви (розробник) не знаєте, як керувати навантажувачем (SQL), тому просите **Менеджера складу (ORM)**. Ви кажете Менеджеру: *"Знайди всі книги автора Стівена Кінга"* (Python). Менеджер сам будує оптимальний маршрут, керує навантажувачем, забирає дані та приносить їх вам у зручному вигляді на стіл.
+> ORM (Object-Relational Mapping) — перекладач між Python і SQL.
+> Ти пишеш `Note.objects.filter(user=user)` — Django генерує `SELECT ... WHERE user_id = ?`.
+> Але ORM **розумний**: виконує SQL тільки коли потрібно, кешує результати, захищає від SQL injection.
 
 ---
 
-## 3. Реляційна інтуїція (Relational Intuition)
-
-* **Primary Key (Первинний ключ):** Унікальний ідентифікатор (паспорт) кожного рядка, зазвичай `id`.
-* **Foreign Key (Зовнішній ключ):** Посилання на "паспорт" іншого об'єкта. Замість того, щоб копіювати всі дані автора в кожну його книгу, книга зберігає лише `author_id`.
-* **Нормалізація:** Процес розподілу даних по різних таблицях для уникнення їх дублювання та забезпечення цілісності.
-
-## 4. Моделі Django (Django Models)
-
-* **Fields (Поля):** Визначають тип даних (наприклад, `CharField` -> `VARCHAR`) та поведінку.
-* **Meta class:** Зберігає не пов'язані з полями налаштування (наприклад, ім'я таблиці, індекси, сортування за замовчуванням).
-* **Managers:** Клас `objects` є інтерфейсом для звернення до БД (наприклад, `Book.objects.all()`).
-* **`.save()` / `.delete()`:** Транслюються в миттєві команди `INSERT`/`UPDATE` та `DELETE` відповідно.
+## Чому ORM, а не сирий SQL
 
 ```python
-from django.db import models
-from django.contrib.auth.models import User
+# Без ORM — небезпечно і важко:
+cursor.execute(f"SELECT * FROM notes WHERE user_id = {user.id}")
+# ↑ SQL injection! title з ' OR 1=1-- зламає систему
 
-class Tag(models.Model):
-    name = models.CharField(max_length=50, unique=True)
-    
+# З ORM — безпечно і зрозуміло:
+Note.objects.filter(user=user)
+# ↑ автоматично: WHERE user_id = %s, [user.id]
+# ↑ однаково на SQLite і PostgreSQL
+# ↑ результат — Python об'єкти, не raw рядки
+```
+
+---
+
+## Ментальна модель: QuerySet — рецепт, не страва
+
+```
+Note.objects.filter(status='published')
+     ← це РЕЦЕПТ, а не SQL
+
+.select_related('user')
+     ← додаємо інгредієнт до рецепту
+
+.order_by('-created_at')
+     ← ще одне уточнення
+
+list(qs)  ← ТУТ Django готує страву — виконує ОДИН SQL
+```
+
+**Тригери виконання SQL:**
+
+```
+for note in qs:          ← ітерація
+list(qs)                 ← явне перетворення
+qs.first()               ← LIMIT 1
+qs[0]                    ← LIMIT 1 OFFSET 0
+qs.count()               ← SELECT COUNT(*)
+bool(qs)                 ← EXISTS()
+len(qs)                  ← виконує і кешує
+```
+
+---
+
+## 1. Models та Managers
+
+**`Model` = клас ↔ таблиця. Екземпляр = рядок. `objects` = шлюз до БД.**
+
+```python
+# Базова модель з Custom Manager
+
+class PublishedNoteManager(models.Manager):
+    """Custom Manager — повертає тільки опубліковані нотатки."""
+    def get_queryset(self):
+        return super().get_queryset().filter(is_archived=False)
+
+    def recent(self):
+        """Останні 10 неархівованих нотаток."""
+        return self.get_queryset().order_by('-updated_at')[:10]
+
+
+class Note(models.Model):
+    PRIORITY_LOW    = 1
+    PRIORITY_MEDIUM = 2
+    PRIORITY_HIGH   = 3
+    PRIORITY_URGENT = 4
+    PRIORITY_CHOICES = [(1, '🟢 Низький'), (2, '🟡 Середній'),
+                        (3, '🟠 Високий'), (4, '🔴 Терміново')]
+
+    user     = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notes')
+    group    = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True)
+    notebook = models.ForeignKey(Notebook, on_delete=models.SET_NULL, null=True, blank=True)
+    tags     = models.ManyToManyField(Tag, blank=True, related_name='notes')
+
+    title      = models.CharField(max_length=200)
+    content    = models.TextField(blank=True)
+    priority   = models.PositiveSmallIntegerField(choices=PRIORITY_CHOICES, default=PRIORITY_LOW)
+    is_pinned  = models.BooleanField(default=False)
+    is_archived= models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)  # одноразово при CREATE
+    updated_at = models.DateTimeField(auto_now=True)       # оновлюється при кожному save()
+
+    # Два Manager-а:
+    objects  = models.Manager()         # стандартний
+    active   = PublishedNoteManager()   # custom: Note.active.all()
+
     def __str__(self):
-        return self.name
+        return f"{'📌 ' if self.is_pinned else ''}{self.title}"
 
-class Book(models.Model):
-    # Текстові поля
-    title = models.CharField(max_length=200, verbose_name="Назва книги")
-    summary = models.TextField(blank=True, help_text="Короткий опис")
-    
-    # Числові поля
-    price = models.DecimalField(max_digits=7, decimal_places=2, default=0.00)
-    pages = models.IntegerField(null=True, blank=True)
-    
-    # Дати та час
-    published_date = models.DateField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    # Логічні та спеціальні поля
-    is_active = models.BooleanField(default=True)
-    cover_image = models.ImageField(upload_to='books/covers/', null=True, blank=True)
-    contact_email = models.EmailField(blank=True)
-    
-    # Зв'язки між таблицями
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='books')
-    tags = models.ManyToManyField(Tag, blank=True)
-
-    def __str__(self):
-        return self.title
+    class Meta:
+        ordering = ['-is_pinned', '-priority', '-updated_at']
+        indexes = [
+            models.Index(fields=['user', '-updated_at'], name='cnote_user_updated_idx'),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(priority__gte=1) & models.Q(priority__lte=4),
+                name='cnote_priority_valid_range'
+            ),
+        ]
 ```
 
-**Основні типи полів у Django:**
-*   `CharField` — для короткого тексту, де обов'язково треба вказати максимальну довжину `max_length`.
-*   `TextField` — для великих текстів без обмеження довжини.
-*   `IntegerField` — для цілих чисел.
-*   `DecimalField` — для точних дробів (наприклад, грошей). Обов'язково вказується `max_digits` (всього цифр) та `decimal_places` (цифр після коми).
-*   `DateField` та `DateTimeField` — для дат і часу. Параметр `auto_now_add=True` записує час створення об'єкта, а `auto_now=True` — час його останнього оновлення.
-*   `BooleanField` — для значень Так/Ні (True/False).
-*   `EmailField` / `URLField` — текстові поля, які автоматично перевіряють, чи ввів користувач валідну пошту або посилання.
-
-**Найуживаніші параметри (аргументи) полів:**
-*   `null=True` — дозволяє базі даних зберігати порожнє значення як `NULL`.
-*   `blank=True` — дозволяє залишати поле порожнім при заповненні HTML-форм.
-*   `default` — встановлює значення за замовчуванням.
-*   `verbose_name` — зрозуміла для людини назва поля (використовується в панелі адміністратора).
-*   `unique=True` — гарантує, що значення в цьому полі не повторюватиметься в інших записах.
-
----
-
-## 5. Взаємозв'язки (Relationships) та Візуалізація
-
-```mermaid
-erDiagram
-    AUTHOR ||--o{ BOOK : "writes (ForeignKey)"
-    BOOK }|--|{ TAG : "has (ManyToManyField)"
-    USER ||--|| PROFILE : "owns (OneToOneField)"
-
-    AUTHOR {
-        int id PK
-        string name
-    }
-    BOOK {
-        int id PK
-        string title
-        int author_id FK
-    }
+**Lifecycle об'єкта:**
 
 ```
+note = Note(title='Test', user=user)  → Python об'єкт, note.id = None, 0 SQL
 
-* **1-до-Багатьох (`ForeignKey`):** Одна компанія -> багато товарів. Ключ зберігається на стороні "Багатьох".
-* **Багато-до-Багатьох (`ManyToManyField`):** Багато книг -> багато авторів. ORM непомітно створює приховану третю таблицю для відстеження цих зв'язків.
-* **1-до-1 (`OneToOneField`):** Користувач -> Профіль. По суті, розширення існуючої таблиці.
-* **Cascading (`on_delete=models.CASCADE`):** Архітектурний захист. Якщо видалити Автора, БД каскадно видалить усі його книги, щоб запобігти появі "осиротілих" даних.
+note.save()
+SQL: INSERT INTO notes_app_note (...) VALUES (...) RETURNING id
 
----
+note.title = 'Updated'
+note.save(update_fields=['title'])    # ефективніше — UPDATE тільки title
 
-## 6. Внутрішня будова QuerySet (QuerySet Internals)
-
-Найважливіша концепція ORM — **ліниві обчислення (Lazy Evaluation)**.
-
-Створення QuerySet **не звертається** до бази даних. Ви можете об'єднувати фільтри:
-`Book.objects.filter(price__gt=10).exclude(stock=0).order_by('title')`.
-Це просто конструювання SQL-рядка в пам'яті. Запит до БД відправляється **лише тоді**, коли ви починаєте ітерацію (наприклад, у циклі `for` або викликом `list()`).
-
-### Життєвий цикл складного запиту
-
-```mermaid
-sequenceDiagram
-    participant Dev as Код (Python)
-    participant QS as QuerySet API
-    participant Comp as SQL Компілятор
-    participant DB as База Даних
-    participant Inst as Реконструктор об'єктів
-
-    Dev->>QS: Book.objects.select_related('author').filter(price__gt=50)
-    Note over QS: Ліниве обчислення (Lazy). БД ще не задіяна!
-    Dev->>QS: for book in books: (Початок ітерації)
-    QS->>Comp: Тригер на виконання запиту
-    Comp->>Comp: Трансляція методів у сирий SQL
-    Comp->>DB: Виконання: SELECT ... INNER JOIN ... WHERE price > 50
-    DB-->>Comp: Повернення табличних рядків (Raw rows)
-    Comp->>Inst: Передача "сирих" даних
-    Inst->>Inst: Конвертація рядків у Python-об'єкти (Book та Author)
-    Inst-->>Dev: Повернення готових об'єктів у цикл
-
+note.delete()
+SQL: DELETE FROM notes_app_note WHERE id=42
 ```
 
 ---
 
-## 7. Проблеми продуктивності ORM: проблема N+1
-
-**Проблема N+1** виникає, коли ви ітеруєте 100 книг і для кожної викликаєте `book.author.name`. ORM зробить 1 запит для списку книг і ще 100 окремих запитів для кожного автора (1 + N).
-
-### Мінімальний, але глибокий приклад коду
+## 2. QuerySet — ланцюжок методів
 
 ```python
-# views.py
-def get_books(request):
-    # ❌ ПОГАНО: N+1 проблема (викличе БД стільки разів, скільки є книг)
-    # books = Book.objects.all()
+# filter / exclude
+Note.objects.filter(user=user, is_archived=False)
+Note.objects.exclude(is_pinned=True)
 
-    # ✅ АРХІТЕКТУРНО ПРАВИЛЬНО: SQL JOIN під капотом (1 запит до БД)
-    books = Book.objects.select_related('author').all()
+# Q objects — OR / AND / NOT
+from django.db.models import Q
 
-    for book in books:
-        # Дані автора вже завантажені в пам'ять, додаткових SQL-запитів не буде
-        print(book.author.name) 
+Note.objects.filter(Q(user=user) | Q(group__in=user_groups))
+Note.objects.filter(Q(title__icontains=q) | Q(content__icontains=q))
 
+# Сортування
+Note.objects.order_by('-priority', '-updated_at')   # кілька полів
+
+# Обмеження
+Note.objects.filter(user=user)[:10]                 # LIMIT 10
+Note.objects.filter(user=user)[10:20]               # LIMIT 10 OFFSET 10
+
+# Пошук по FK через __ (Django робить JOIN автоматично)
+Note.objects.filter(user__username='demo_alice')
+Note.objects.filter(notebook__title__icontains='django')
+Note.objects.filter(tags__name='python').distinct()  # M:N → distinct від JOIN
 ```
 
-*Для `ForeignKey` використовуйте `.select_related()`, а для `ManyToManyField` — `.prefetch_related()`.*
+### Таблиця Field Lookups (__)
+
+```python
+# Рядки
+field__exact = 'val'        # WHERE field = 'val'
+field__iexact = 'val'       # WHERE LOWER(field) = LOWER('val')
+field__contains = 'val'     # WHERE field LIKE '%val%'
+field__icontains = 'val'    # WHERE LOWER(field) LIKE '%val%'
+field__startswith = 'val'   # WHERE field LIKE 'val%'
+field__in = [1, 2, 3]       # WHERE field IN (1, 2, 3)
+
+# Числа
+field__gt = 5               # >
+field__gte = 5              # >=
+field__lt = 5               # <
+field__lte = 5              # <=
+field__range = (1, 10)      # BETWEEN 1 AND 10
+
+# NULL
+field__isnull = True        # WHERE field IS NULL
+
+# Дати
+field__year = 2024          # EXTRACT(YEAR FROM field) = 2024
+field__date = date(2024,1,1)# DATE(field) = '2024-01-01'
+```
 
 ---
 
-## 7а. Архітектурні пастки ORM — Продакшн рівень
+## 3. N+1 Problem та select_related / prefetch_related
 
-### Транзакції та конкурентність
-
-**Race Condition та `F()` вирази:**
-
-Патерн Read-Modify-Write — одна з головних причин втрати даних у конкурентних системах:
+**N+1 — найпоширеніша помилка продуктивності у Django.**
 
 ```python
-# ПОГАНО: Race Condition — два процеси можуть прочитати одне значення
-product = Product.objects.get(id=1)
-product.stock -= 1  # читаємо, змінюємо в Python
-product.save()      # записуємо — але інший процес міг вже змінити stock!
+# ❌ ПРОБЛЕМА — N+1
+notes = Note.objects.filter(user=user)
+for note in notes:
+    print(note.notebook.title)  # ← окремий SQL для кожної нотатки!
+# 1 запит для нотаток + N запитів для ноутбуків = N+1
 
-# ДОБРЕ: F() вираз — операція виконується в БД атомарно
+# ✅ РІШЕННЯ для ForeignKey — select_related (SQL JOIN)
+notes = Note.objects.filter(user=user).select_related('notebook', 'group')
+# 1 SQL запит з JOIN:
+# SELECT notes.*, notebooks.*, groups.*
+# FROM notes_app_note notes
+# LEFT JOIN notes_app_notebook notebooks ON notes.notebook_id = notebooks.id
+# LEFT JOIN auth_group groups ON notes.group_id = groups.id
+
+# ✅ РІШЕННЯ для ManyToMany — prefetch_related (окремий IN запит)
+notes = Note.objects.filter(user=user).prefetch_related('tags')
+# Запит 1: SELECT * FROM notes_app_note WHERE user_id = 1
+# Запит 2: SELECT * FROM notes_app_tag
+#          INNER JOIN notes_app_note_tags ON ... WHERE note_id IN (1,2,...,50)
+# Результат: 2 запити незалежно від кількості нотаток
+```
+
+### Коли що
+
+| Тип зв'язку | Метод | SQL |
+|-------------|-------|-----|
+| ForeignKey | `select_related('notebook')` | 1 JOIN |
+| OneToOne | `select_related('user__profile')` | 1 JOIN |
+| ManyToMany | `prefetch_related('tags')` | 2 запити |
+| Reverse FK | `prefetch_related('reminders')` | 2 запити |
+
+### Prefetch з фільтром
+
+```python
+from django.db.models import Prefetch
+
+# Завантажити тільки МАЙБУТНІ нагадування
+Note.objects.prefetch_related(
+    Prefetch(
+        'reminders',
+        queryset=Reminder.objects.filter(remind_at__gte=timezone.now()),
+        to_attr='upcoming_reminders'   # note.upcoming_reminders замість note.reminders.all()
+    )
+)
+```
+
+---
+
+## 4. F() Expressions — атомарні операції
+
+**F() — посилання на значення стовпця в самій БД. Вирішує race condition.**
+
+```python
 from django.db.models import F
-Product.objects.filter(id=1).update(stock=F('stock') - 1)
-# Генерує: UPDATE product SET stock = stock - 1 WHERE id = 1
+
+# ❌ НЕБЕЗПЕЧНО — race condition при конкурентних запитах
+note = Note.objects.get(id=1)
+note.views_count += 1  # прочитали 100, 1000 process-ів роблять те саме одночасно
+note.save()            # всі записують 101, хоча має бути 1100
+
+# ✅ БЕЗПЕЧНО — атомарна операція на рівні БД
+Note.objects.filter(id=1).update(views_count=F('views_count') + 1)
+# SQL: UPDATE notes SET views_count = views_count + 1 WHERE id=1
+# PostgreSQL виконує це атомарно, без race condition
+
+# F() для toggle (використовується у notes_chat_app services.py!)
+Note.objects.filter(pk=note.pk).update(is_pinned=~F('is_pinned'))
+note.refresh_from_db(fields=['is_pinned'])  # ← Python об'єкт не знає про зміну у БД
+
+# F() для порівняння двох стовпців
+Note.objects.filter(priority__gt=F('is_pinned'))  # умовний приклад
+
+# F() з арифметикою
+Note.objects.update(views_count=F('views_count') * 2)
 ```
 
-**`atomic()` — пастка з винятками:**
+---
+
+## 5. annotate() та aggregate()
 
 ```python
-# ПОГАНО: перехоплення виключення ВСЕРЕДИНІ atomic() 
+from django.db.models import Count, Sum, Avg, Max, Q
+
+# aggregate() — одне значення для всього QuerySet
+result = Note.objects.filter(user=user).aggregate(
+    total=Count('id'),
+    avg_priority=Avg('priority'),
+    max_priority=Max('priority'),
+)
+# result = {'total': 42, 'avg_priority': 2.1, 'max_priority': 4}
+
+# annotate() — розрахунковий стовпець для КОЖНОГО об'єкта
+# Використовується у notes_chat_app selectors.py!
+notebooks = Notebook.objects.filter(user=user).annotate(
+    note_count=Count('notes', filter=Q(notes__is_archived=False))
+).order_by('-is_default', 'title')
+# SQL: SELECT notebooks.*, COUNT(notes.id) AS note_count
+#      FROM notebooks LEFT JOIN notes ON ... WHERE notes.is_archived = false
+#      GROUP BY notebooks.id
+# Використання: notebook.note_count → без жодного додаткового SQL!
+
+# Два annotate разом
+TodoList.objects.filter(user=user).annotate(
+    total_items=Count('items'),
+    done_items=Count('items', filter=Q(items__is_done=True))
+)
+# todo.total_items, todo.done_items — доступні в шаблоні без SQL
+
+# alias() — обчислити для фільтрації, але не включати в SELECT
+Note.objects.alias(
+    tag_count=Count('tags')
+).filter(tag_count__gt=3)
+# WHERE COUNT(tags) > 3, але tag_count НЕ в SELECT
+```
+
+---
+
+## 6. transaction.atomic()
+
+**`atomic()` — "все або нічого" для групи операцій.**
+
+```python
+from django.db import transaction
+
+# ✅ ПРАВИЛЬНО — пов'язані операції в одній транзакції
+def create_note(*, user, title, content='', tag_ids=None):
+    with transaction.atomic():
+        note = Note.objects.create(user=user, title=title, content=content)
+        if tag_ids:
+            valid_tags = Tag.objects.filter(id__in=tag_ids, user=user)
+            note.tags.set(valid_tags)   # ← M:N всередині транзакції
+    return note
+# Якщо tags.set() впаде → create() теж rollback'd. Немає orphaned notes.
+
+# ❌ КРИТИЧНА ПОМИЛКА — try/except всередині atomic!
 with transaction.atomic():
     try:
-        Order.objects.create(...)       # якщо тут IntegrityError
-    except IntegrityError:
-        pass                            # транзакція “зламана”
-    Product.objects.update(stock=5)    # CRASH: TransactionManagementError!
+        note = Note.objects.create(...)
+    except Exception:
+        pass  # ← ТРАНЗАКЦІЯ "ЗЛАМАНА", TransactionManagementError!
 
-# ДОБРЕ: перехоплення ЗОВНІ
+# ✅ ПРАВИЛЬНО — exception catch ЗОВНІ
 try:
     with transaction.atomic():
-        Order.objects.create(...)
-        Product.objects.update(stock=5)
-except IntegrityError:
-    pass  # тут rollback вже відбувся безпечно
+        note = Note.objects.create(...)
+        note.tags.set(tags)
+except Exception as e:
+    logger.error(f"Failed: {e}")
+    return None
+
+# on_commit — виконати ПІСЛЯ успішного COMMIT
+def create_note_and_notify(user, title):
+    with transaction.atomic():
+        note = Note.objects.create(user=user, title=title)
+        # Celery task не запуститься якщо транзакція rollback'd
+        transaction.on_commit(
+            lambda: send_reminder_email.delay(note.id)
+        )
 ```
 
-> Ніколи не роби мережеві виклики або повільні операції всередині `atomic()` — відкрита транзакція тримає блокування БД.
-
----
-
-### OOM та великі датасети
+### Вкладені atomic → Savepoints
 
 ```python
-# ПОГАНО: завантажує 1 мільйон рядків у пам'ять → крах сервера
-for book in Book.objects.all():
-    process(book)
-
-# ДОБРЕ: ітератор із server-side cursor (PostgreSQL)
-# Завантажує по 2000 рядків за раз
-for book in Book.objects.all().iterator(chunk_size=2000):
-    process(book)
-```
-
-`iterator()` реалізує серверний курсор на рівні PostgreSQL — дані стримуються батчами, не завантажуючи весь результат у RAM.
-
----
-
-### `select_related` vs `prefetch_related` — де відбувається JOIN
-
-| Метод | Де виконується JOIN | Для яких зв'язків |
-|-------|---------------------|-------------------|
-| `select_related` | На рівні БД (SQL `INNER/LEFT JOIN`) | `ForeignKey`, `OneToOneField` |
-| `prefetch_related` | В пам'яті Python (окремий `IN` запит) | `ManyToManyField`, зворотні FK |
-
-```python
-# select_related → 1 SQL запит з JOIN
-books = Book.objects.select_related('author').all()
-# SQL: SELECT b.*, a.* FROM book b JOIN author a ON b.author_id = a.id
-
-# prefetch_related → 2 SQL запити + Python join
-books = Book.objects.prefetch_related('tags').all()
-# SQL 1: SELECT * FROM book
-# SQL 2: SELECT * FROM tag WHERE id IN (1,2,3,...,N)
-# Python: об'єднує в пам'яті
-```
-
-> **Пастка `prefetch_related`:** На величезних QuerySet генерується колосальний `IN` clause, що може перевантажити парсер БД або впасти на SQLite/Oracle з лімітом `IN`.
-
----
-
-### Оптимізація запитів та SQL-рентген
-
-```python
-# Переглянь план виконання запиту
-qs = Book.objects.filter(price__gt=50).select_related('author')
-print(qs.explain(verbose=True, analyze=True))
-# Виводить: EXPLAIN ANALYZE SELECT ... — показує чи є Index Scan чи Sequential Scan
-```
-
-**`alias()` vs `annotate()`:**
-
-```python
-from django.db.models import Count
-
-# annotate() — додає значення в SELECT (включає в результат)
-books = Book.objects.annotate(order_count=Count('orders'))
-
-# alias() — обчислює лише для фільтрації, не включає в SELECT (економить ресурси БД)
-books = Book.objects.alias(order_count=Count('orders')).filter(order_count__gt=10)
+with transaction.atomic():         # BEGIN
+    note = Note.objects.create(...)
+    with transaction.atomic():     # SAVEPOINT sp_1
+        note.tags.set(tags)        # якщо впаде → ROLLBACK TO sp_1
+    # Note зберігається навіть якщо tags впали
 ```
 
 ---
 
-### Масштабування та з'єднання з БД
-
-**Persistent connections (постійні з'єднання):**
+## 7. Корисні патерни
 
 ```python
-# settings.py — без цього Django створює нове TCP з'єднання на кожен запит!
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'CONN_MAX_AGE': 60,  # тримати з'єднання відкритим 60 секунд
-    }
-}
+# get_or_create — CREATE якщо не існує (ідемпотентна операція)
+notebook, created = Notebook.objects.get_or_create(
+    user=user, is_default=True,
+    defaults={'title': 'Основний', 'color': '#4A90E2'}
+)
+# Returns (object, bool) — bool=True якщо тільки що СТВОРЕНО
+
+# update_or_create — UPDATE якщо існує, CREATE якщо ні
+profile, _ = UserProfile.objects.update_or_create(
+    user=user,
+    defaults={'bio': new_bio, 'timezone': timezone_str}
+)
+
+# bulk_create — масове створення (1 SQL замість N)
+tags = [Tag(name=name, user=user) for name in ['python', 'django', 'orm']]
+Tag.objects.bulk_create(tags, ignore_conflicts=True)
+
+# bulk_update — масове оновлення (1 SQL)
+notes_to_archive = list(Note.objects.filter(user=user, is_archived=False))
+for note in notes_to_archive:
+    note.is_archived = True
+Note.objects.bulk_update(notes_to_archive, ['is_archived'])
+
+# values() та values_list() — dict/tuple замість Model об'єктів
+Note.objects.filter(user=user).values('id', 'title', 'priority')
+# → [{'id': 1, 'title': '...', 'priority': 2}, ...]
+
+Note.objects.filter(user=user).values_list('id', flat=True)
+# → QuerySet([1, 2, 3, ...])
+
+# Використовується у selectors.py для JSON відповіді:
+return list(
+    Reminder.objects.filter(...).values('id', 'message', 'remind_at', 'note__title')
+)
+
+# only() / defer() — відкладене завантаження полів
+Note.objects.only('id', 'title')    # тільки ці поля (менший SELECT)
+Note.objects.defer('content')       # всі КРІМ content
+
+# iterator() — стримінг для великих QuerySet (не завантажує все у RAM)
+for note in Note.objects.filter(user=user).iterator(chunk_size=1000):
+    process(note)
 ```
-
-**Primary/Replica (розподіл читання і запису):**
-
-```python
-# settings.py — читання з репліки, запис на master
-DATABASES = {
-    'default': {'HOST': 'primary.db'},
-    'replica': {'HOST': 'replica.db'},
-}
-
-# database_router.py
-class PrimaryReplicaRouter:
-    def db_for_read(self, model, **hints):
-        return 'replica'
-    def db_for_write(self, model, **hints):
-        return 'default'
-```
-
-> **Replication Lag:** Між записом на primary та його появою на репліці є затримка. Якщо після `save()` одразу читати з репліки — можуть повернутися старі дані.
 
 ---
 
-## 7б. MVCC та ізоляція транзакцій PostgreSQL
+## 8. Архітектурне питання: чому ціну фіксують в замовленні
 
-Без розуміння MVCC (Multi-Version Concurrency Control) неможливо усвідомити, як PostgreSQL забезпечує ізоляцію транзакцій без постійних блокувань.
+> Класичне питання на співбесіді. Розкриває розуміння незмінності транзакційних даних.
 
-Ось архітектурний розбір цих концепцій:
-
-**1. Суть MVCC (Багатоверсійність)**
-Замість того, щоб жорстко блокувати рядок при кожному читанні чи записі, база даних зберігає кілька історичних версій одного й того ж запису. Кожна версія непомітно маркується ідентифікатором (відміткою часу) транзакції, яка її створила. 
-*   **Архітектурне правило:** "Читачі не блокують письменників, а письменники не блокують читачів". Читаюча транзакція завжди отримує цілісний "зрізок" (snapshot) даних на момент свого початку, ігноруючи дані від ще не зафіксованих або новіших транзакцій.
-
-**2. Ізоляція транзакцій (На базі MVCC)**
-Саме MVCC дозволяє базі даних ефективно імплементувати рівні ізоляції без блокування цілих таблиць:
-*   **Read Committed (за замовчуванням у PostgreSQL та Django):** Захищає від читання незафіксованих даних. Однак він вразливий до "неповторюваного читання": якщо між двома вашими запитами `SELECT` інша транзакція змінить дані і зробить `COMMIT`, ваш другий запит побачить вже нові дані.
-*   **Repeatable Read:** Використовує MVCC для "заморожування" snapshot-у на весь час вашої транзакції. Ви завжди бачитимете узгоджений стан БД, навіть якщо інші транзакції паралельно змінюють ці ж записи.
-*   **Serializable:** Найсуворіший рівень. База даних гарантує, що паралельне виконання транзакцій дасть точно такий самий результат, якби вони виконувалися строго послідовно в черзі. Запобігає всім аномаліям, але сильно знижує пропускну здатність бази даних через потребу іноді скасовувати конфліктні транзакції.
-
-**3. Блокування (Locking) та Конкурентність**
-Хоча MVCC ідеально вирішує конфлікти "читання-запис", для конфліктів "запис-запис" (коли два клієнти одночасно намагаються змінити один рядок) все ще потрібні жорсткі монопольні блокування.
-*   **Row-level locks у Django:** Це реалізується через метод `select_for_update()`, який генерує SQL-інструкцію `SELECT ... FOR UPDATE`. Він накладає блокування на вибрані рядки до самого кінця транзакції, змушуючи інші процеси, що хочуть змінити ці ж дані, чекати.
-*   **Deadlocks (Взаємоблокування):** Якщо дві транзакції намагаються заблокувати одні й ті ж ресурси, але в різному порядку, виникає "тупик". База даних автоматично виявить це і примусово відкотить (rollback) одну з транзакцій. Щоб цього уникнути, архітектори мінімізують розмір транзакцій та завжди оновлюють таблиці в строго однаковому порядку.
-
-
-
-## 8. Поширені хибні уявлення та Дебагінг
-
-* **"QuerySets повільні":** Ні, повільним є їх неправильне використання. Виконання `.count()` в БД блискавичне; натомість завантаження всіх об'єктів у Python через `len(Book.objects.all())` — повільне і споживає багато пам'яті.
-* **"Видалення об'єкта впливає лише на нього":** Через архітектуру зв'язків (Cascade), видалення одного об'єкта може каскадно очистити половину БД.
-* **Інтуїція дебагінгу:** Якщо логіка працює повільно, проблема рідко в Python. Додавши `.query` до будь-якого QuerySet (напр. `print(books.query)`), ви побачите чистий SQL, який генерує Django. У розробці використання **Django Debug Toolbar** є обов'язковим для візуалізації дубльованих запитів.
-
-## 9. Вправа на передбачення (Prediction Exercise)
-
-Проаналізуйте наступний код:
-
-```python
-users = User.objects.filter(is_active=True)
-users.filter(last_name="Smith")
+**Сценарій:** `Order` → `Product` через ForeignKey, ціна береться з `Product.current_price`.
 
 ```
-
-**Запитання:** Скільки запитів до бази даних відбудеться?
-
-> **Відповідь:** Нуль (0). QuerySets ліниві, ми їх не роздрукували і не перебрали в циклі. Ба більше, другий рядок створює *новий* QuerySet, який нікуди не зберігається (результат втрачається).
-
-## 10. Питання для системного мислення (Reflection)
-
-Якщо у вас є модель `Order` (замовлення) і `Product` (товар). Чому ціна товару в момент покупки має зберігатися **безпосередньо** в моделі `Order` (наприклад, як `purchase_price`), а не просто запитуватися через зв'язок `ForeignKey` до таблиці товарів?
-
----
-Це класичне питання, яке часто ставлять на співбесідах. Відповідь на нього криється не в обмеженнях фреймворку Django, а у **фундаментальних принципах проєктування баз даних та фінансового аудиту**.
-
-Ось детальний розбір того, чому покладатися лише на `ForeignKey` для ціни — це катастрофічна помилка, і чому ціну потрібно "фіксувати" в момент покупки.
-
----
-
-### 1. Проблема мутабельності (змінності) даних
-
-Уявіть, що ви спроєктували базу даних лише зі зв'язком `ForeignKey` без збереження ціни в замовленні.
-
-* **1 Травня:** Клієнт купує книгу "Django для початківців". Поточна ціна в моделі `Product` — **$20**. Клієнт платить $20, ви генеруєте чек на $20.
-* **10 Травня:** Автор книги випускає оновлення, і ви підвищуєте ціну в каталозі (`Product`) до **$25**.
-* **15 Травня:** Клієнт заходить в особистий кабінет, щоб подивитися історію своїх замовлень. Ваш код робить запит: `order.product.price`.
-* **Наслідок:** Система показує клієнту, що він купив книгу за **$25**, хоча він заплатив $20.
-
-**Висновок:** Дані каталогу (товари) є *мутабельними* (змінними). Ціни, назви та характеристики товарів постійно змінюються. Якщо ви посилаєтесь на ціну через `ForeignKey`, ви дозволяєте майбутнім змінам переписувати минуле.
-
-### 2. Розділення "Стану каталогу" та "Стану транзакції"
-
-Хороша архітектура вимагає чіткого розділення двох різних сутностей:
-
-1. **Каталог (Product):** Відображає *теперішній* стан бізнесу. (Скільки це коштує зараз? Чи є це на складі зараз?)
-2. **Транзакція (Order / OrderItem):** Відображає *історичний факт*. (Скільки це коштувало в той конкретний момент часу? Скільки одиниць було продано?)
-
-Транзакції в базах даних мають бути **іммутабельними** (незмінними). Історичний факт не може змінитися задля зручності нормалізації бази даних.
-
-### 3. Фінансовий та юридичний аудит
-
-У реальних проєктах (e-commerce, ERP, CRM) бухгалтерія та податкова вимагають точних звітів.
-
-* Якщо податковий інспектор запитає: "Скільки грошей ви заробили за Травень?", ваш SQL-запит має просумувати ціни всіх замовлень за травень.
-* Якщо ціна не зафіксована в замовленні, зміна ціни в каталозі у грудні повністю зруйнує ваш фінансовий звіт за травень. Ваша база даних втратить фінансову цілісність (Data Integrity).
-
----
-
-### 💡 Архітектурна реалізація (Як це робиться правильно)
-
-У реальних системах між `Order` та `Product` завжди створюють проміжну таблицю `OrderItem` (рядок замовлення). Саме вона зберігає "зліпок" (snapshot) даних на момент покупки.
-
-#### Правильна структура БД (ER-діаграма)
-
-```mermaid
-erDiagram
-    ORDER ||--|{ ORDER_ITEM : "містить"
-    PRODUCT ||--o{ ORDER_ITEM : "додано в"
-
-    PRODUCT {
-        int id PK
-        string name
-        decimal current_price "Змінюється маркетологами"
-    }
-    
-    ORDER {
-        int id PK
-        datetime created_at
-        string status
-    }
-    
-    ORDER_ITEM {
-        int id PK
-        int order_id FK
-        int product_id FK
-        decimal purchase_price "Зафіксована ціна на момент покупки!"
-        int quantity
-    }
-
+1 травня: Студент купив книгу за $20. Order → Product (current_price=20)
+10 травня: Ціну підняли до $25
+15 травня: Студент дивиться замовлення → order.product.current_price = $25 (НЕПРАВИЛЬНО!)
 ```
 
-#### Реалізація коду в Django
-
-Ось як ця архітектура виглядає на рівні моделей та бізнес-логіки у `views.py`.
+**Рішення — денормалізація: зберігати ціну безпосередньо в замовленні:**
 
 ```python
-from django.db import models
-
-class Product(models.Model):
-    name = models.CharField(max_length=200)
-    # Це поточна ціна вітрини. Вона може змінюватись щодня.
-    current_price = models.DecimalField(max_digits=10, decimal_places=2) 
-
-class Order(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    @property
-    def total_cost(self):
-        # Рахуємо тотал на основі зафіксованих цін, а не цін вітрини
-        return sum(item.get_cost() for item in self.items.all())
-
 class OrderItem(models.Model):
-    order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, related_name='order_items', on_delete=models.RESTRICT)
-    
-    # ❗️ АРХІТЕКТУРНИЙ ЗАХИСТ: Зберігаємо зліпок ціни
-    purchase_price = models.DecimalField(max_digits=10, decimal_places=2)
+    order   = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.RESTRICT)
     quantity = models.PositiveIntegerField(default=1)
+    # Зліпок ціни на момент покупки — ніколи не змінюється
+    purchase_price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def get_cost(self):
         return self.purchase_price * self.quantity
 
+# При оформленні замовлення:
+OrderItem.objects.create(
+    order=order,
+    product=product,
+    purchase_price=product.current_price,  # ← копіюємо поточну ціну
+    quantity=1
+)
 ```
 
-**Момент фіксації (у View):**
-Коли клієнт натискає "Оформити замовлення", ви копіюєте значення:
+**Принцип:** Каталог (Product) — змінний. Транзакція (OrderItem) — незмінний факт. Фінансова цілісність важливіша за нормалізацію.
+
+---
+
+## 9. MVCC — як PostgreSQL забезпечує конкурентність
+
+**MVCC (Multi-Version Concurrency Control)** — PostgreSQL зберігає кілька версій рядка одночасно.
+
+**Архітектурне правило:** "Читачі не блокують письменників, письменники не блокують читачів."
+
+```
+Транзакція A читає Notes:     [row_v1: id=1, title='Django', xmin=100]
+Транзакція B оновлює:         [row_v2: id=1, title='Django ORM', xmin=101]
+Транзакція A (ще активна):    ← бачить row_v1, не бачить row_v2
+Транзакція A завершує COMMIT:
+Транзакція B завершує COMMIT:
+Новий читач: ← бачить row_v2
+```
+
+**Рівні ізоляції:**
+- **Read Committed** (дефолт у PostgreSQL і Django): захист від dirty reads, але дозволяє non-repeatable reads
+- **Repeatable Read**: заморожує snapshot для всієї транзакції
+- **Serializable**: максимальна ізоляція, знижує throughput
+
+**`select_for_update()` — явне блокування рядків:**
 
 ```python
-# Логіка створення замовлення (спрощено)
-order = Order.objects.create(...)
-
-for cart_item in user_cart:
-    OrderItem.objects.create(
-        order=order,
-        product=cart_item.product,
-        # Копіюємо поточну ціну продукту і назавжди фіксуємо її в чеку
-        purchase_price=cart_item.product.current_price, 
-        quantity=cart_item.quantity
-    )
-
+with transaction.atomic():
+    note = Note.objects.select_for_update().get(pk=pk)
+    # SQL: SELECT ... FOR UPDATE
+    # Блокує рядок до кінця транзакції
+    note.title = new_title
+    note.save()
+    # Інші транзакції що намагаються змінити цей рядок — чекають
 ```
 
-### Підсумок
+---
 
-Збереження `purchase_price` безпосередньо в моделі замовлення — це свідома **денормалізація** бази даних. Ми дублюємо дані, щоб гарантувати історичну правдивість, захистити систему від руйнування фінансової звітності та розділити змінні дані (каталог) від незмінних (історія транзакцій).
+## 10. Дебаг запитів
+
+```bash
+docker compose exec web python manage.py shell
+```
+
+```python
+from django.db import connection, reset_queries
+from django.conf import settings
+
+settings.DEBUG = True
+reset_queries()
+
+from notes_app import selectors
+from django.contrib.auth.models import User
+user = User.objects.get(username='demo_alice')
+notes = list(selectors.get_user_notes(user))
+
+print(f"SQL запитів: {len(connection.queries)}")
+for q in connection.queries[:5]:
+    print(q['sql'][:100], '→', q['time'])
+
+# EXPLAIN ANALYZE
+qs = selectors.get_user_notes(user)
+print(qs.explain(verbose=True, analyze=True))
+# Seq Scan vs Index Scan — ключова різниця продуктивності
+
+# Перегляд SQL будь-якого QuerySet
+print(qs.query)
+```
+
+---
+
+## Prediction Exercises
+
+### Exercise 1: Lazy Evaluation
+
+```python
+qs = Note.objects.filter(user=user)
+qs = qs.order_by('-priority')
+qs = qs.select_related('notebook')
+```
+
+**Скільки SQL виконалось?** → **0 запитів.** QuerySet lazy — SQL тільки при ітерації.
+
+### Exercise 2: N+1
+
+```python
+notes = Note.objects.all()[:10]
+for note in notes:
+    print(note.notebook.title)
+```
+
+**Скільки SQL?** → **1 + 10 = 11 запитів.** Виправлення: `.select_related('notebook')` → **1 запит**.
+
+### Exercise 3: F() vs Python
+
+```python
+# Варіант A:
+note = Note.objects.get(pk=1); note.is_pinned = True; note.save()
+
+# Варіант B:
+Note.objects.filter(pk=1).update(is_pinned=~F('is_pinned'))
+```
+
+**Різниця?** → A: 2 SQL + race condition. B: 1 атомарний SQL. B — завжди краще для toggles.
+
+---
+
+## Питання для самоперевірки
+
+1. Що таке Lazy Evaluation і коли SQL фактично виконується?
+2. Яка різниця між `select_related` і `prefetch_related`?
+3. Що таке N+1 і як виявити через `connection.queries`?
+4. Чому `F('views_count') + 1` безпечніший за `note.views_count + 1`?
+5. Що станеться якщо зробити `try/except` всередині `atomic()`?
+6. Яка різниця між `annotate()` і `aggregate()`?
+7. Коли використовувати `bulk_create()` і яка перевага?
+8. Чому ціна товару в замовленні має зберігатись окремо від `Product.price`?
+
+---
+
+## У книзі
+
+- [Django Models](django_models.md) — поля, зв'язки, Meta
+- [Migrations](migrations.md) — версійний контроль схеми
+- [Query Optimization](query_optimization.md) — реальні приклади з notes_chat_app
+- [Transactions і PostgreSQL](transactions_indexes_postgresql.md) — atomic, indexes, MVCC
+
+---
+
+## Офіційна документація
+
+- [Django: Making queries](https://docs.djangoproject.com/en/5.2/topics/db/queries/) — QuerySet API
+- [Django: QuerySet API reference](https://docs.djangoproject.com/en/5.2/ref/models/querysets/) — всі методи
+- [Django: Database access optimization](https://docs.djangoproject.com/en/5.2/topics/db/optimization/) — best practices
+- [Django: Aggregation](https://docs.djangoproject.com/en/5.2/topics/db/aggregation/) — annotate, aggregate
+- [Django: Transactions](https://docs.djangoproject.com/en/5.2/topics/db/transactions/) — atomic, on_commit
+- [PostgreSQL: MVCC](https://www.postgresql.org/docs/current/mvcc.html) — як PostgreSQL ізолює транзакції

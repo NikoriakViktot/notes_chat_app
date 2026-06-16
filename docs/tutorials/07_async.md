@@ -1091,7 +1091,7 @@ import json
 from channels.testing import WebsocketCommunicator
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import User, Group
-from django.test import TestCase, override_settings
+from django.test import TransactionTestCase, override_settings
 
 from notes_project.asgi import application
 
@@ -1118,22 +1118,21 @@ def _make_session_cookie(user):
 
 
 @override_settings(CHANNEL_LAYERS=TEST_CHANNEL_LAYERS)
-class GroupChatConsumerTest(TestCase):
+class GroupChatConsumerTest(TransactionTestCase):
+    # TransactionTestCase, а не TestCase:
+    # WebsocketCommunicator відкриває окремий потік для consumer.
+    # TestCase огортає кожен тест у транзакцію — consumer з іншого потоку
+    # не бачить ці незакомічені дані → setUp-об'єкти «зникають».
+    # TransactionTestCase не загортає у транзакцію → дані видимі всім потокам.
 
-    async def asyncSetUp(self):
-        self.user = await database_sync_to_async(
-            User.objects.create_user
-        )('testuser', password='testpass123')
-
-        self.other_user = await database_sync_to_async(
-            User.objects.create_user
-        )('otheruser', password='testpass123')
-
-        self.group = await database_sync_to_async(
-            Group.objects.create
-        )(name='Test Group')
-
-        await database_sync_to_async(self.group.user_set.add)(self.user)
+    def setUp(self):
+        # setUp() — синхронний, навіть якщо тести async.
+        # ORM-виклики виконуємо напряму: setUp() ніколи не запускається
+        # в async-контексті, тому database_sync_to_async не потрібний.
+        self.user = User.objects.create_user('testuser', password='testpass123')
+        self.other_user = User.objects.create_user('otheruser', password='testpass123')
+        self.group = Group.objects.create(name='Test Group')
+        self.group.user_set.add(self.user)
 
     def _communicator(self, user=None, group_pk=None):
         session_key = _make_session_cookie(user)
@@ -1144,6 +1143,18 @@ class GroupChatConsumerTest(TestCase):
             headers=[(b"cookie", f"sessionid={session_key}".encode())],
         )
 ```
+
+!!! note "asyncSetUp() у Django 5.1+"
+    Django 5.1 додав `asyncSetUp()` і `asyncTearDown()` до `TransactionTestCase`.
+    У Django 5.2+ можна писати:
+    ```python
+    async def asyncSetUp(self):
+        self.user = await User.objects.acreate_user('testuser', password='pass')
+        self.group = await DjangoGroup.objects.acreate(name='Chat')
+        await self.group.user_set.aadd(self.user)
+    ```
+    Обидва підходи коректні. **`notes_chat_app`** використовує синхронний `setUp()`
+    — він простіший і не вимагає `database_sync_to_async` в методі ініціалізації.
 
 ### Тест 1: member може підключитись
 
@@ -1381,7 +1392,7 @@ docker compose logs -f web
 
 ## Далі
 
-Наступний крок: [08 — Deployment](08_deployment.md) — Docker Compose, nginx, ngrok, production checklist.
+Наступний крок: [08 — Celery та фонові задачі](08_celery.md) — Celery Worker, Beat, Redis broker, browser Toast-нотифікації для нагадувань.
 
 Модулі документації:
 - [Async and Realtime](../09_async_and_realtime/README.md)

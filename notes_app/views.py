@@ -7,7 +7,7 @@ views.py — HTTP шар (тільки request/response).
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.contrib.auth import login
 from django.contrib.auth.forms import UserCreationForm
 
@@ -767,3 +767,22 @@ def group_chat(request, pk):
         print(tb, flush=True)
         from django.http import HttpResponse
         return HttpResponse(f"<pre>{tb}</pre>", status=500, content_type='text/html')
+
+
+# ── Reminders API ─────────────────────────────────────────────────────────────
+
+@login_required
+def reminders_check(request):
+    """
+    JSON endpoint для browser toast-нотифікацій.
+
+    Повертає нагадування поточного користувача, що настали за останню годину.
+    JS-polling (reminders.js) викликає цей endpoint кожну хвилину і показує
+    Bootstrap Toast для нових нагадувань.
+
+    Відповідь: {"reminders": [{id, message, remind_at, note__title}, ...]}
+    """
+    data = selectors.get_due_reminders_for_browser(request.user)
+    for item in data:
+        item['remind_at'] = item['remind_at'].strftime('%d.%m.%Y %H:%M')
+    return JsonResponse({'reminders': data})

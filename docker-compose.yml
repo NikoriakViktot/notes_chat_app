@@ -101,6 +101,42 @@ services:
     networks:
       - app-net
 
+  # ── Celery Worker — виконує задачі з черги ─────────────────────────────────
+  celery-worker:
+    build: .
+    command: celery -A notes_project worker -l info --concurrency=2
+    volumes:
+      - .:/app
+    environment:
+      DATABASE_URL: postgres://notes_user:notes_pass@db:5432/notes_db
+      REDIS_URL: redis://redis:6379/0
+      DJANGO_SETTINGS_MODULE: notes_project.settings
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-net
+
+  # ── Celery Beat — scheduler, кожну хвилину запускає send_reminder_notifications
+  celery-beat:
+    build: .
+    command: celery -A notes_project beat -l info
+    volumes:
+      - .:/app
+    environment:
+      DATABASE_URL: postgres://notes_user:notes_pass@db:5432/notes_db
+      REDIS_URL: redis://redis:6379/0
+      DJANGO_SETTINGS_MODULE: notes_project.settings
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-net
+
 volumes:
   postgres_data:
   staticfiles:

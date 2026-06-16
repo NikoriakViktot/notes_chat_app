@@ -793,7 +793,7 @@ exec python -m uvicorn notes_project.asgi:application \
 │ title (200)          │            │ text (500)            │   │ name (50)        │
 │ is_completed (bool)  │            │ is_done (bool)        │   │ color (#hex)     │
 └──────────────────────┘            │ due_date (date/null)  │   │ unique (user,name)│
-                                    │ position (int)        │   └──────────────────┘
+                                    │ order_position (int)  │   └──────────────────┘
                                     └──────────────────────┘
 
            │ (auth_user)
@@ -804,9 +804,10 @@ exec python -m uvicorn notes_project.asgi:application \
 │──────────────────────│            │──────────────────────│
 │ user (FK)            │            │ shopping_list (FK CASCADE)│
 │ group (FK SET_NULL)  │            │ name (200)            │
-│ title (200)          │            │ quantity (pos.int)    │
-│ store (100)          │            │ is_bought (bool)      │
-└──────────────────────┘            │ position (int)        │
+│ title (200)          │            │ quantity (decimal 8,2)│
+│ store_name (100)     │            │ is_purchased (bool)   │
+└──────────────────────┘            │ unit (шт/кг/л/г)     │
+                                    │ estimated_price (null)│
                                     └──────────────────────┘
 
   auth_group (Django вбудований)
@@ -818,7 +819,7 @@ exec python -m uvicorn notes_project.asgi:application \
   │   ChatMessage    │
   │──────────────────│
   │ group (FK CASCADE)│  ← group видалений → чат видалений
-  │ author (FK SET_NULL)│ ← author видалений → msg анонімний
+  │ author (FK CASCADE)│ ← author видалений → msg видалений
   │ content (text)   │
   │ timestamp (auto) │
   └──────────────────┘
@@ -895,19 +896,18 @@ class Tag(models.Model):
         # Але не може бути двох 'python' у одного юзера
 ```
 
-**ChatMessage — автор може бути видалений:**
+**ChatMessage — оба FK мають CASCADE:**
 
 ```python
 class ChatMessage(models.Model):
     group = models.ForeignKey(
         Group,
-        on_delete=models.CASCADE,    # ← CASCADE! Група = контекст чату
-        related_name='messages',
+        on_delete=models.CASCADE,    # ← CASCADE: група видалена → весь чат видалений
+        related_name='chat_messages',
     )
     author = models.ForeignKey(
         User,
-        on_delete=models.SET_NULL,   # ← SET_NULL: юзер видалений → msg стає анонімним
-        null=True,
+        on_delete=models.CASCADE,    # ← CASCADE: юзер видалений → його повідомлення видалені
         related_name='chat_messages',
     )
     content = models.TextField()
@@ -1219,7 +1219,7 @@ class GroupChatConsumer(AsyncWebsocketConsumer):
         for msg in history:
             await self.send(text_data=json.dumps({
                 'type': 'history',
-                'author': msg['author__username'] or 'Видалений юзер',
+                'author': msg['author__username'],
                 'content': msg['content'],
                 'timestamp': msg['timestamp'].isoformat(),
             }))
@@ -1415,11 +1415,15 @@ notes_app/tests/
 from channels.testing import WebsocketCommunicator
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import Group, User
-from django.test import TestCase
+from django.test import TransactionTestCase  # не TestCase! Consumer читає БД з окремого потоку
 from notes_project.asgi import application
 
 
-class GroupChatConsumerTest(TestCase):
+class GroupChatConsumerTest(TransactionTestCase):
+    # TransactionTestCase, а не TestCase:
+    # TestCase огортає кожен тест у транзакцію з rollback.
+    # Async consumer читає БД з окремого worker-потоку → транзакція TestCase
+    # невидима цьому потоку → дані «зникають». TransactionTestCase не огортає.
 
     def setUp(self):
         self.alice = User.objects.create_user('alice', password='pass123')

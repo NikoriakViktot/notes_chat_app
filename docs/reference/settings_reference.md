@@ -47,18 +47,16 @@ import os
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
-if DATABASE_URL:
-    # Production: PostgreSQL
-    DATABASES = {'default': dj_database_url.parse(DATABASE_URL)}
-else:
-    # Dev: SQLite
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+if not DATABASE_URL:
+    raise Exception("DATABASE_URL не встановлено. Запускай через docker compose.")
+
+DATABASES = {'default': dj_database_url.parse(DATABASE_URL)}
 ```
+
+> ⚠️ **Важливо:** SQLite-fallback відсутній. Запуск Django без `DATABASE_URL` негайно підіймає
+> `Exception`. Це навмисне рішення — проєкт вимагає PostgreSQL.
+> Якщо ти бачиш цю помилку, запускай через `docker compose up` або встанови `DATABASE_URL`.
+> Дивись [TROUBLESHOOTING.md](../TROUBLESHOOTING.md).
 
 **DATABASE_URL формат:** `postgres://user:password@host:5432/dbname`
 
@@ -91,6 +89,47 @@ else:
     }
 
 ASGI_APPLICATION = 'notes_project.asgi.application'
+```
+
+---
+
+## Celery (Background Tasks)
+
+```python
+# Celery використовує Redis DB 1, щоб не конфліктувати з
+# Channels channel layer (DB 0)
+_CELERY_REDIS = _REDIS_URL.replace("/0", "/1") if _REDIS_URL else "redis://localhost:6379/1"
+
+CELERY_BROKER_URL      = _CELERY_REDIS   # черга задач
+CELERY_RESULT_BACKEND  = _CELERY_REDIS   # результати задач
+CELERY_TIMEZONE        = TIME_ZONE
+CELERY_TASK_SERIALIZER  = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT   = ["json"]
+
+CELERY_BEAT_SCHEDULE = {
+    "send-reminders-every-minute": {
+        "task": "notes_app.tasks.send_reminder_notifications",
+        "schedule": 60.0,   # кожні 60 секунд
+    },
+}
+```
+
+| Змінна | Значення | Призначення |
+|--------|---------|-------------|
+| `CELERY_BROKER_URL` | `redis://redis:6379/1` | черга задач (DB 1, відокремлено від Channels) |
+| `CELERY_RESULT_BACKEND` | `redis://redis:6379/1` | збереження результатів задач |
+| `CELERY_BEAT_SCHEDULE` | `send_reminder_notifications`, 60 сек | Celery Beat розклад |
+
+**Docker-сервіси:**
+- `celery-worker` — `celery -A notes_project worker -l info --concurrency=2`
+- `celery-beat` — `celery -A notes_project beat -l info` (завжди 1 екземпляр)
+
+**Email у dev:**
+
+```python
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# Email виводиться у stdout контейнера web — не надсилається реально
 ```
 
 ---
@@ -210,8 +249,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
   NGROK_DOMAIN, NGROK_AUTHTOKEN, SEED_DEMO_DATA
 
 settings.py (читає з os.environ):
-  всі вищезазначені + INSTALLED_APPS, MIDDLEWARE, CHANNEL_LAYERS, STATIC_ROOT, ...
+  всі вищезазначені + INSTALLED_APPS, MIDDLEWARE, CHANNEL_LAYERS, CELERY_*, STATIC_ROOT, ...
 
 docker-compose.yml (передає у контейнер):
-  DATABASE_URL, REDIS_URL, SECRET_KEY, NGROK_DOMAIN, SEED_DEMO_DATA, WEB_HOST
+  DATABASE_URL, REDIS_URL, SECRET_KEY, NGROK_DOMAIN, SEED_DEMO_DATA, WEB_HOST,
+  DJANGO_SETTINGS_MODULE (для celery-worker і celery-beat)
 ```

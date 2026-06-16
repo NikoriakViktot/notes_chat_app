@@ -401,32 +401,34 @@ test: ["CMD-SHELL", "curl -sf http://localhost/accounts/login/ || exit 1"]
 
 ```python
 # notes_project/settings.py
-import dj_database_url
 import os
+import re
 
-DATABASE_URL = os.environ.get('DATABASE_URL')
+_DATABASE_URL = os.environ.get('DATABASE_URL')
+if not _DATABASE_URL:
+    raise Exception("DATABASE_URL не встановлено. Запускай через docker compose.")
 
-if DATABASE_URL:
-    # Production: PostgreSQL
-    DATABASES = {'default': dj_database_url.parse(DATABASE_URL)}
-    # dj_database_url.parse('postgres://user:pass@db:5432/notes_db') →
-    # {
-    #     'ENGINE': 'django.db.backends.postgresql',
-    #     'NAME': 'notes_db',
-    #     'USER': 'user',
-    #     'PASSWORD': 'pass',
-    #     'HOST': 'db',     ← Docker DNS: "db" → IP контейнера
-    #     'PORT': '5432',
-    # }
-else:
-    # Dev: SQLite
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
+# Парсимо URL вручну — dj-database-url не використовується у цьому проєкті
+_m = re.match(r'postgres://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)', _DATABASE_URL)
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME':     _m.group(5),
+        'USER':     _m.group(1),
+        'PASSWORD': _m.group(2),
+        'HOST':     _m.group(3),   # ← Docker DNS: "db" → IP контейнера
+        'PORT':     _m.group(4),
+        # CONN_MAX_AGE=0: вимикаємо persistent connections для async-режиму.
+        # В async один connection міг би обслуговувати кілька coroutines → race condition.
+        'CONN_MAX_AGE': 0,
     }
+}
 ```
+
+!!! warning "Без DATABASE_URL — Exception, не SQLite"
+    `settings.py` **не** має SQLite fallback. Якщо `DATABASE_URL` не встановлено,
+    додаток кидає `Exception` відразу при старті. Завжди запускай через `docker compose`.
+    Детальніше → [Troubleshooting](../TROUBLESHOOTING.md)
 
 ### Чому PostgreSQL, а не SQLite
 

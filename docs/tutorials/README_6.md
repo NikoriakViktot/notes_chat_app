@@ -948,7 +948,16 @@ def note_edit(request, pk):
     if request.method == 'POST':
         form = NoteForm(request.POST, instance=note, user=request.user)
         if form.is_valid():
-            services.update_note(note, **form.cleaned_data_for_service())
+            cd = form.cleaned_data
+            services.update_note(
+                note,
+                title=cd['title'],
+                content=cd.get('content', ''),
+                priority=cd.get('priority', note.priority),
+                notebook=cd.get('notebook'),
+                is_pinned=cd.get('is_pinned', False),
+                tag_ids=[t.pk for t in cd.get('tags', [])],
+            )
             messages.success(request, 'Нотатку оновлено.')
             return redirect('hello_app:note_detail', pk=note.pk)
     else:

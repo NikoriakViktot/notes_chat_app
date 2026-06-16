@@ -141,3 +141,28 @@ def get_group_with_members(group_id, user):
         return group
     except Group.DoesNotExist:
         return None
+
+
+# ── Reminder selectors ────────────────────────────────────────────────────────
+
+def get_due_reminders_for_browser(user):
+    """
+    Нагадування, що настали за останню годину — для browser toast-нотифікацій.
+
+    Вікно 1 год: якщо користувач відкрив браузер після того як нагадування
+    спрацювало, він все одно побачить toast.
+    Повертає матеріалізований список словників (безпечно для JSON-серіалізації).
+    """
+    from datetime import timedelta
+    now = timezone.now()
+    return list(
+        Reminder.objects
+        .filter(
+            note__user=user,
+            remind_at__lte=now,
+            remind_at__gte=now - timedelta(hours=1),
+        )
+        .select_related('note')
+        .order_by('remind_at')
+        .values('id', 'message', 'remind_at', 'note__title')
+    )

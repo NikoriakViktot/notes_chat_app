@@ -99,18 +99,18 @@ def test_create_note(self):
 ```python
 from channels.testing import WebsocketCommunicator
 from channels.db import database_sync_to_async
-from django.test import TestCase, override_settings
+from django.test import TransactionTestCase, override_settings  # не TestCase!
 from notes_project.asgi import application
 
+# TransactionTestCase: async consumer читає БД з окремого потоку.
+# TestCase огортає тест у транзакцію — вона невидима цьому потоку.
 @override_settings(CHANNEL_LAYERS={"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}})
-class ConsumerTest(TestCase):
+class ConsumerTest(TransactionTestCase):
 
-    async def asyncSetUp(self):
-        self.user = await database_sync_to_async(
-            User.objects.create_user)('testuser', password='pass')
-        self.group = await database_sync_to_async(
-            Group.objects.create)(name='Test')
-        await database_sync_to_async(self.group.user_set.add)(self.user)
+    def setUp(self):  # sync setUp, не asyncSetUp
+        self.user = User.objects.create_user('testuser', password='pass')
+        self.group = Group.objects.create(name='Test')
+        self.group.user_set.add(self.user)
 
     async def test_member_can_connect(self):
         communicator = WebsocketCommunicator(

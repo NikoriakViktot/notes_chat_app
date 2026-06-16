@@ -703,19 +703,20 @@ class ChatMessageModelTest(TestCase):
 
         self.assertEqual(ChatMessage.objects.count(), 0)   # CASCADE ✓
 
-    def test_chat_message_author_becomes_null_when_user_deleted(self):
+    def test_chat_message_deleted_when_author_deleted(self):
         """
-        ChatMessage.author = FK(User, SET_NULL):
-        Видалення юзера → повідомлення стає анонімним (не видаляється).
+        ChatMessage.author = FK(User, CASCADE):
+        Видалення юзера → всі його повідомлення видаляються разом.
         """
-        msg = ChatMessage.objects.create(
+        ChatMessage.objects.create(
             group=self.group, author=self.alice, content='I will be deleted'
         )
+        self.assertEqual(ChatMessage.objects.count(), 1)
+
         self.alice.delete()
 
-        msg.refresh_from_db()
-        self.assertIsNone(msg.author)       # SET_NULL → анонімний ✓
-        self.assertEqual(msg.content, 'I will be deleted')  # вміст збережений
+        # CASCADE: повідомлення видалено разом з автором
+        self.assertEqual(ChatMessage.objects.count(), 0)
 ```
 
 ### Чому `full_clean()`, а не `.save()` для validators
@@ -1250,13 +1251,19 @@ GroupChatConsumer.connect()
 from channels.testing import WebsocketCommunicator
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import Group, User
-from django.test import TestCase
+from django.test import TransactionTestCase  # не TestCase!
 
 from notes_app.models import ChatMessage
 from notes_project.asgi import application   # ← ASGI app для WebSocket тестів
 
 
-class GroupChatConsumerTest(TestCase):
+class GroupChatConsumerTest(TransactionTestCase):
+    # ЧОМУ TransactionTestCase А НЕ TestCase?
+    # TestCase загортає кожен тест у транзакцію з rollback після тесту.
+    # Async consumer читає БД з окремого worker-потоку через database_sync_to_async.
+    # Цей потік не бачить незакомічену транзакцію TestCase → setUp-об'єкти «зникають».
+    # TransactionTestCase не загортає в транзакцію → дані видимі всім потокам.
+    # asyncSetUp() не підтримується в TransactionTestCase до Django 5.1 — використовуй sync setUp.
 
     def setUp(self):
         self.alice = User.objects.create_user('alice', password='pass123')

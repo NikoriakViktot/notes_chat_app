@@ -1066,7 +1066,7 @@ Django шукає base.html:
 
 ## Практичне завдання
 
-1. Відкрий `notes_app/templates/base.html` → `templates/layouts/dashboard.html` → `notes_app/note_list.html`. Відслідкуй ланцюг `{% extends %}`.
+1. Відкрий `hello_app/templates/hello_app/note_list.html` → `templates/layouts/dashboard.html` → `templates/base.html`. Відслідкуй ланцюг `{% extends %}`.
 2. Додай новий пункт у Sidebar для "Архів" (`/notes/?archived=1`).
 3. Перепиши одну форму з ручного Bootstrap HTML на Crispy FormHelper + Layout.
 4. Перевір active state: натискаючи різні пункти меню — підсвітка переміщається.

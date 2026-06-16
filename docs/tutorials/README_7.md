@@ -984,6 +984,14 @@ Selenium:  10s    ×  100 = 16 хвилин
 
 ## Крок 0 — Запуск
 
+!!! note "Шляхи у цьому розділі — з оригінального монорепозиторію курсу"
+    Команди нижче орієнтовані на структуру оригінального курсового монорепозиторію,
+    де цей проєкт розташований за шляхом `module_5/lesson_Django_Testing/crispy_notes_project`.
+
+    Якщо ти працюєш у standalone-репозиторії **notes_chat_app**, запускай команди
+    з кореня репозиторію — `cd module_5/...` не потрібен.
+    CI-воркфлоу цього репозиторію слідкує за шляхами `notes_app/**` та `notes_project/**`.
+
 ```bash
 # 1. Перейти до папки проєкту
 cd module_5/lesson_Django_Testing/crispy_notes_project
@@ -1487,6 +1495,16 @@ GitHub:  Зелений/червоний статус на коміті + email 
 ---
 
 ### Повний workflow: рядок за рядком
+
+!!! warning "Цей workflow — з оригінального монорепозиторію курсу"
+    YAML-код нижче описує CI-воркфлоу, написаний для монорепозиторію курсу,
+    де проєкт розташований за шляхом `module_5/lesson_Django_Testing/crispy_notes_project`.
+    Відповідно, `paths:` і `working-directory:` вказують на цей шлях.
+
+    У standalone-репозиторії **notes_chat_app** воркфлоу слідкує за шляхами
+    `notes_app/**` та `notes_project/**` — без `module_5/` префіксу.
+    Розбір нижче є навчальним прикладом структури GitHub Actions — концепції
+    (`on`, `paths`, `jobs`, `steps`, `needs`) застосовні до будь-якого проєкту.
 
 Файл: [`.github/workflows/django-tests.yml`](../../../../.github/workflows/django-tests.yml)
 

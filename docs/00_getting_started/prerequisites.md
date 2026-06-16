@@ -1,48 +1,177 @@
-# Prerequisites
+# Що потрібно знати перед стартом
 
-> Перед Django треба мати мінімальну робочу модель Git, Python, terminal і virtualenv.
+> Цей курс розрахований на людину, яка вже знає Python і вміє користуватись терміналом.
+> Django — це не перша мова, це перший серйозний фреймворк.
 
-## Що студент вивчить
+---
 
-- базову ментальну модель теми;
-- як тема працює у Django;
-- де її побачити у фінальному проєкті;
-- як перевірити, що розуміння не лише теоретичне.
+## Обов'язкові знання
 
-## Передумови
+### Python — мінімальний рівень
 
-- Вміти відкрити репозиторій.
-- Розуміти, що всі шляхи в документації відносні до кореня `notes_chat_app`.
+Ти маєш вміти прочитати і написати такий код без підказок:
 
-## Мінімум
+```python
+# Функції зі значеннями за замовчуванням і *args/**kwargs
+def create_note(title, content='', priority=2, **kwargs):
+    return {'title': title, 'content': content, 'priority': priority}
 
-- Git для клонування репозиторію.
-- Python 3.12 або сумісна версія.
-- Terminal: PowerShell, Bash або WSL.
-- Розуміння, що команди виконуються з кореня репозиторію.
+# Класи: __init__, self, наслідування, super()
+class Note:
+    def __init__(self, title, user):
+        self.title = title
+        self.user = user
 
-## Не потрібно на старті
+    def __str__(self):
+        return self.title
 
-Docker, Redis, PostgreSQL і Nginx не потрібні для першого локального запуску. Вони з'являються у DevOps і deployment розділах.
+class PinnedNote(Note):
+    def __init__(self, title, user):
+        super().__init__(title, user)
+        self.is_pinned = True
 
-## Де це знайти у фінальному проєкті
+# List/dict comprehensions
+notes = [n for n in all_notes if n.user == current_user]
+tag_map = {tag.id: tag.name for tag in tags}
 
-| Файл | Що подивитися |
-| --- | --- |
-| `requirements.txt` | перелік Python-пакетів |
-| `.env.example` | шаблон environment variables |
+# Декоратори
+def login_required(func):
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('/login/')
+        return func(request, *args, **kwargs)
+    return wrapper
 
-## Практичне завдання
+# Context managers
+with open('data.json') as f:
+    data = json.load(f)
 
-Перевірте `python --version` або `python3 --version` і створіть virtual environment.
+# Exception handling
+try:
+    note = Note.objects.get(pk=pk)
+except Note.DoesNotExist:
+    raise Http404
+```
 
-## Контрольні питання
+**Якщо це не зрозуміло** — пройди спочатку курс по Python. Django використовує всі ці конструкції повсюдно.
 
-- Що є входом у цей процес?
-- Який результат очікується?
-- Де найчастіше виникає помилка?
-- Яка команда або test допомагає перевірити зміну?
+### HTML — базовий рівень
+
+```html
+<!-- Структура сторінки -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Сторінка</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <form method="post" action="/notes/new/">
+        <input type="text" name="title" placeholder="Заголовок">
+        <textarea name="content"></textarea>
+        <button type="submit">Зберегти</button>
+    </form>
+    <script src="app.js"></script>
+</body>
+</html>
+```
+
+Потрібно розуміти: теги, атрибути, форми (`method`, `action`, `name`), посилання на CSS і JS.
+
+### Термінал — базовий рівень
+
+```bash
+# Навігація
+cd /path/to/project
+ls -la
+pwd
+
+# Читання файлів
+cat requirements.txt
+less notes_app/views.py
+
+# Запуск команд
+python manage.py migrate
+git status
+docker compose up
+```
+
+Потрібно: відкрити термінал, перейти до папки, запустити команду, прочитати вивід.
+
+### Git — мінімальний рівень
+
+```bash
+git clone https://github.com/NikoriakViktot/notes_chat_app.git
+git status
+git log --oneline
+git diff
+```
+
+Потрібно: клонувати репозиторій, перевірити статус, подивитись зміни.
+
+---
+
+## Для запуску застосунку потрібен Docker
+
+`notes_chat_app` вимагає PostgreSQL і Redis. Вони запускаються через Docker.
+
+!!! warning "Без Docker застосунок не запуститься"
+    `manage.py migrate` падає з `OperationalError` якщо немає PostgreSQL.
+    `manage.py runserver` падає якщо немає `DATABASE_URL`.
+    
+    Є тільки один надійний спосіб запустити проєкт — `docker compose up`.
+
+### Встановити Docker Desktop
+
+| Система | Завантаження |
+|---------|-------------|
+| Windows / macOS | [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/) |
+| Ubuntu/Debian | `sudo apt install docker.io docker-compose-plugin` |
+| WSL2 | Docker Desktop з увімкненим WSL2 integration |
+
+Після установки перевір:
+
+```bash
+docker --version        # Docker version 24.x.x
+docker compose version  # Docker Compose version v2.x.x
+```
+
+!!! note "Docker не потрібен для читання коду"
+    Якщо хочеш тільки читати документацію і код — Python і редактор достатньо.
+    Docker потрібен тільки коли запускаєш `docker compose up`.
+
+---
+
+## Що НЕ потрібно знати на старті
+
+| Тема | Коли з'явиться |
+|------|---------------|
+| Linux глибоко | Розділ X — Linux і DevOps |
+| nginx конфігурація | Крок 9 — Deployment |
+| Redis/Celery | Крок 8 — Background Tasks |
+| WebSocket протокол | Крок 7B — Channels |
+| PostgreSQL команди | Крок 9 — PostgreSQL в Docker |
+| JavaScript (async/await) | Крок 7B — WebSocket клієнт |
+
+---
+
+## Перевір себе перед початком
+
+```bash
+# Python встановлений?
+python3 --version   # Python 3.11+ або 3.12
+
+# Git встановлений?
+git --version       # git version 2.x.x
+
+# Docker встановлений?
+docker --version    # Docker version 24+
+```
+
+Якщо всі три команди виводять версії — можеш починати.
+
+---
 
 ## Далі
 
-Далі: [local setup](local_setup.md).
+→ [Налаштування середовища](local_setup.md) — клонуємо репо і запускаємо стек

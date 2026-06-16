@@ -56,9 +56,11 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 MIDDLEWARE = [
-    "notes_project.middleware.DebugExceptionMiddleware",
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
+    # SecurityMiddleware ПОВИНЕН бути першим — він відповідає за HTTPS redirect
+    # і HSTS headers. Якщо стоїть не першим, ці заголовки не застосовуються
+    # до відповідей від попередніх middleware (наприклад, debug traceback).
     "django.middleware.security.SecurityMiddleware",
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -66,6 +68,11 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+if DEBUG:
+    # DebugExceptionMiddleware повертає HTML з traceback у відповідь на 500.
+    # Прийнятно лише в режимі DEBUG — в production розкриває внутрішній стек.
+    MIDDLEWARE.insert(0, "notes_project.middleware.DebugExceptionMiddleware")
 
 INTERNAL_IPS = ["127.0.0.1"]
 
@@ -269,3 +276,25 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 # CSRF_COOKIE_SECURE = True       # CSRF cookie тільки через HTTPS
 # SECURE_SSL_REDIRECT = True      # HTTP → 301 → HTTPS
 # SECURE_HSTS_SECONDS = 31536000  # браузер запам'ятовує HTTPS на 1 рік
+
+# ── Celery ────────────────────────────────────────────────────────────────────
+# Брокер і result backend — той самий Redis що й для Channels (різні DB-номери).
+# Redis DB 0: Channels channel layer.
+# Redis DB 1: Celery broker + result backend.
+_CELERY_REDIS = _REDIS_URL.replace("/0", "/1") if _REDIS_URL else "redis://localhost:6379/1"
+
+CELERY_BROKER_URL = _CELERY_REDIS
+CELERY_RESULT_BACKEND = _CELERY_REDIS
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+
+# Celery Beat — розклад задач.
+# send_reminder_notifications запускається кожні 60 секунд.
+CELERY_BEAT_SCHEDULE = {
+    "send-reminders-every-minute": {
+        "task": "notes_app.tasks.send_reminder_notifications",
+        "schedule": 60.0,
+    },
+}

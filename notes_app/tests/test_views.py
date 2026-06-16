@@ -2,10 +2,10 @@
 test_views.py — Інтеграційні тести через Django Test Client
 
 ЯК ЗАПУСТИТИ:
-  # Перейти до папки проєкту (якщо ще не там)
-  cd module_5/lesson_Django_Testing/crispy_notes_project
+  # Запустити через Docker (стандартний спосіб для notes_chat_app):
+  docker compose run --rm web python manage.py test notes_app.tests.test_views -v 2
 
-  # Всі тести цього файлу (41 тест)
+  # Всі тести цього файлу
   python manage.py test notes_app.tests.test_views -v 2
 
   # Конкретний клас

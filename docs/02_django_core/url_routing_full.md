@@ -432,3 +432,94 @@ urlpatterns = [
 **Запитання для роздумів:** Що відбудеться, якщо користувач надішле запит на `/api/users/active/`? Який View виконається і чому?
 
 > **Відповідь:** Виконається **маршрут №2** (`user_profile`), оскільки він стоїть вище і збігається з рядком `users/active/`, сприймаючи `users` як статичну частину, а `active` — як `<str:username>`. Маршрут №3 ніколи не буде досягнутий. Це класична архітектурна помилка маршрутизації зверху вниз. Маршрут №3 необхідно перемістити вище за маршрут №2.
+
+---
+
+## notes_chat_app — реальні URL patterns
+
+### Головний router (`notes_project/urls.py`)
+
+```python
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('accounts/', include('django.contrib.auth.urls')),  # login, logout, password
+    path('', include('notes_app.urls', namespace='notes_app')),
+]
+```
+
+### App router (`notes_app/urls.py`)
+
+```python
+app_name = 'notes_app'   # ← namespace для reverse()
+
+urlpatterns = [
+    path('', views.home, name='home'),
+
+    # Notes CRUD
+    path('notes/', views.note_list, name='note_list'),
+    path('notes/new/', views.note_create, name='note_create'),    # ← ПЕРЕД <int:pk>!
+    path('notes/<int:pk>/', views.note_detail, name='note_detail'),
+    path('notes/<int:pk>/edit/', views.note_update, name='note_update'),
+    path('notes/<int:pk>/delete/', views.note_delete, name='note_delete'),
+
+    # Notebooks, Tags
+    path('notebooks/', views.notebook_list, name='notebook_list'),
+    path('tags/', views.tag_list, name='tag_list'),
+
+    # Group chat
+    path('groups/<int:pk>/chat/', views.group_chat, name='group_chat'),
+
+    # Todos, Shopping
+    path('todos/', views.todo_list, name='todo_list'),
+    path('shopping/', views.shopping_list_view, name='shopping_list'),
+]
+```
+
+### Named URLs — `reverse()` і `{% url %}`
+
+```python
+# В views.py — redirect по імені URL
+return redirect('notes_app:note_detail', pk=note.pk)
+
+# reverse() — отримати рядок URL
+from django.urls import reverse
+url = reverse('notes_app:note_detail', kwargs={'pk': 42})
+# url == '/notes/42/'
+```
+
+```html
+<!-- В шаблоні -->
+<a href="{% url 'notes_app:note_detail' pk=note.pk %}">{{ note.title }}</a>
+<a href="{% url 'notes_app:note_create' %}">Нова нотатка</a>
+```
+
+### Debug — `resolve()` і `show_urls`
+
+```python
+from django.urls import resolve
+
+result = resolve('/notes/42/')
+result.url_name   # 'note_detail'
+result.namespace  # 'notes_app'
+result.kwargs     # {'pk': 42}
+result.func       # <function note_detail at 0x...>
+```
+
+---
+
+## У книзі
+
+- [Request Lifecycle](request_lifecycle.md) — повний шлях запиту крізь Django
+- [Views](views_full.md) — FBV, CBV, декоратори, антипатерни
+- [Крок 1. Hello Django](../tutorials/01_hello_django/urls_and_views.md) — практика URL routing
+
+---
+
+## Офіційна документація
+
+- [Django: URL dispatcher](https://docs.djangoproject.com/en/5.2/topics/http/urls/) — path(), re_path(), include()
+- [Django: Reverse resolution of URLs](https://docs.djangoproject.com/en/5.2/topics/http/urls/#reverse-resolution-of-urls) — reverse(), {% url %}
+- [Django: URL converters](https://docs.djangoproject.com/en/5.2/topics/http/urls/#path-converters) — int, str, slug, uuid, path

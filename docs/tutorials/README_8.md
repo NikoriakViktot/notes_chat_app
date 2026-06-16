@@ -106,6 +106,13 @@ flowchart TD
 | **`hello_project/routing.py`** | **WebSocket URL patterns** | **✅ Новий** |
 | **`static/hello_app/js/group_chat.js`** | **Vanilla JS WebSocket клієнт** | **✅ Новий** |
 
+!!! note "Навчальний стан цього модуля"
+    `async_selectors.py`, `async_services.py`, `async_views.py` та `test_async_views.py`
+    створюються **лише в межах цього навчального кроку** для демонстрації Django async views.
+
+    У фінальній версії **Notes Chat App** ці модулі **відсутні**: вся async-логіка
+    реалізована безпосередньо у `consumers.py` (Django Channels) без окремих async_*.py файлів.
+
 ---
 
 ## 03. Sync-версія: класичний Django
