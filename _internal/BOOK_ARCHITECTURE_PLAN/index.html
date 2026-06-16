@@ -1,0 +1,2432 @@
+
+<!doctype html>
+<html lang="uk" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Навчальний курс Django від основ до production-ready застосунку з WebSocket чатом">
+      
+      
+      
+        <link rel="canonical" href="https://nikoriakviktor.github.io/notes_chat_app/_internal/BOOK_ARCHITECTURE_PLAN/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Book Architecture Plan - Notes Chat App — Курс Django</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#book-architecture-plan" class="md-skip">
+          Перейти до змісту
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Хедер">
+    <a href="../.." title="Notes Chat App — Курс Django" class="md-header__button md-logo" aria-label="Notes Chat App — Курс Django" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Notes Chat App — Курс Django
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Book Architecture Plan
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Пошук" placeholder="Пошук" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Шукати">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Очистити" aria-label="Очистити" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Пошук розпочато
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/NikoriakViktot/notes_chat_app" title="Перейти до вихідного коду" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    NikoriakViktot/notes_chat_app
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Вкладки" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Головна
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../00_getting_started/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Як користуватися
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../01_web_foundations/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Книга Django
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorials/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Zero to Hero
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../12_final_project/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Notes Chat App
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../labs/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Практика
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Довідник
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../TEACHING_GUIDE/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Викладачу
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Навігація" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Notes Chat App — Курс Django" class="md-nav__button md-logo" aria-label="Notes Chat App — Курс Django" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Notes Chat App — Курс Django
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/NikoriakViktot/notes_chat_app" title="Перейти до вихідного коду" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    NikoriakViktot/notes_chat_app
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Головна
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../00_getting_started/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Як користуватися
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    
+  
+  
+  
+    <a href="../../01_web_foundations/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Книга Django
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../tutorials/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zero to Hero
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../12_final_project/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Notes Chat App
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../labs/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Практика
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../reference/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Довідник
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../TEACHING_GUIDE/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Викладачу
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Зміст">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Зміст
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Мета книги
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Мета книги">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Цільова аудиторія
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Очікувані результати
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Межі книги
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notes-chat-app" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Роль Notes Chat App
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vs-production" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Навчальний код vs production
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Верхньорівнева структура книги
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-knowledge-book" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Knowledge Book — деталізація частин
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Knowledge Book — деталізація частин">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#i-web-foundation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Частина I. Web Foundation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ii-django-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Частина II. Django Core
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#iii-models-database-orm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Частина III. Models, Database та ORM
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#iv-forms-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Частина IV. Forms і Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v-templates-frontend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Частина V. Templates і Frontend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Частина VI. Архітектура застосунку
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vii-authentication-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Частина VII. Authentication і Security
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#viii-testing-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Частина VIII. Testing і Quality
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ix-async-real-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Частина IX. Async і Real-Time
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#x-linux-devops-deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Частина X. Linux, DevOps і Deployment
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-dependency-graph-mermaid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Dependency Graph — Mermaid
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Dependency Graph — Mermaid">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-http-django-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Граф 1: HTTP → Django pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-data-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Граф 2: Data layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-auth-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Граф 3: Auth і Permissions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-testing-pyramid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Граф 4: Testing pyramid
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-async-real-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Граф 5: Async і Real-time
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-devops-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Граф 6: DevOps pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Відкриті питання (перенесені до плану)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Відкриті питання (перенесені до плану)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#debugexceptionmiddleware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DebugExceptionMiddleware
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#legacy-paths-readme_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Legacy paths README_7
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mkdocs-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MkDocs validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Педагогічні принципи
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Педагогічні принципи">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Скафолдинг — послідовність без пропусків
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-pattern-overview-detail-practice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Pattern: overview → detail → practice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-deliberate-pedagogy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Еволюція підходів (deliberate pedagogy)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-standalone-vs-notes-chat-app" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 Standalone-проєкти vs Notes Chat App
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#65" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.5 Правило трьох прив'язок
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Три шари — зв'язок (приклади)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-phase-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Журнал змін (після Phase 2)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Журнал змін (після Phase 2)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#2026-06-14-batch-h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-06-14 — Batch H
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2026-06-14-batch-i" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-06-14 — Batch I
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2026-06-14-batch-j" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-06-14 — Batch J
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2026-06-14-mkdocsyml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2026-06-14 — Навігація (mkdocs.yml)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Канонічні глави — оновлення
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="book-architecture-plan">Book Architecture Plan<a class="headerlink" href="#book-architecture-plan" title="Permanent link">&para;</a></h1>
+<p>Phase 2 — Architecture Planning
+Створено: 2026-06-14</p>
+<hr />
+<h2 id="1">1. Мета книги<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<h3 id="_1">Цільова аудиторія<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
+<p>Студенти, які вже вміють писати Python-код, але ще не розуміють web-розробку через Django.</p>
+<p>Початковий рівень: базовий Python (функції, класи, списки, словники), елементарний HTML.</p>
+<p>Кінцевий рівень: здатні самостійно спроєктувати, побудувати, протестувати та задеплоїти production-ready Django-застосунок з PostgreSQL, Redis, WebSocket-чатом, CI та Docker.</p>
+<h3 id="_2">Очікувані результати<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<p>Студент, який пройшов книгу повністю, може:</p>
+<ul>
+<li>пояснити life-cycle HTTP-запиту від браузера до response;</li>
+<li>реалізувати CRUD, auth, object-level permissions, group sharing;</li>
+<li>написати tests для моделей, сервісів, форм, view і WebSocket consumer;</li>
+<li>рефакторити fat view у thin view + selector + service;</li>
+<li>розгорнути застосунок у Docker Compose з Nginx, PostgreSQL, Redis;</li>
+<li>налаштувати GitHub Actions CI.</li>
+</ul>
+<h3 id="_3">Межі книги<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<p>Книга <strong>не</strong> охоплює: REST API / DRF, GraphQL, Celery background tasks (лише теоретичне ознайомлення), Kubernetes (лише огляд), мобільну розробку.</p>
+<h3 id="notes-chat-app">Роль Notes Chat App<a class="headerlink" href="#notes-chat-app" title="Permanent link">&para;</a></h3>
+<p>Notes Chat App є єдиним наскрізним проєктом всієї книги. Він з'являється в:</p>
+<ul>
+<li>Zero to Hero — як мета побудови;</li>
+<li>Project Deep Dive — як детальний архітектурний розбір;</li>
+<li>Knowledge Book — як джерело реальних прикладів до кожної теми.</li>
+</ul>
+<h3 id="vs-production">Навчальний код vs production<a class="headerlink" href="#vs-production" title="Permanent link">&para;</a></h3>
+<p>Туторіали 01–04 використовують навмисно спрощені standalone-проєкти (hello_project, bootstrap_notes, crispy_notes, notes_project). Ці проєкти не є частинами Notes Chat App — вони є педагогічними попередниками, які демонструють еволюцію підходів. Книга явно позначає ці переходи.</p>
+<hr />
+<h2 id="2">2. Верхньорівнева структура книги<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Головна
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── Як користуватися книгою
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── Книга Django (Knowledge Book)
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   ├── Частина I.  Web Foundation
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│   ├── Частина II. Django Core
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│   ├── Частина III. Models, Database та ORM
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│   ├── Частина IV. Forms і Validation
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│   ├── Частина V.  Templates і Frontend
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│   ├── Частина VI. Архітектура застосунку
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│   ├── Частина VII. Authentication і Security
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│   ├── Частина VIII. Testing і Quality
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│   ├── Частина IX. Async і Real-Time
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│   └── Частина X.  Linux, DevOps і Deployment
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>├── Django Zero to Hero (покроковий маршрут)
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   ├── Крок 0.  Налаштування середовища
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   ├── Крок 1.  Перша Django-сторінка (hello_project)
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>│   ├── Крок 2.  Перша модель і міграція (bootstrap_notes)
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│   ├── Крок 3.  CRUD і ORM (notes_project)
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>│   ├── Крок 4.  Форми і Bootstrap (crispy_notes)
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>│   ├── Крок 5.  Auth і безпека (notes_chat_app)
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>│   ├── Крок 6.  Тестування (notes_chat_app)
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>│   ├── Крок 7.  Async і WebSocket (notes_chat_app)
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>│   └── Крок 8.  Deployment і CI (notes_chat_app)
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── Notes Chat App Deep Dive (архітектурний розбір)
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>│   └── 35 глав (детально — PROJECT_DEEP_DIVE_PLAN.md)
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>├── Практика
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>│   ├── Лабораторні роботи (ORM, Forms, Testing, Async)
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>│   └── Завдання студентів
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>├── Довідник
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>│   ├── Команди
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>│   ├── ORM Cheatsheet
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>│   ├── Testing Cheatsheet
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>│   ├── Git Cheatsheet
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>│   ├── Deployment Cheatsheet
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>│   ├── Settings Reference
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>│   ├── Глосарій
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>│   └── Troubleshooting
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>└── Викладачу
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>    ├── Teaching Guide
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>    └── Learning Path
+</code></pre></div>
+<hr />
+<h2 id="3-knowledge-book">3. Knowledge Book — деталізація частин<a class="headerlink" href="#3-knowledge-book" title="Permanent link">&para;</a></h2>
+<h3 id="i-web-foundation">Частина I. Web Foundation<a class="headerlink" href="#i-web-foundation" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Зміст</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Мета</td>
+<td>Пояснити, як браузер і сервер спілкуються до того, як з'являється Django</td>
+</tr>
+<tr>
+<td>Рівень</td>
+<td>Foundation</td>
+</tr>
+<tr>
+<td>Передумови</td>
+<td>Базова Python (для подальшої роботи)</td>
+</tr>
+<tr>
+<td>Канонічні глави</td>
+<td>1. Мережевий фундамент (network_foundation_full.md) · 2. HTTP та HTTPS (http_https.md) · 3. HTTP Requests: архітектура (http_requests_docs.md) · 4. Браузер ↔ сервер (browser_server_lifecycle.md) · 5. Web сервери та ядро (server.md) · 6. Мережеві діаграми (network_mermaid_full.md)</td>
+</tr>
+<tr>
+<td>Практика</td>
+<td>Відкрити DevTools → Network, переглянути GET-запит</td>
+</tr>
+<tr>
+<td>Zero to Hero links</td>
+<td>Крок 1 (hello_project)</td>
+</tr>
+<tr>
+<td>Project links</td>
+<td>Request flows у Notes Chat App</td>
+</tr>
+<tr>
+<td>Наступна частина</td>
+<td>Django Core — де Python зустрічається з HTTP</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="ii-django-core">Частина II. Django Core<a class="headerlink" href="#ii-django-core" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Зміст</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Мета</td>
+<td>Сформувати ментальну модель Django як конвеєра middleware → URL → view → response</td>
+</tr>
+<tr>
+<td>Рівень</td>
+<td>Beginner</td>
+</tr>
+<tr>
+<td>Передумови</td>
+<td>Частина I</td>
+</tr>
+<tr>
+<td>Канонічні глави</td>
+<td>1. Архітектура Django / MTV (django_architecture_full.md) · 2. URL routing (url_routing_full.md) · 3. Views FBV/CBV (views_full.md) · 4. Request lifecycle (request_lifecycle.md) · 5. WSGI vs ASGI (wsgi_vs_asgi.md) · 6. Структура проєкту (project_structure_full.md) · 7. Management commands (management_commands_full.md) · 8. Діаграми (django_mermaid_full.md)</td>
+</tr>
+<tr>
+<td>Практика</td>
+<td>Додати простий view і URL, трейсити запит у debugger</td>
+</tr>
+<tr>
+<td>Zero to Hero links</td>
+<td>Крок 1, Крок 3</td>
+</tr>
+<tr>
+<td>Project links</td>
+<td>notes_project/urls.py, notes_app/views.py</td>
+</tr>
+<tr>
+<td>Наступна частина</td>
+<td>Models — де дані зберігаються</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="iii-models-database-orm">Частина III. Models, Database та ORM<a class="headerlink" href="#iii-models-database-orm" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Зміст</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Мета</td>
+<td>Зрозуміти реляційні БД, Django models як схему домену, ORM як abstraction layer</td>
+</tr>
+<tr>
+<td>Рівень</td>
+<td>Beginner → Intermediate</td>
+</tr>
+<tr>
+<td>Передумови</td>
+<td>Частина II</td>
+</tr>
+<tr>
+<td>Канонічні глави</td>
+<td>1. Реляційні БД (relational_db_foundations_full.md) · 2. Django Models (django_models.md → або django_orm_full.md) · 3. ORM основи (django_orm_full.md) · 4. ORM поглиблено / Q, F, annotate (django_orm_deep_full.md) · 5. Міграції (django_migrations_full.md) · 6. PostgreSQL advanced (postgresql_advanced_full.md) · 7. Індекси (indexing_deep_full.md) · 8. Транзакції (transactions_concurrency_full.md) · 9. ORM Mermaid (orm_mermaid_full.md)</td>
+</tr>
+<tr>
+<td>Практика</td>
+<td>ORM Lab (labs/orm_lab.md)</td>
+</tr>
+<tr>
+<td>Zero to Hero links</td>
+<td>Крок 2 (перша модель), Крок 3 (ORM у CRUD)</td>
+</tr>
+<tr>
+<td>Project links</td>
+<td>notes_app/models.py — повна схема доменних моделей</td>
+</tr>
+<tr>
+<td>Наступна частина</td>
+<td>Forms — як дані потрапляють від користувача</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="iv-forms-validation">Частина IV. Forms і Validation<a class="headerlink" href="#iv-forms-validation" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Зміст</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Мета</td>
+<td>Зрозуміти trust boundary, validation pipeline, PRG-паттерн, Crispy Forms</td>
+</tr>
+<tr>
+<td>Рівень</td>
+<td>Intermediate</td>
+</tr>
+<tr>
+<td>Передумови</td>
+<td>Частина III</td>
+</tr>
+<tr>
+<td>Канонічні глави</td>
+<td>1. Django Forms повний (django_forms_full.md) · 2. Crispy Forms (crispy_forms_full.md)</td>
+</tr>
+<tr>
+<td>Практика</td>
+<td>Forms Lab (labs/forms_lab.md)</td>
+</tr>
+<tr>
+<td>Zero to Hero links</td>
+<td>Крок 4 (crispy_notes форми)</td>
+</tr>
+<tr>
+<td>Project links</td>
+<td>notes_app/forms.py — NoteForm, GroupCreateForm</td>
+</tr>
+<tr>
+<td>Наступна частина</td>
+<td>Templates — як відповідь рендериться</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="v-templates-frontend">Частина V. Templates і Frontend<a class="headerlink" href="#v-templates-frontend" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Зміст</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Мета</td>
+<td>Система шаблонів Django, наслідування, Bootstrap 5, static files</td>
+</tr>
+<tr>
+<td>Рівень</td>
+<td>Beginner → Intermediate</td>
+</tr>
+<tr>
+<td>Передумови</td>
+<td>Частина II</td>
+</tr>
+<tr>
+<td>Канонічні глави</td>
+<td>1. HTML основи (html_basics_full.md) · 2. CSS основи (css_basics_full.md) · 3. Django Templates (django_templates_full.md) · 4. Advanced Templates (advanced_templates_full.md) · 5. Bootstrap 5 (bootstrap_5_full.md) · 6. Django Admin (django_admin_full.md) · 7. Design foundations (design_foundations_full.md)</td>
+</tr>
+<tr>
+<td>Практика</td>
+<td>Змінити template, додати Bootstrap компонент</td>
+</tr>
+<tr>
+<td>Zero to Hero links</td>
+<td>Крок 4 (crispy_notes SaaS dashboard)</td>
+</tr>
+<tr>
+<td>Project links</td>
+<td>templates/, notes_app/static/</td>
+</tr>
+<tr>
+<td>Наступна частина</td>
+<td>Application Architecture — як розділити відповідальність</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="vi">Частина VI. Архітектура застосунку<a class="headerlink" href="#vi" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Зміст</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Мета</td>
+<td>Відділити HTTP, читання даних і зміну даних. Тонкі view, selectors, services</td>
+</tr>
+<tr>
+<td>Рівень</td>
+<td>Intermediate</td>
+</tr>
+<tr>
+<td>Передумови</td>
+<td>Частини II–IV</td>
+</tr>
+<tr>
+<td>Канонічні глави</td>
+<td>1. Services та Selectors — повний (services_selectors_full.md) · 2. Services окремо (django_services_full.md) · 3. Selectors окремо (django_selectors_full.md) · 4. Serializers (django_serializers_full.md) · 5. Celery/Tasks огляд (django_tasks_full.md)</td>
+</tr>
+<tr>
+<td>Практика</td>
+<td>Рефакторити fat view у selector + service</td>
+</tr>
+<tr>
+<td>Zero to Hero links</td>
+<td>Крок 3 (vinести query), Крок 5 (auth + permissions у services)</td>
+</tr>
+<tr>
+<td>Project links</td>
+<td>notes_app/services.py, notes_app/selectors.py</td>
+</tr>
+<tr>
+<td>Наступна частина</td>
+<td>Auth — хто і що може робити</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="vii-authentication-security">Частина VII. Authentication і Security<a class="headerlink" href="#vii-authentication-security" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Зміст</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Мета</td>
+<td>Відрізнити AuthN від AuthZ, зрозуміти сесії, IDOR, object-level permissions, OWASP</td>
+</tr>
+<tr>
+<td>Рівень</td>
+<td>Intermediate → Advanced</td>
+</tr>
+<tr>
+<td>Передумови</td>
+<td>Частини II, VI</td>
+</tr>
+<tr>
+<td>Канонічні глави</td>
+<td>1. Auth basics (auth_basics_full.md) · 2. Sessions (sessions_flow_full.md) · 3. Permissions (permissions_full.md) · 4. Django security architecture (django_security_architecture_full.md) · 5. Security foundations (security_foundations_full.md) · 6. Security misconceptions (security_misconceptions_full.md) · 7. OWASP Top 10 (owasp_top_10_full.md) · 8. Zero Trust (zero_trust_full.md)</td>
+</tr>
+<tr>
+<td>Практика</td>
+<td>Написати IDOR bug і тест, що його ловить</td>
+</tr>
+<tr>
+<td>Zero to Hero links</td>
+<td>Крок 5 (auth у notes_chat_app)</td>
+</tr>
+<tr>
+<td>Project links</td>
+<td>notes_app/views.py (permission checks), notes_app/selectors.py (Q filter)</td>
+</tr>
+<tr>
+<td>Наступна частина</td>
+<td>Testing — як довести, що все правильно</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="viii-testing-quality">Частина VIII. Testing і Quality<a class="headerlink" href="#viii-testing-quality" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Зміст</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Мета</td>
+<td>Model tests, service tests, form tests, view tests, consumer tests (TransactionTestCase!), Selenium E2E, CI</td>
+</tr>
+<tr>
+<td>Рівень</td>
+<td>Intermediate → Advanced</td>
+</tr>
+<tr>
+<td>Передумови</td>
+<td>Частини II–VII</td>
+</tr>
+<tr>
+<td>Канонічні глави</td>
+<td>1. Testing foundations (testing_foundations_full.md) · 2. unittest (unittest_basics_full.md) · 3. pytest (pytest_basics_full.md) · 4. Django Testing (django_testing_full.md) · 5. Mocking (mocking_and_patching_full.md) · 6. Test data/fixtures (test_data_and_fixtures_full.md) · 7. Selenium (selenium_full.md) · 8. CI/CD (ci_cd_full.md) · 9. Testing practice project (testing_practice_project_full.md)</td>
+</tr>
+<tr>
+<td>Практика</td>
+<td>Testing Lab (labs/testing_lab.md)</td>
+</tr>
+<tr>
+<td>Zero to Hero links</td>
+<td>Крок 6 (тестування notes_chat_app)</td>
+</tr>
+<tr>
+<td>Project links</td>
+<td>notes_app/tests/ — test_models, test_services, test_forms, test_views, test_consumers, test_selenium</td>
+</tr>
+<tr>
+<td>Наступна частина</td>
+<td>Async — реальний час і WebSocket</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="ix-async-real-time">Частина IX. Async і Real-Time<a class="headerlink" href="#ix-async-real-time" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Зміст</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Мета</td>
+<td>asyncio, ASGI, Django Channels, WebSocket, Redis channel layer, database_sync_to_async, TransactionTestCase</td>
+</tr>
+<tr>
+<td>Рівень</td>
+<td>Advanced</td>
+</tr>
+<tr>
+<td>Передумови</td>
+<td>Частини II, III, VIII</td>
+</tr>
+<tr>
+<td>Канонічні глави</td>
+<td>1. Sync vs Async (async_01_sync_vs_async_full.md) · 2. asyncio (async_02_asyncio_full.md) · 3. asyncio: Event Loop архітектура (lesson_34_documentation.md) · 4. ASGI (async_03_asgi_full.md) · 5. Django Async Views (async_04_django_async_views_full.md) · 6. Async ORM (async_05_async_orm_full.md) · 7. sync_to_async (async_06_sync_to_async_full.md) · 8. WebSocket та Channels (channels_websocket.md) · 9. Async use cases (async_09_async_use_cases_full.md)</td>
+</tr>
+<tr>
+<td>Практика</td>
+<td>Async Lab (labs/async_lab.md)</td>
+</tr>
+<tr>
+<td>Zero to Hero links</td>
+<td>Крок 7 (WebSocket у notes_chat_app)</td>
+</tr>
+<tr>
+<td>Project links</td>
+<td>notes_app/consumers.py, notes_project/asgi.py, notes_project/routing.py</td>
+</tr>
+<tr>
+<td>Наступна частина</td>
+<td>DevOps — як запустити в production</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="x-linux-devops-deployment">Частина X. Linux, DevOps і Deployment<a class="headerlink" href="#x-linux-devops-deployment" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Зміст</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Мета</td>
+<td>Linux основи, Docker, Docker Compose, Nginx, CI, deployment checklist</td>
+</tr>
+<tr>
+<td>Рівень</td>
+<td>Intermediate → Production</td>
+</tr>
+<tr>
+<td>Передумови</td>
+<td>Загальне розуміння проєкту</td>
+</tr>
+<tr>
+<td>Канонічні глави</td>
+<td>1. Linux ментальна модель (linux_01_mental_model_full.md) · 2–10. Linux 02-10 series · 11. Docker та Runtime (docker_and_runtime.md) · 12. Docker: повний посібник (docker_guide.md) · 13. Docker basics (deploy_14_docker_basics_full.md) · 14. Docker Compose (deploy_15_docker_compose_full.md) · 15. Django на Linux (deploy_11_django_on_linux_full.md) · 16. Nginx+Gunicorn/Uvicorn (deploy_12_nginx_gunicorn_uvicorn_full.md) · 17. Логи та моніторинг (deploy_13_logs_monitoring_debugging_full.md) · 18. DevOps workflow (deploy_16_devops_workflow_full.md) · 19. Kubernetes огляд (deploy_17_kubernetes_overview_full.md) · 20. Roadmap (deploy_18_roadmap_next_steps_full.md)</td>
+</tr>
+<tr>
+<td>Практика</td>
+<td>Deployment checklist, CI налаштування</td>
+</tr>
+<tr>
+<td>Zero to Hero links</td>
+<td>Крок 8 (deployment notes_chat_app)</td>
+</tr>
+<tr>
+<td>Project links</td>
+<td>docker-compose.yml, Dockerfile, .github/workflows/, nginx/</td>
+</tr>
+<tr>
+<td>Наступна частина</td>
+<td>Notes Chat App Deep Dive — фінальний розбір</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-dependency-graph-mermaid">4. Dependency Graph — Mermaid<a class="headerlink" href="#4-dependency-graph-mermaid" title="Permanent link">&para;</a></h2>
+<h3 id="1-http-django-pipeline">Граф 1: HTTP → Django pipeline<a class="headerlink" href="#1-http-django-pipeline" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>graph LR
+    A[HTTP request lifecycle] --&gt; B[Django URL routing]
+    B --&gt; C[Views FBV/CBV]
+    C --&gt; D[Templates / Response]
+    C --&gt; E[Forms / Validation]
+    E --&gt; F[Services / Mutations]
+    C --&gt; G[Selectors / Reads]</code></pre>
+<h3 id="2-data-layer">Граф 2: Data layer<a class="headerlink" href="#2-data-layer" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>graph LR
+    A[Relational database] --&gt; B[Django Models]
+    B --&gt; C[Migrations]
+    C --&gt; D[ORM / QuerySet]
+    D --&gt; E[Q objects / annotate / F]
+    D --&gt; F[select_related / prefetch_related]
+    D --&gt; G[Transactions / Locks]
+    G --&gt; H[PostgreSQL / Indexes]</code></pre>
+<h3 id="3-auth-permissions">Граф 3: Auth і Permissions<a class="headerlink" href="#3-auth-permissions" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>graph LR
+    A[Authentication] --&gt; B[Sessions / Cookies]
+    A --&gt; C[login_required decorator]
+    C --&gt; D[Authorization]
+    D --&gt; E[Object-level permissions]
+    E --&gt; F[Q user OR group]
+    F --&gt; G[Group sharing]
+    D --&gt; H[IDOR prevention]</code></pre>
+<h3 id="4-testing-pyramid">Граф 4: Testing pyramid<a class="headerlink" href="#4-testing-pyramid" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>graph BT
+    A[Unit: Model / Service / Form tests] --&gt; B[Integration: View tests]
+    B --&gt; C[Consumer tests — TransactionTestCase!]
+    C --&gt; D[Selenium E2E]
+    D --&gt; E[CI — GitHub Actions]</code></pre>
+<h3 id="5-async-real-time">Граф 5: Async і Real-time<a class="headerlink" href="#5-async-real-time" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>graph LR
+    A[asyncio / coroutines] --&gt; B[ASGI / ProtocolTypeRouter]
+    B --&gt; C[Django Channels]
+    C --&gt; D[WebSocket URLRouter]
+    D --&gt; E[GroupChatConsumer]
+    E --&gt; F[database_sync_to_async]
+    F --&gt; G[ORM in worker thread]
+    C --&gt; H[Redis channel layer]
+    H --&gt; I[Multi-process broadcast]</code></pre>
+<h3 id="6-devops-pipeline">Граф 6: DevOps pipeline<a class="headerlink" href="#6-devops-pipeline" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>graph LR
+    A[Linux basics] --&gt; B[Environment variables]
+    B --&gt; C[Docker image / container]
+    C --&gt; D[Docker Compose — dev stack]
+    D --&gt; E[Nginx reverse proxy]
+    E --&gt; F[Production Django ASGI]
+    D --&gt; G[PostgreSQL / Redis]
+    F --&gt; H[GitHub Actions CI]</code></pre>
+<hr />
+<h2 id="5">5. Відкриті питання (перенесені до плану)<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<h3 id="debugexceptionmiddleware">DebugExceptionMiddleware<a class="headerlink" href="#debugexceptionmiddleware" title="Permanent link">&para;</a></h3>
+<p><code>notes_project/middleware.py</code> — повертає traceback браузеру без перевірки <code>DEBUG</code>.
+Класифікація: Security/production issue.
+Де пояснити у книзі:
+- Knowledge Book Part VII: middleware/security (небезпечний middleware у prod);
+- Project Deep Dive Ch.4 або Ch.32: поточний middleware;
+- Reference / Troubleshooting / Production checklist.
+Рішення: code fix — окрема задача, не Phase 2.</p>
+<h3 id="legacy-paths-readme_7">Legacy paths README_7<a class="headerlink" href="#legacy-paths-readme_7" title="Permanent link">&para;</a></h3>
+<p>Застарілі шляхи (<code>module_5/...</code>) у tutorials/README_7.md.
+Класифікація: low-priority cleanup.
+Виправити у Batch H (Zero to Hero content).</p>
+<h3 id="mkdocs-validation">MkDocs validation<a class="headerlink" href="#mkdocs-validation" title="Permanent link">&para;</a></h3>
+<p><code>mkdocs build --strict</code> заблоковано (MkDocs недоступний у поточному середовищі).
+Усі навігаційні рішення повинні пройти validation під час Phase 4.</p>
+<hr />
+<h2 id="6">6. Педагогічні принципи<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<h3 id="61">6.1 Скафолдинг — послідовність без пропусків<a class="headerlink" href="#61" title="Permanent link">&para;</a></h3>
+<p>Кожна нова тема спирається на вже пройдений матеріал. Заборонено вводити нові поняття без опертя на попередні.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>HTTP request lifecycle
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  → Django URL routing (Частина II)
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    → Views (II) → Forms (IV) → Services (VI)
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>      → Tests для кожного шару (VIII)
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>Models (III) → ORM (III) → Selectors (VI)
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  → Q-filter + prefetch (III) → N+1 tests (VIII)
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>Auth (VII) → IDOR (VII) → Q-scoped queryset (III+VI)
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>  → Permission tests (VIII)
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>asyncio (IX) → ASGI (IX) → Channels (IX)
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>  → database_sync_to_async (IX) → TransactionTestCase (VIII)
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>Docker (X) → docker-compose.yml (X) → Nginx (X)
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>  → CI (VIII+X) → Production checklist (X)
+</code></pre></div>
+<h3 id="62-pattern-overview-detail-practice">6.2 Pattern: overview → detail → practice<a class="headerlink" href="#62-pattern-overview-detail-practice" title="Permanent link">&para;</a></h3>
+<p>Кожна тема вводиться у три кроки:</p>
+<table>
+<thead>
+<tr>
+<th>Крок</th>
+<th>Що</th>
+<th>Де</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Overview</td>
+<td>Навіщо це потрібно, ментальна модель</td>
+<td>Knowledge Book розділ</td>
+</tr>
+<tr>
+<td>Detail</td>
+<td>Як це працює у Notes Chat App</td>
+<td>Project Deep Dive або Zero to Hero</td>
+</tr>
+<tr>
+<td>Practice</td>
+<td>Студент робить сам</td>
+<td>Lab або Student Task</td>
+</tr>
+</tbody>
+</table>
+<h3 id="63-deliberate-pedagogy">6.3 Еволюція підходів (deliberate pedagogy)<a class="headerlink" href="#63-deliberate-pedagogy" title="Permanent link">&para;</a></h3>
+<p>Книга навмисно показує еволюцію — починаючи з "неправильного" підходу, щоб студент відчув проблему:</p>
+<table>
+<thead>
+<tr>
+<th>Еволюція</th>
+<th>Де показано</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ORM у view → fat view → selector + service</td>
+<td>ZH Кроки 3–5</td>
+</tr>
+<tr>
+<td>FBV → CBV → повернення до FBV в Notes Chat App</td>
+<td>ZH Кроки 3–4 + PD</td>
+</tr>
+<tr>
+<td>HTTP polling → обмеження → WebSocket</td>
+<td>ZH Кроки 7 + KB IX</td>
+</tr>
+<tr>
+<td>SQLite → обмеження → PostgreSQL</td>
+<td>ZH Крок 5 + KB III</td>
+</tr>
+<tr>
+<td><code>TestCase</code> consumer → фейл → <code>TransactionTestCase</code></td>
+<td>KB VIII + ZH Крок 6</td>
+</tr>
+</tbody>
+</table>
+<h3 id="64-standalone-vs-notes-chat-app">6.4 Standalone-проєкти vs Notes Chat App<a class="headerlink" href="#64-standalone-vs-notes-chat-app" title="Permanent link">&para;</a></h3>
+<p>Студент будує 5 окремих проєктів-попередників, потім переходить до Notes Chat App:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>hello_project         → ZH Крок 1 (перший view, URL)
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>bootstrap_notes       → ZH Крок 2 (перша модель)
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>crispy_notes_project  → ZH Кроки 3-4 (CRUD, форми)
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>notes_project         → ZH Крок 4-5 (auth, права)
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>notes_chat_app        → ZH Кроки 5-8 + весь Project Deep Dive
+</code></pre></div>
+<p>Кожен перехід — <strong>новий репозиторій</strong>, не гілка. Книга явно маркує ці переходи адмоніціями.</p>
+<h3 id="65">6.5 Правило трьох прив'язок<a class="headerlink" href="#65" title="Permanent link">&para;</a></h3>
+<p>Кожна концепція у Knowledge Book має три прив'язки:</p>
+<ol>
+<li><strong>Теоретична</strong> — пояснення чому і як (у самій главі)</li>
+<li><strong>Практична</strong> — де це реалізовано у Notes Chat App (з реальним файлом і рядком)</li>
+<li><strong>Тестова</strong> — як це перевіряється у tests/ (конкретний тест)</li>
+</ol>
+<hr />
+<h2 id="7">7. Три шари — зв'язок (приклади)<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
+<p>Для кожної ключової теми показано де вона з'являється у всіх трьох шарах.</p>
+<table>
+<thead>
+<tr>
+<th>Тема</th>
+<th>Knowledge Book</th>
+<th>Zero to Hero</th>
+<th>Project Deep Dive</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HTTP request</td>
+<td>Частина I (http_https.md)</td>
+<td>Крок 1 — hello_project першый view</td>
+<td>PD Ch.6 — URL routing Notes Chat App</td>
+</tr>
+<tr>
+<td>ForeignKey + CASCADE</td>
+<td>Частина III (django_orm_full.md)</td>
+<td>Крок 2 — перша модель з FK</td>
+<td>PD Ch.8 — ChatMessage.group CASCADE</td>
+</tr>
+<tr>
+<td>Q-filter scoped queryset</td>
+<td>Частина III (orm_deep) + VI (selectors)</td>
+<td>Крок 5 — Q(user=user)|Q(group__in=...)</td>
+<td>PD Ch.11 — selectors.get_user_notes()</td>
+</tr>
+<tr>
+<td>NoteForm queryset scope</td>
+<td>Частина IV (forms)</td>
+<td>Крок 4 — форма з user=</td>
+<td>PD Ch.10 — NoteForm.<strong>init</strong></td>
+</tr>
+<tr>
+<td>login_required</td>
+<td>Частина VII (auth)</td>
+<td>Крок 5 — декоратор на views</td>
+<td>PD Ch.16 — views.py decorator pattern</td>
+</tr>
+<tr>
+<td>IDOR</td>
+<td>Частина VII (security)</td>
+<td>Крок 5 — IDOR тест</td>
+<td>PD Ch.32 — security model</td>
+</tr>
+<tr>
+<td>TransactionTestCase</td>
+<td>Частина VIII (testing)</td>
+<td>Крок 6 — consumer test</td>
+<td>PD Ch.29 — test_consumers.py</td>
+</tr>
+<tr>
+<td>asyncio event loop</td>
+<td>Частина IX (async_02 + lesson_34)</td>
+<td>Крок 7 — async у consumer</td>
+<td>PD Ch.23 — GroupChatConsumer</td>
+</tr>
+<tr>
+<td>database_sync_to_async</td>
+<td>Частина IX (sync_to_async)</td>
+<td>Крок 7 — ORM у consumer</td>
+<td>PD Ch.25 — consumers.py @database_sync_to_async</td>
+</tr>
+<tr>
+<td>Redis channel layer</td>
+<td>Частина IX (channels)</td>
+<td>Крок 7 — socket_timeout=None</td>
+<td>PD Ch.28 — settings.py CHANNEL_LAYERS</td>
+</tr>
+<tr>
+<td>docker-compose.yml</td>
+<td>Частина X (docker_guide)</td>
+<td>Крок 8 — запуск стека</td>
+<td>PD Ch.30 — Notes Chat App stack</td>
+</tr>
+<tr>
+<td>GitHub Actions CI</td>
+<td>Частина X (ci_cd_full)</td>
+<td>Крок 8 — .github/workflows/</td>
+<td>PD Ch.31 — django-tests.yml paths</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-phase-2">8. Журнал змін (після Phase 2)<a class="headerlink" href="#8-phase-2" title="Permanent link">&para;</a></h2>
+<h3 id="2026-06-14-batch-h">2026-06-14 — Batch H<a class="headerlink" href="#2026-06-14-batch-h" title="Permanent link">&para;</a></h3>
+<p>Виправлено точність туторіалів:</p>
+<table>
+<thead>
+<tr>
+<th>Файл</th>
+<th>Зміна</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tutorials/08_deployment.md</code></td>
+<td>Замінено <code>dj_database_url</code> + SQLite fallback → regex parsing + Exception</td>
+</tr>
+<tr>
+<td><code>tutorials/06_testing.md</code></td>
+<td><code>TestCase</code> → <code>TransactionTestCase</code> у секції consumer tests</td>
+</tr>
+<tr>
+<td><code>tutorials/README_7.md</code></td>
+<td>Додано 2 admonitions про legacy monorepo paths</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2026-06-14-batch-i">2026-06-14 — Batch I<a class="headerlink" href="#2026-06-14-batch-i" title="Permanent link">&para;</a></h3>
+<p>Розширено 12 stub-файлів <code>docs/12_final_project/</code>:</p>
+<ul>
+<li><code>setup.md</code> — критично виправлено (локальний запуск без Docker неможливий)</li>
+<li><code>domain_model.md</code> — повні таблиці полів, виправлений ER (TodoList.shared_with, ShoppingList.shared_with)</li>
+<li><code>architecture.md</code>, <code>async_and_chat.md</code>, <code>request_flows.md</code>, <code>security_model.md</code>, <code>testing_strategy.md</code>, <code>deployment.md</code>, <code>feature_map.md</code>, <code>project_overview.md</code>, <code>student_tasks.md</code>, <code>README.md</code></li>
+</ul>
+<h3 id="2026-06-14-batch-j">2026-06-14 — Batch J<a class="headerlink" href="#2026-06-14-batch-j" title="Permanent link">&para;</a></h3>
+<p>Розширено labs і GLOSSARY:</p>
+<ul>
+<li><code>labs/orm_lab.md</code>, <code>labs/forms_lab.md</code>, <code>labs/testing_lab.md</code>, <code>labs/async_lab.md</code> — з stub до повних завдань</li>
+<li><code>docs/GLOSSARY.md</code> — 23 → 55+ термінів, A–W за абеткою</li>
+</ul>
+<h3 id="2026-06-14-mkdocsyml">2026-06-14 — Навігація (mkdocs.yml)<a class="headerlink" href="#2026-06-14-mkdocsyml" title="Permanent link">&para;</a></h3>
+<p>Додано до навігації:</p>
+<table>
+<thead>
+<tr>
+<th>Файл</th>
+<th>Розділ</th>
+<th>Мітка</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>10_linux_and_devops/docker_guide.md</code></td>
+<td>10. Linux та DevOps</td>
+<td>Docker: повний посібник</td>
+</tr>
+<tr>
+<td><code>01_web_foundations/http_requests_docs.md</code></td>
+<td>01. Основи Web</td>
+<td>HTTP Requests: архітектура</td>
+</tr>
+<tr>
+<td><code>01_web_foundations/server.md</code></td>
+<td>01. Основи Web</td>
+<td>Web сервери та ядро</td>
+</tr>
+<tr>
+<td><code>09_async_and_realtime/lesson_34_documentation.md</code></td>
+<td>09. Async і Real-Time</td>
+<td>asyncio: Event Loop</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_4">Канонічні глави — оновлення<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Частина I</strong> доповнена: <code>http_requests_docs.md</code> (Layer 7 HTTP internals) і <code>server.md</code> (Framework ≠ Server, kernel networking)</li>
+<li><strong>Частина IX</strong> доповнена: <code>lesson_34_documentation.md</code> (Event Loop архітектура, cooperative multitasking, coroutine lifecycle)</li>
+<li><strong>Частина X</strong> доповнена: <code>docker_guide.md</code> (повний практичний посібник: commands, Compose, volumes, networks, best practices, офіційні образи)</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.indexes", "navigation.path", "navigation.prune", "navigation.footer", "toc.follow", "search.highlight", "search.suggest", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0456\u0439\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u0421\u043a\u043e\u043f\u0456\u044e\u0432\u0430\u0442\u0438 \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0429\u0435 1 \u0437\u0431\u0456\u0433 \u043d\u0430 \u0446\u0456\u0439 \u0441\u0442\u043e\u0440\u0456\u043d\u0446\u0456", "search.result.more.other": "\u0429\u0435 # \u0437\u0431\u0456\u0433\u0456\u0432 \u043d\u0430 \u0446\u0456\u0439 \u0441\u0442\u043e\u0440\u0456\u043d\u0446\u0456", "search.result.none": "\u0417\u0431\u0456\u0433\u0456\u0432 \u043d\u0435 \u0437\u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u0417\u043d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0437\u0431\u0456\u0433", "search.result.other": "\u0417\u043d\u0430\u0439\u0434\u0435\u043d\u043e # \u0437\u0431\u0456\u0433\u0456\u0432", "search.result.placeholder": "\u0420\u043e\u0437\u043f\u043e\u0447\u043d\u0456\u0442\u044c \u043f\u0438\u0441\u0430\u0442\u0438 \u0434\u043b\u044f \u043f\u043e\u0448\u0443\u043a\u0443", "search.result.term.missing": "\u041d\u0435 \u0437\u043d\u0430\u0439\u0434\u0435\u043d\u043e \u0437\u0430\u043f\u0438\u0442\u0443", "select.version": "\u041e\u0431\u0440\u0430\u0442\u0438 \u0432\u0435\u0440\u0441\u0456\u044e"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
