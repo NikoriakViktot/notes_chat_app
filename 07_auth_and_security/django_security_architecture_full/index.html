@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://nikoriakviktor.github.io/notes_chat_app/07_auth_and_security/django_security_architecture_full/">
+        <link rel="canonical" href="https://nikoriakviktot.github.io/notes_chat_app/07_auth_and_security/django_security_architecture_full/">
       
       
         <link rel="prev" href="../permissions_full/">
@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -52,6 +52,8 @@
         <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
       
     
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -1967,6 +1969,8 @@
       
         
       
+        
+      
     
     
     
@@ -2097,6 +2101,34 @@
     
   
     Selectors (поглиблено)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../06_application_architecture/drf_rest_api_full/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API: Django REST Framework
   
 
     
@@ -4994,7 +5026,7 @@
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>4. CsrfViewMiddleware → перевіряє CSRF-токен для POST-запитів
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>5. AuthenticationMiddleware → знаходить юзера в сесії, ставить request.user
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>6. Твій View       → перевіряє дозволи: чи може request.user зробити це?
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>7. Django ORM      → будує параметризований SQL-запит (захист від SQL-ін&#39;єкцій)
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>7. Django ORM      → будує параметризований SQL-запит (захист від SQL-ін'єкцій)
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>8. База даних      → виконує безпечний запит
 </code></pre></div>
 <pre class="mermaid"><code>graph TD
@@ -5010,13 +5042,13 @@
 <h2 id="2-middleware">2. Порядок Middleware — чому це критично<a class="headerlink" href="#2-middleware" title="Permanent link">&para;</a></h2>
 <p>Middleware — це як ряд охоронців, через яких проходить кожен запит. Їх порядок у <code>settings.py</code> має значення:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">MIDDLEWARE</span> <span class="o">=</span> <span class="p">[</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="s2">&quot;django.middleware.security.SecurityMiddleware&quot;</span><span class="p">,</span>    <span class="c1"># 1. HTTPS, заголовки</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="s2">&quot;django.contrib.sessions.middleware.SessionMiddleware&quot;</span><span class="p">,</span>  <span class="c1"># 2. Завантажити сесію</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="s2">&quot;django.middleware.common.CommonMiddleware&quot;</span><span class="p">,</span>         <span class="c1"># 3. URL-нормалізація</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="s2">&quot;django.middleware.csrf.CsrfViewMiddleware&quot;</span><span class="p">,</span>         <span class="c1"># 4. Перевірити CSRF</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="s2">&quot;django.contrib.auth.middleware.AuthenticationMiddleware&quot;</span><span class="p">,</span>  <span class="c1"># 5. Знайти юзера</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="s2">&quot;django.contrib.messages.middleware.MessageMiddleware&quot;</span><span class="p">,</span>     <span class="c1"># 6. Flash-повідомлення</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="s2">&quot;django.middleware.clickjacking.XFrameOptionsMiddleware&quot;</span><span class="p">,</span>   <span class="c1"># 7. X-Frame-Options</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="s2">"django.middleware.security.SecurityMiddleware"</span><span class="p">,</span>    <span class="c1"># 1. HTTPS, заголовки</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="s2">"django.contrib.sessions.middleware.SessionMiddleware"</span><span class="p">,</span>  <span class="c1"># 2. Завантажити сесію</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="s2">"django.middleware.common.CommonMiddleware"</span><span class="p">,</span>         <span class="c1"># 3. URL-нормалізація</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="s2">"django.middleware.csrf.CsrfViewMiddleware"</span><span class="p">,</span>         <span class="c1"># 4. Перевірити CSRF</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="s2">"django.contrib.auth.middleware.AuthenticationMiddleware"</span><span class="p">,</span>  <span class="c1"># 5. Знайти юзера</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="s2">"django.contrib.messages.middleware.MessageMiddleware"</span><span class="p">,</span>     <span class="c1"># 6. Flash-повідомлення</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="s2">"django.middleware.clickjacking.XFrameOptionsMiddleware"</span><span class="p">,</span>   <span class="c1"># 7. X-Frame-Options</span>
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">]</span>
 </code></pre></div>
 <h3 id="middleware">Що кожен Middleware робить для безпеки:<a class="headerlink" href="#middleware" title="Permanent link">&para;</a></h3>
@@ -5036,11 +5068,11 @@
 <h2 id="3">3. Автентифікація, Сесії та Хешування паролів<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
 <h3 id="django_1">Як Django зберігає паролі?<a class="headerlink" href="#django_1" title="Permanent link">&para;</a></h3>
 <p><strong>Django НІКОЛИ не зберігає пароль у відкритому вигляді.</strong> Замість цього:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Пароль: &quot;mypassword123&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Пароль: "mypassword123"
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>         ↓
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>PBKDF2 + SHA256 + salt (випадковий рядок) + 870,000 ітерацій
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>         ↓
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>&quot;pbkdf2_sha256$870000$abc123salt$XyZ...&quot; ← тільки це зберігається в БД
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>"pbkdf2_sha256$870000$abc123salt$XyZ..." ← тільки це зберігається в БД
 </code></pre></div>
 <p><strong>Чому так?</strong>
 - <code>salt</code> — унікальний для кожного юзера. Навіть якщо два юзери мають однаковий пароль — хеші різні.
@@ -5048,8 +5080,8 @@
 - Нападник не може отримати оригінальний пароль з хешу.</p>
 <h3 id="django_2">Сесії — як Django "пам'ятає" юзера<a class="headerlink" href="#django_2" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>1. Alice вводить логін/пароль → POST /login/
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>2. Django перевіряє: authenticate(username=&#39;alice&#39;, password=&#39;secret&#39;)
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>3. Пароль вірний → create session в БД: session_id = &#39;abc123xyz&#39;
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>2. Django перевіряє: authenticate(username='alice', password='secret')
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>3. Пароль вірний → create session в БД: session_id = 'abc123xyz'
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>4. Відповідь з cookie: Set-Cookie: sessionid=abc123xyz; HttpOnly
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>5. Наступний запит Alice: браузер автоматично надсилає cookie
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>6. SessionMiddleware знаходить session_id → завантажує дані сесії
@@ -5061,15 +5093,15 @@
 <h3 id="-">Модель-рівневі дозволи<a class="headerlink" href="#-" title="Permanent link">&para;</a></h3>
 <p>Django автоматично створює 4 дозволи для кожної моделі:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Для моделі Note автоматично є:</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="s1">&#39;notes_app.add_note&#39;</span>     <span class="c1"># Може створювати нотатки</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="s1">&#39;notes_app.view_note&#39;</span>    <span class="c1"># Може переглядати</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="s1">&#39;notes_app.change_note&#39;</span>  <span class="c1"># Може редагувати</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="s1">&#39;notes_app.delete_note&#39;</span>  <span class="c1"># Може видаляти</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="s1">'notes_app.add_note'</span>     <span class="c1"># Може створювати нотатки</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="s1">'notes_app.view_note'</span>    <span class="c1"># Може переглядати</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="s1">'notes_app.change_note'</span>  <span class="c1"># Може редагувати</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="s1">'notes_app.delete_note'</span>  <span class="c1"># Може видаляти</span>
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Перевірка у view:</span>
 <a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="kn">from</span><span class="w"> </span><span class="nn">django.contrib.auth.decorators</span><span class="w"> </span><span class="kn">import</span> <span class="n">permission_required</span>
 <a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="nd">@permission_required</span><span class="p">(</span><span class="s1">&#39;notes_app.delete_note&#39;</span><span class="p">)</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="nd">@permission_required</span><span class="p">(</span><span class="s1">'notes_app.delete_note'</span><span class="p">)</span>
 <a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="k">def</span><span class="w"> </span><span class="nf">note_delete</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">pk</span><span class="p">):</span>
 <a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>    <span class="c1"># Тільки юзери з дозволом delete_note потрапляють сюди</span>
 <a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>    <span class="k">pass</span>
@@ -5086,16 +5118,16 @@
 <h2 id="5-orm-sql-">5. ORM та захист від SQL-ін'єкцій<a class="headerlink" href="#5-orm-sql-" title="Permanent link">&para;</a></h2>
 <h3 id="orm-sql-">Як ORM захищає від SQL-ін'єкцій<a class="headerlink" href="#orm-sql-" title="Permanent link">&para;</a></h3>
 <p><strong>SQL-ін'єкція</strong> — атака, де зловмисник вставляє SQL-код у запит.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Класична SQL-ін&#39;єкція (без ORM):</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">username</span> <span class="o">=</span> <span class="s2">&quot;alice&#39; OR &#39;1&#39;=&#39;1&quot;</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;SELECT * FROM users WHERE username = &#39;</span><span class="si">{</span><span class="n">username</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Результат: SELECT * FROM users WHERE username = &#39;alice&#39; OR &#39;1&#39;=&#39;1&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Класична SQL-ін'єкція (без ORM):</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">username</span> <span class="o">=</span> <span class="s2">"alice' OR '1'='1"</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"SELECT * FROM users WHERE username = '</span><span class="si">{</span><span class="n">username</span><span class="si">}</span><span class="s2">'"</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Результат: SELECT * FROM users WHERE username = 'alice' OR '1'='1'</span>
 <a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># Атакер отримує ВСІХ юзерів!</span>
 <a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
 <a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Django ORM — БЕЗПЕЧНО:</span>
 <a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="n">username</span><span class="p">)</span>
 <a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="c1"># ORM будує: SELECT * FROM users WHERE username = %s</span>
-<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># Підставляє: (&#39;alice\&#39; OR \&#39;1\&#39;=\&#39;1&#39;,)  ← безпечно екранований рядок</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># Підставляє: ('alice\' OR \'1\'=\'1',)  ← безпечно екранований рядок</span>
 </code></pre></div>
 <pre class="mermaid"><code>graph LR
     subgraph Ненадійне середовище
@@ -5111,10 +5143,10 @@
     B --&gt;|Перевірені об'єкти| C</code></pre>
 <p><strong>SQL-ін'єкція можлива тільки якщо ти обходиш ORM:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># НЕБЕЗПЕЧНО — конкатенація рядків з user input:</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">raw</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SELECT * FROM users WHERE name = &#39;</span><span class="si">{</span><span class="n">user_input</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">raw</span><span class="p">(</span><span class="sa">f</span><span class="s2">"SELECT * FROM users WHERE name = '</span><span class="si">{</span><span class="n">user_input</span><span class="si">}</span><span class="s2">'"</span><span class="p">)</span>
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
 <a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># БЕЗПЕЧНО — параметризований запит:</span>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">raw</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM users WHERE name = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">user_input</span><span class="p">])</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">raw</span><span class="p">(</span><span class="s2">"SELECT * FROM users WHERE name = </span><span class="si">%s</span><span class="s2">"</span><span class="p">,</span> <span class="p">[</span><span class="n">user_input</span><span class="p">])</span>
 <a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
 <a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># НАЙКРАЩЕ — просто використовуй ORM:</span>
 <a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="n">User</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="n">user_input</span><span class="p">)</span>  <span class="c1"># автоматично безпечно</span>
@@ -5128,10 +5160,10 @@
 3. <code>evil.com</code> містить прихований тег: <code>&lt;form action="mybank.com/transfer" method="POST"&gt;</code>
 4. Браузер Alice автоматично надсилає cookie на <code>mybank.com</code> → переказ відбувається!</p>
 <p><strong>Django захист:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="cm">&lt;!-- Кожна форма ОБОВ&#39;ЯЗКОВО має csrf_token: --&gt;</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="p">&lt;</span><span class="nt">form</span> <span class="na">method</span><span class="o">=</span><span class="s">&quot;post&quot;</span><span class="p">&gt;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="cm">&lt;!-- Кожна форма ОБОВ'ЯЗКОВО має csrf_token: --&gt;</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="p">&lt;</span><span class="nt">form</span> <span class="na">method</span><span class="o">=</span><span class="s">"post"</span><span class="p">&gt;</span>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    {% csrf_token %}
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="cm">&lt;!-- Django генерує прихований токен, прив&#39;язаний до сесії --&gt;</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="cm">&lt;!-- Django генерує прихований токен, прив'язаний до сесії --&gt;</span>
 <a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="cm">&lt;!-- evil.com не може знати цей токен → атака провалюється --&gt;</span>
 <a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="p">&lt;/</span><span class="nt">form</span><span class="p">&gt;</span>
 </code></pre></div></p>
@@ -5140,7 +5172,7 @@
 <p><strong>Django захист — автоматичне екранування:</strong>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="cm">&lt;!-- Django шаблонізатор автоматично перетворює: --&gt;</span>
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>{{ note.title }}
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="cm">&lt;!-- &quot;&lt;script&gt;alert(&#39;hacked&#39;)&lt;/script&gt;&quot; → &quot;&amp;lt;script&amp;gt;alert(&amp;#x27;hacked&amp;#x27;)&amp;lt;/script&amp;gt;&quot; --&gt;</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="cm">&lt;!-- "&lt;script&gt;alert('hacked')&lt;/script&gt;" → "&amp;lt;script&amp;gt;alert(&amp;#x27;hacked&amp;#x27;)&amp;lt;/script&amp;gt;" --&gt;</span>
 <a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="cm">&lt;!-- Браузер відображає як текст, а не виконує як код --&gt;</span>
 <a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
 <a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="cm">&lt;!-- НЕБЕЗПЕЧНО — ніколи так з user input: --&gt;</span>
@@ -5166,25 +5198,25 @@
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">DEBUG</span> <span class="o">=</span> <span class="kc">False</span>                           <span class="c1"># НІКОЛИ True в production!</span>
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="c1"># DEBUG = True: відображає стектрейси, env-змінні, всі SQL-запити → дар для хакера</span>
 <a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="n">SECRET_KEY</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;DJANGO_SECRET_KEY&#39;</span><span class="p">]</span>   <span class="c1"># Зберігай у .env, НЕ в коді!</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="n">SECRET_KEY</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">'DJANGO_SECRET_KEY'</span><span class="p">]</span>   <span class="c1"># Зберігай у .env, НЕ в коді!</span>
 <a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="c1"># SECRET_KEY: захищає підпис сесій і токенів. Витік → підробка сесій!</span>
 <a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>
-<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="n">ALLOWED_HOSTS</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;mysite.com&#39;</span><span class="p">,</span> <span class="s1">&#39;www.mysite.com&#39;</span><span class="p">]</span>   <span class="c1"># СУВОРО визначай</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="n">ALLOWED_HOSTS</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'mysite.com'</span><span class="p">,</span> <span class="s1">'www.mysite.com'</span><span class="p">]</span>   <span class="c1"># СУВОРО визначай</span>
 <a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="c1"># Без цього: Host header poisoning → підміна домену в emails і редиректах</span>
 <a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>
 <a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="c1"># ── HTTPS ─────────────────────────────────────────────────────────────────────</span>
 <a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="n">SECURE_SSL_REDIRECT</span> <span class="o">=</span> <span class="kc">True</span>          <span class="c1"># HTTP → HTTPS примусово</span>
-<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="n">SECURE_HSTS_SECONDS</span> <span class="o">=</span> <span class="mi">31536000</span>      <span class="c1"># HSTS: браузер &quot;запам&#39;ятовує&quot; HTTPS на рік</span>
+<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="n">SECURE_HSTS_SECONDS</span> <span class="o">=</span> <span class="mi">31536000</span>      <span class="c1"># HSTS: браузер "запам'ятовує" HTTPS на рік</span>
 <a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>
 <a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="c1"># ── Cookies ───────────────────────────────────────────────────────────────────</span>
 <a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="n">SESSION_COOKIE_SECURE</span> <span class="o">=</span> <span class="kc">True</span>        <span class="c1"># Cookie тільки через HTTPS</span>
 <a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="n">SESSION_COOKIE_HTTPONLY</span> <span class="o">=</span> <span class="kc">True</span>      <span class="c1"># JS не може прочитати sessionid</span>
-<a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a><span class="n">SESSION_COOKIE_SAMESITE</span> <span class="o">=</span> <span class="s2">&quot;Lax&quot;</span>    <span class="c1"># CSRF захист для cookies</span>
+<a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a><span class="n">SESSION_COOKIE_SAMESITE</span> <span class="o">=</span> <span class="s2">"Lax"</span>    <span class="c1"># CSRF захист для cookies</span>
 <a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a>
 <a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a><span class="n">CSRF_COOKIE_SECURE</span> <span class="o">=</span> <span class="kc">True</span>           <span class="c1"># CSRF cookie тільки через HTTPS</span>
 <a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a>
 <a id="__codelineno-11-22" name="__codelineno-11-22" href="#__codelineno-11-22"></a><span class="c1"># ── Заголовки ─────────────────────────────────────────────────────────────────</span>
-<a id="__codelineno-11-23" name="__codelineno-11-23" href="#__codelineno-11-23"></a><span class="n">X_FRAME_OPTIONS</span> <span class="o">=</span> <span class="s2">&quot;DENY&quot;</span>            <span class="c1"># Захист від clickjacking</span>
+<a id="__codelineno-11-23" name="__codelineno-11-23" href="#__codelineno-11-23"></a><span class="n">X_FRAME_OPTIONS</span> <span class="o">=</span> <span class="s2">"DENY"</span>            <span class="c1"># Захист від clickjacking</span>
 <a id="__codelineno-11-24" name="__codelineno-11-24" href="#__codelineno-11-24"></a><span class="n">SECURE_CONTENT_TYPE_NOSNIFF</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># Захист від MIME-sniffing</span>
 </code></pre></div>
 <blockquote>
@@ -5282,7 +5314,11 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.indexes", "navigation.path", "navigation.prune", "navigation.footer", "toc.follow", "search.highlight", "search.suggest", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0456\u0439\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u0421\u043a\u043e\u043f\u0456\u044e\u0432\u0430\u0442\u0438 \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0429\u0435 1 \u0437\u0431\u0456\u0433 \u043d\u0430 \u0446\u0456\u0439 \u0441\u0442\u043e\u0440\u0456\u043d\u0446\u0456", "search.result.more.other": "\u0429\u0435 # \u0437\u0431\u0456\u0433\u0456\u0432 \u043d\u0430 \u0446\u0456\u0439 \u0441\u0442\u043e\u0440\u0456\u043d\u0446\u0456", "search.result.none": "\u0417\u0431\u0456\u0433\u0456\u0432 \u043d\u0435 \u0437\u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u0417\u043d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0437\u0431\u0456\u0433", "search.result.other": "\u0417\u043d\u0430\u0439\u0434\u0435\u043d\u043e # \u0437\u0431\u0456\u0433\u0456\u0432", "search.result.placeholder": "\u0420\u043e\u0437\u043f\u043e\u0447\u043d\u0456\u0442\u044c \u043f\u0438\u0441\u0430\u0442\u0438 \u0434\u043b\u044f \u043f\u043e\u0448\u0443\u043a\u0443", "search.result.term.missing": "\u041d\u0435 \u0437\u043d\u0430\u0439\u0434\u0435\u043d\u043e \u0437\u0430\u043f\u0438\u0442\u0443", "select.version": "\u041e\u0431\u0440\u0430\u0442\u0438 \u0432\u0435\u0440\u0441\u0456\u044e"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/mermaid_labels.js"></script>
+      
+        <script src="../../javascripts/sidebars.js"></script>
       
     
   </body>

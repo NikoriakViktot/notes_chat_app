@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://nikoriakviktor.github.io/notes_chat_app/_internal/PROJECT_DEEP_DIVE_PLAN/">
+        <link rel="canonical" href="https://nikoriakviktot.github.io/notes_chat_app/_internal/PROJECT_DEEP_DIVE_PLAN/">
       
       
       
@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -27,7 +27,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -48,6 +48,8 @@
         <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
       
     
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -3565,7 +3567,7 @@
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>→ redirect → notes_app/views.py: note_list()
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>→ notes_app/selectors.py: get_notes_for_user(user)
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>→ Q(user=user) | Q(group__in=groups)
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>→ render(&#39;notes/list.html&#39;)
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>→ render('notes/list.html')
 </code></pre></div>
 <h3 id="flow-2-edit-note-permission-check">Flow 2: Edit note permission check<a class="headerlink" href="#flow-2-edit-note-permission-check" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Browser GET /notes/42/edit/
@@ -3596,10 +3598,10 @@
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>→ SessionMiddleware читає cookie → session → request.user
 </code></pre></div>
 <h3 id="flow-5-websocket-connection-flow">Flow 5: WebSocket connection flow<a class="headerlink" href="#flow-5-websocket-connection-flow" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Browser: new WebSocket(&#39;ws://host/ws/groups/5/chat/&#39;)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Browser: new WebSocket('ws://host/ws/groups/5/chat/')
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>→ HTTP Upgrade → Nginx → Daphne
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>→ ProtocolTypeRouter → AuthMiddlewareStack
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>→ session cookie → scope[&quot;user&quot;] = authenticated user
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>→ session cookie → scope["user"] = authenticated user
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>→ URLRouter → GroupChatConsumer.connect()
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>→ permission check: user in group
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>→ self.channel_layer.group_add(group_name, self.channel_name)
@@ -3607,12 +3609,12 @@
 <a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>→ self.send(json.dumps(history))
 </code></pre></div>
 <h3 id="flow-6-chat-message-persistence-flow">Flow 6: Chat message persistence flow<a class="headerlink" href="#flow-6-chat-message-persistence-flow" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Browser: ws.send(JSON.stringify({message: &quot;Hello&quot;}))
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Browser: ws.send(JSON.stringify({message: "Hello"}))
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>→ GroupChatConsumer.receive(text_data)
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>→ json.loads(text_data)
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>→ database_sync_to_async: ChatMessage.objects.create(group, author, content)
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>→ PostgreSQL INSERT
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>→ self.channel_layer.group_send(group_name, {type:&#39;chat.message&#39;, ...})
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>→ self.channel_layer.group_send(group_name, {type:'chat.message', ...})
 <a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>→ GroupChatConsumer.chat_message() на кожному підключеному клієнті
 <a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>→ self.send(text_data=json.dumps({author, message, timestamp}))
 <a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>→ Browser: ws.onmessage → DOM update
@@ -3712,7 +3714,11 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.indexes", "navigation.path", "navigation.prune", "navigation.footer", "toc.follow", "search.highlight", "search.suggest", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0456\u0439\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u0421\u043a\u043e\u043f\u0456\u044e\u0432\u0430\u0442\u0438 \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0429\u0435 1 \u0437\u0431\u0456\u0433 \u043d\u0430 \u0446\u0456\u0439 \u0441\u0442\u043e\u0440\u0456\u043d\u0446\u0456", "search.result.more.other": "\u0429\u0435 # \u0437\u0431\u0456\u0433\u0456\u0432 \u043d\u0430 \u0446\u0456\u0439 \u0441\u0442\u043e\u0440\u0456\u043d\u0446\u0456", "search.result.none": "\u0417\u0431\u0456\u0433\u0456\u0432 \u043d\u0435 \u0437\u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u0417\u043d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0437\u0431\u0456\u0433", "search.result.other": "\u0417\u043d\u0430\u0439\u0434\u0435\u043d\u043e # \u0437\u0431\u0456\u0433\u0456\u0432", "search.result.placeholder": "\u0420\u043e\u0437\u043f\u043e\u0447\u043d\u0456\u0442\u044c \u043f\u0438\u0441\u0430\u0442\u0438 \u0434\u043b\u044f \u043f\u043e\u0448\u0443\u043a\u0443", "search.result.term.missing": "\u041d\u0435 \u0437\u043d\u0430\u0439\u0434\u0435\u043d\u043e \u0437\u0430\u043f\u0438\u0442\u0443", "select.version": "\u041e\u0431\u0440\u0430\u0442\u0438 \u0432\u0435\u0440\u0441\u0456\u044e"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/mermaid_labels.js"></script>
+      
+        <script src="../../javascripts/sidebars.js"></script>
       
     
   </body>
