@@ -1,7 +1,7 @@
 # Book Progress
 
 Поточний стан роботи з документацією Notes Chat App.
-Оновлено: 2026-06-15 (ревізія 10 — Zero to Hero restructuring).
+Оновлено: 2026-09-27 (ревізія 11 — глава DRF у Частині VI; ревізія 10 — Zero to Hero restructuring).
 
 ---
 
@@ -32,6 +32,27 @@
 - `ZERO_TO_HERO_PLAN.md` — оновлено 2026-06-15 ✅
 - `CONTENT_MIGRATION_PLAN.md` — section-level mapping ✅
 - `MKDOCS_NAVIGATION_PLAN.md` — нова директорійна навігація ✅
+
+---
+
+### Batch P — Нова глава «REST API: Django REST Framework» (2026-09-27): DONE ✅
+
+| Файл | Дія |
+|------|-----|
+| `docs/06_application_architecture/drf_rest_api_full.md` | **новий**: Knowledge chapter за шаблоном MASTER_SPEC (15 розділів), 3 Mermaid-схеми |
+| `docs/06_application_architecture/README.md` | рядок у таблиці розділів Частини VI |
+| `mkdocs.yml` | пункт у «Частина VI», перед Serializers |
+
+**Джерела:** `notes_app/selectors.py` (`get_user_notes`, `get_note_detail`), `notes_app/services.py` (`create_note`, `toggle_pin_note`), `notes_app/models.py` (`Note.PRIORITY_CHOICES`), курс PY-Course-Victor-Nikoriak-22-09-2026, урок 35 (`module_4/lessons/lesson_35_drf_fastapi/hello_project`).
+
+**Перевірено:**
+- приклад Notes Chat App (`notes_app/api.py` + `tests/test_api.py`) — на копії репозиторію, Django 5.2.17, DRF 3.18.1, PostgreSQL 16: `manage.py test notes_app.tests.test_api` → 4 tests OK; вивід сценарію Аліса/Боб у главі — реальний;
+- мінімальний приклад — вивід з курсу (урок 35), відтворений заповнювачем;
+- `mkdocs build --strict` для книги.
+
+**Не змінено в коді застосунку:** `notes_app/api.py` у репозиторій **не** додано — глава явно позначає, що API в поточному коді немає, і показує, як його додати.
+
+**Знайдена неточність (не виправлена, потребує рішення):** `README.md` («SQLite локально без `DATABASE_URL`») суперечить `notes_project/settings.py`, який без `DATABASE_URL` кидає `Exception("DATABASE_URL не встановлено. Запускай через docker compose.")`.
 
 ---
 

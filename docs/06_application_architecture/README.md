@@ -14,6 +14,7 @@ Fat view — це перший симптом того, що застосуно�
 | [Services та Selectors](services_selectors_full.md) | патерн thin-view + selector + service, шари та їх межі |
 | [Services (поглиблено)](django_services_full.md) | сигнатури, транзакції, повернення значень, тестування |
 | [Selectors (поглиблено)](django_selectors_full.md) | scoped QuerySet, Q-filter, `select_related`, повернення матеріалізованих даних |
+| [REST API: Django REST Framework](drf_rest_api_full.md) | серіалізатори, ViewSet, роутер, права; API нотаток поверх наявних selectors/services, захист від IDOR, DRF vs Ninja vs FastAPI |
 | [Serializers](django_serializers_full.md) | DRF-сумісні серіалізатори для API-шару |
 | [Celery Tasks](django_tasks_full.md) | background tasks, broker, результати, retry |
 
