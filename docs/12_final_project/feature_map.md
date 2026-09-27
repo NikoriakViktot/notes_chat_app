@@ -25,6 +25,8 @@
 | Shopping lists | `/shopping/` | `shopping_list_view` | ✅ |
 | Групи | `/groups/` | `group_list` | ✅ |
 | Чат (сторінка) | `/groups/<pk>/chat/` | `group_chat` | ✅ |
+| REST API нотаток: список, пошук, створення | `/api/notes/`, `/api/notes/?search=` | `NoteViewSet.list` / `create` (notes_app/api.py) → `selectors.get_user_notes`, `services.create_note` | ✅ |
+| REST API: одна нотатка, пін | `/api/notes/<pk>/`, `/api/notes/<pk>/pin/` | `NoteViewSet.retrieve` / `pin` → `selectors.get_note_detail`, `services.toggle_pin_note` | ✅ |
 
 ---
 

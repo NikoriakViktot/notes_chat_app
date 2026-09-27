@@ -1,7 +1,7 @@
 # Book Progress
 
 Поточний стан роботи з документацією Notes Chat App.
-Оновлено: 2026-06-15 (ревізія 10 — Zero to Hero restructuring).
+Оновлено: 2026-09-27 (ревізія 11 — глава DRF у Частині VI; ревізія 10 — Zero to Hero restructuring).
 
 ---
 
@@ -32,6 +32,56 @@
 - `ZERO_TO_HERO_PLAN.md` — оновлено 2026-06-15 ✅
 - `CONTENT_MIGRATION_PLAN.md` — section-level mapping ✅
 - `MKDOCS_NAVIGATION_PLAN.md` — нова директорійна навігація ✅
+
+---
+
+### Batch R — REST API в код Notes Chat App (2026-09-27): DONE ✅
+
+Рішення викладача: «додай в застосунок».
+
+| Файл | Що |
+|------|----|
+| `notes_app/api.py` | **новий**: `NoteViewSet` (list / retrieve / create / pin) поверх `selectors.get_user_notes`, `get_note_detail`, `services.create_note`, `toggle_pin_note`; `NoteInputSerializer` / `NoteOutputSerializer` |
+| `notes_app/tests/test_api.py` | **новий**: 4 тести (вхід обов'язковий; Боб бачить лише групові нотатки, чужа → 404; власник з `request.user`; pin перемикається) |
+| `notes_project/settings.py`, `notes_project/urls.py` | `rest_framework` в `INSTALLED_APPS`, `REST_FRAMEWORK`, роутер `/api/` |
+| `requirements.txt` | `djangorestframework>=3.16` |
+| `.github/workflows/django-tests.yml` | `notes_app.tests.test_api` у тестах і coverage |
+| `README.md`, `docs/12_final_project/feature_map.md`, `docs/06_application_architecture/drf_rest_api_full.md` | `/api/notes/` у таблицях; глава DRF — «API є в коді» |
+
+**Перевірено:** `manage.py check` — no issues; `manage.py test` з тим самим набором, що в CI (models, services, forms, views, consumers, api) на PostgreSQL 16 — **209 tests OK**.
+
+---
+
+### Batch Q — Оформлення сайту книги, як у курсі (2026-09-27): DONE ✅
+
+| Файл | Що |
+|------|----|
+| `docs/javascripts/mermaid_labels.js` | **новий**: Material кладе в shadow DOM кожної схеми правило `.nodeLabel p { color: var(--md-mermaid-label-fg-color) }`, а Mermaid 11 загортає текст вузла в `<p>` — через це колір із `classDef … color:#fff` і `style X … color:#fff` не доходив до тексту: на темних вузлах текст був темним (зачеплено 27 файлів: 5 з `classDef color:`, 22 з `style … color:`). Скрипт додає в кожен shadow root `.nodeLabel p { color: inherit !important }` |
+| `docs/javascripts/sidebars.js`, `docs/stylesheets/extra.css` | **нові**: кнопки «☰ Меню» і «≡ Зміст» у шапці — згорнути ліве меню і правий зміст; стан у `localStorage` (перенесено з курсу PY-Course-Victor-Nikoriak-22-09-2026) |
+| `mkdocs.yml` | `extra_css`, `extra_javascript`; `pymdownx.tabbed` (вкладки `=== "..."`); `site_url` виправлено: `nikoriakviktor` → `nikoriakviktot` (адреса GitHub Pages за іменем акаунта) |
+
+**Перевірено:** `mkdocs build --strict`; Playwright: `01_web_foundations/server` і `02_django_core/django_mermaid_full` — білий текст на темних вузлах видно, вузли без кольору не змінились, 0 помилок Mermaid; кнопки працюють і зберігають стан між сторінками.
+
+---
+
+### Batch P — Нова глава «REST API: Django REST Framework» (2026-09-27): DONE ✅
+
+| Файл | Дія |
+|------|-----|
+| `docs/06_application_architecture/drf_rest_api_full.md` | **новий**: Knowledge chapter за шаблоном MASTER_SPEC (15 розділів), 3 Mermaid-схеми |
+| `docs/06_application_architecture/README.md` | рядок у таблиці розділів Частини VI |
+| `mkdocs.yml` | пункт у «Частина VI», перед Serializers |
+
+**Джерела:** `notes_app/selectors.py` (`get_user_notes`, `get_note_detail`), `notes_app/services.py` (`create_note`, `toggle_pin_note`), `notes_app/models.py` (`Note.PRIORITY_CHOICES`), курс PY-Course-Victor-Nikoriak-22-09-2026, урок 35 (`module_4/lessons/lesson_35_drf_fastapi/hello_project`).
+
+**Перевірено:**
+- приклад Notes Chat App (`notes_app/api.py` + `tests/test_api.py`) — на копії репозиторію, Django 5.2.17, DRF 3.18.1, PostgreSQL 16: `manage.py test notes_app.tests.test_api` → 4 tests OK; вивід сценарію Аліса/Боб у главі — реальний;
+- мінімальний приклад — вивід з курсу (урок 35), відтворений заповнювачем;
+- `mkdocs build --strict` для книги.
+
+**Не змінено в коді застосунку:** `notes_app/api.py` у репозиторій **не** додано — глава явно позначає, що API в поточному коді немає, і показує, як його додати.
+
+**Знайдена неточність (не виправлена, потребує рішення):** `README.md` («SQLite локально без `DATABASE_URL`») суперечить `notes_project/settings.py`, який без `DATABASE_URL` кидає `Exception("DATABASE_URL не встановлено. Запускай через docker compose.")`.
 
 ---
 
