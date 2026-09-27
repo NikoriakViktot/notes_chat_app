@@ -46,6 +46,9 @@ INSTALLED_APPS = [
     # Потрібно оголосити ДО notes_app — Channels перевизначає Django ASGI handler.
     # pip install channels>=4.0
     "channels",
+    # ── Django REST Framework (REST API /api/notes/) ─────────────────────────────
+    # pip install djangorestframework>=3.16 — див. notes_app/api.py
+    "rest_framework",
     # ── Our app ──────────────────────────────────────────────────────────────────
     "notes_app",
 ]
@@ -297,4 +300,18 @@ CELERY_BEAT_SCHEDULE = {
         "task": "notes_app.tasks.send_reminder_notifications",
         "schedule": 60.0,
     },
+}
+
+
+# ── Django REST Framework ─────────────────────────────────────────────────────────
+# REST API нотаток: notes_app/api.py, маршрути /api/ у notes_project/urls.py.
+# SessionAuthentication — той самий вхід, що й у HTML-частині (/accounts/login/);
+# для браузерного JS потрібен CSRF-токен у заголовку X-CSRFToken.
+# IsAuthenticated — API лише для користувачів, що увійшли; доступ до конкретних
+# нотаток обмежують selectors (власник або група), тому чужа нотатка → 404.
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
 }

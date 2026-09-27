@@ -289,8 +289,8 @@ $ curl -s -u admin:lesson33-pass -X DELETE http://127.0.0.1:8000/api/notes/4/ -o
 
 ## Приклад із Notes Chat App
 
-!!! warning "Стан коду"
-    У поточному коді Notes Chat App **REST API немає**: застосунок працює через HTML-views, форми й WebSocket-чат. Нижче — як додати API **поверх наявних** `selectors.py` і `services.py`, нічого в них не змінюючи. Код перевірено на копії репозиторію (Django 5.2.17, DRF 3.18.1, PostgreSQL 16): тести й вивід нижче — справжні.
+!!! info "Стан коду"
+    REST API — частина Notes Chat App: [`notes_app/api.py`](https://github.com/NikoriakViktot/notes_chat_app/blob/main/notes_app/api.py), маршрути в `notes_project/urls.py`, налаштування `REST_FRAMEWORK` у `notes_project/settings.py`, тести [`notes_app/tests/test_api.py`](https://github.com/NikoriakViktot/notes_chat_app/blob/main/notes_app/tests/test_api.py) (входять у CI). API побудовано **поверх наявних** `selectors.py` і `services.py` — в них нічого не змінено. Вивід і тести нижче — з реальних запусків (Django 5.2.17, DRF 3.18.1, PostgreSQL 16).
 
 У Notes Chat App вже є все, що потрібно API:
 
@@ -301,7 +301,7 @@ $ curl -s -u admin:lesson33-pass -X DELETE http://127.0.0.1:8000/api/notes/4/ -o
 | створення з транзакцією і тегами | `services.create_note(*, user, title, content='', notebook=None, priority=1, group=None, tag_ids=None)` |
 | закріпити / відкріпити | `services.toggle_pin_note(note)` |
 
-Тому ViewSet лише координує — і **не використовує** `Note.objects` напряму:
+Тому ViewSet лише координує — і **не використовує** `Note.objects` напряму (файл `notes_app/api.py`, без докстрінга модуля):
 
 ```python
 # notes_app/api.py
@@ -359,7 +359,7 @@ class NoteViewSet(viewsets.ViewSet):
         return Response(NoteOutputSerializer(note).data)
 ```
 
-Підключення — у `notes_project/settings.py` і `notes_project/urls.py`:
+Підключення — у `notes_project/settings.py` і `notes_project/urls.py` (фрагменти; у проєкті — з коментарями):
 
 ```python
 # notes_project/settings.py

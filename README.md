@@ -79,6 +79,7 @@ python manage.py runserver
 | `/groups/` | групи |
 | `/groups/<pk>/chat/` | HTML-сторінка чату |
 | `/ws/groups/<pk>/chat/` | WebSocket endpoint |
+| `/api/notes/` | REST API нотаток (DRF): список, `?search=`, створення; `/api/notes/<id>/`, `/api/notes/<id>/pin/` |
 | `/admin/` | Django admin |
 
 ## Архітектура

@@ -35,6 +35,23 @@
 
 ---
 
+### Batch R — REST API в код Notes Chat App (2026-09-27): DONE ✅
+
+Рішення викладача: «додай в застосунок».
+
+| Файл | Що |
+|------|----|
+| `notes_app/api.py` | **новий**: `NoteViewSet` (list / retrieve / create / pin) поверх `selectors.get_user_notes`, `get_note_detail`, `services.create_note`, `toggle_pin_note`; `NoteInputSerializer` / `NoteOutputSerializer` |
+| `notes_app/tests/test_api.py` | **новий**: 4 тести (вхід обов'язковий; Боб бачить лише групові нотатки, чужа → 404; власник з `request.user`; pin перемикається) |
+| `notes_project/settings.py`, `notes_project/urls.py` | `rest_framework` в `INSTALLED_APPS`, `REST_FRAMEWORK`, роутер `/api/` |
+| `requirements.txt` | `djangorestframework>=3.16` |
+| `.github/workflows/django-tests.yml` | `notes_app.tests.test_api` у тестах і coverage |
+| `README.md`, `docs/12_final_project/feature_map.md`, `docs/06_application_architecture/drf_rest_api_full.md` | `/api/notes/` у таблицях; глава DRF — «API є в коді» |
+
+**Перевірено:** `manage.py check` — no issues; `manage.py test` з тим самим набором, що в CI (models, services, forms, views, consumers, api) на PostgreSQL 16 — **209 tests OK**.
+
+---
+
 ### Batch Q — Оформлення сайту книги, як у курсі (2026-09-27): DONE ✅
 
 | Файл | Що |
