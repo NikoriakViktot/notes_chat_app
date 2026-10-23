@@ -16,16 +16,22 @@ Django-view не може надіслати email рівно о заплано�
 
 ```mermaid
 flowchart TD
-    Beat["Celery Beat\n(кожні 60 сек)"] -->|task name + args| Broker
-    Broker["Redis DB 1\n(broker / result backend)"] -->|task message| Worker
-    Worker["Celery Worker\n(concurrency=2)"] -->|send_mail| Email["Email\n(console у dev)"]
+    Beat["Celery Beat<br>(кожні 60 сек)"] -->|task name + args| Broker
+    Broker["Redis DB 1<br>(broker / result backend)"] -->|task message| Worker
+    Worker["Celery Worker<br>(concurrency=2)"] -->|send_mail| Email["Email<br>(console у dev)"]
     Worker -->|is_sent=True| DB[("PostgreSQL")]
     Worker -->|create next Reminder| DB
 
-    Browser["Browser JS\n(кожні 60 сек)"] -->|GET /reminders/check/| Django
-    Django["Django view\nreminders_check()"] -->|SELECT| DB
+    Browser["Browser JS<br>(кожні 60 сек)"] -->|GET /reminders/check/| Django
+    Django["Django view<br>reminders_check()"] -->|SELECT| DB
     Django -->|JSON| Browser
     Browser -->|Bootstrap Toast| User["👤 Користувач"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class Beat,Broker,Worker,DB,Browser,Django step;
+    class Email,User success;
 ```
 
 ---
@@ -302,7 +308,7 @@ docker compose exec web python manage.py test \
 |----------|---------|---------|
 | Два екземпляри `celery-beat` | кожне нагадування надсилається двічі | Beat — рівно 1 процес |
 | Celery і Channels у Redis DB 0 | конфлікт ключів | Celery → DB 1 |
-| `timedelta(days=30)` для місяця | 31 + 30 = 1 березня (лютий пропущений) | `relativedelta(months=1)` |
+| `timedelta(days=30)` для місяця | 31 січня + 30 днів = 1 березня у високосному році (2 березня у звичайному) — лютий пропущений | `relativedelta(months=1)` |
 | Lazy QuerySet у `get_due_reminders_for_browser` | `SynchronousOnlyOperation` якщо викликати з async | `list(queryset.values(...))` |
 | Email у тестах іде на реальний сервер | неочікувані відправлення під час CI | `@override_settings(EMAIL_BACKEND='...locmem...')` |
 | Toast з'являється кілька разів | інтервал спрацьовує до скриття | `sessionStorage` дедуплікація за `id` |

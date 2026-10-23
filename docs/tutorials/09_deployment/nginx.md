@@ -243,6 +243,7 @@ docker compose restart nginx
 
 # Тест upstream з середини nginx контейнера:
 docker compose exec nginx curl -I http://web:8001/accounts/login/
+```
 
 ---
 
@@ -260,4 +261,3 @@ docker compose exec nginx curl -I http://web:8001/accounts/login/
 - [nginx: Static files](https://docs.nginx.com/nginx/admin-guide/web-server/serving-static-content/) — `location`, `alias`, `expires`
 - [MDN: HTTP/1.1 Upgrade mechanism](https://developer.mozilla.org/en-US/docs/Web/HTTP/Protocol_upgrade_mechanism) — як відбувається WebSocket handshake
 - [MDN: Cache-Control](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control) — `public`, `immutable`, `max-age`
-```

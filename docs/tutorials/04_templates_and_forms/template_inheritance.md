@@ -346,11 +346,11 @@ Django шукає base.html:
 
 ```
 TemplateSyntaxError at /notes/
-The 'extends' tag is the first tag in the template.
+<ExtendsNode: extends 'base.html'> must be the first tag in the template.
 ```
 
 ```html
-<!-- ❌ ПРИЧИНА: перед {% extends %} є інший тег або навіть пробіл/рядок -->
+<!-- ❌ ПРИЧИНА: перед {% extends %} є інший тег (текст, пробіли й {# коментарі #} — дозволені) -->
 {% load static %}   {# ← ЦЕ ПОМИЛКА! load перед extends #}
 {% extends 'base.html' %}
 
@@ -379,10 +379,10 @@ TEMPLATES = [{
 }]
 
 # 2. Файл є, але в неправильному місці
-# ❌ НЕПРАВИЛЬНО:
+# ⚠️ ТЕЖ ЗНАЙДЕТЬСЯ (APP_DIRS=True), але це шаблон застосунку, а не проєкту:
 myproject/hello_app/templates/layouts/dashboard.html  # ← шукається як 'layouts/dashboard.html' ✓
 
-# ✅ ПРАВИЛЬНО для проектних шаблонів:
+# ✅ РЕКОМЕНДОВАНО для проектних шаблонів:
 myproject/templates/layouts/dashboard.html   # ← якщо BASE_DIR/templates в DIRS
 
 # 3. Тип ОС (Linux ≠ Windows): регістр має значення

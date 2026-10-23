@@ -31,6 +31,15 @@ graph TD
     F -- Немає прав --> G[403 Forbidden]
     F -- Є права --> H[Django ORM]
     H -->|Параметризований SQL| I[(База даних)]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class B,C,D,E,I step;
+    class F decision;
+    class H success;
+    class A,G error;
 ```
 
 ---
@@ -70,6 +79,11 @@ flowchart TD
     Sess --> CSRF[CsrfViewMiddleware: перевіряє токен]
     CSRF --> Auth[AuthenticationMiddleware: додає request.user]
     Auth --> View[Виконати View]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class Req,Sec,Sess,CSRF,Auth step;
+    class View success;
 ```
 
 ---
@@ -83,14 +97,14 @@ flowchart TD
 ```
 Пароль: "mypassword123"
          ↓
-PBKDF2 + SHA256 + salt (випадковий рядок) + 870,000 ітерацій
+PBKDF2 + SHA256 + salt (випадковий рядок) + 1,000,000 ітерацій
          ↓
-"pbkdf2_sha256$870000$abc123salt$XyZ..." ← тільки це зберігається в БД
+"pbkdf2_sha256$1000000$abc123salt$XyZ..." ← тільки це зберігається в БД
 ```
 
 **Чому так?**
 - `salt` — унікальний для кожного юзера. Навіть якщо два юзери мають однаковий пароль — хеші різні.
-- `870,000 ітерацій` — навіть якщо зловмисник отримає БД, підбір займе роки.
+- `1,000,000 ітерацій` — навіть якщо зловмисник отримає БД, підбір займе роки.
 - Нападник не може отримати оригінальний пароль з хешу.
 
 ### Сесії — як Django "пам'ятає" юзера
@@ -176,6 +190,13 @@ graph LR
     end
     A -->|Сирі рядки| B
     B -->|Перевірені об'єкти| C
+
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class C,D success;
+    class A error;
+    class B warning;
 ```
 
 **SQL-ін'єкція можлива тільки якщо ти обходиш ORM:**

@@ -95,16 +95,22 @@ response = await client.get("https://api.openweathermap.org/...")
 ```mermaid
 graph TD
     A[Визначити сценарій] --> B{Задача I/O-bound?}
-    B -->|Ні| C[Використай sync Django\nАбо Celery для CPU]
-    B -->|Так| D[Підняти локальний mock API/DB]
-    D --> E[Налаштувати ASGI-сервер\nUvicorn або Daphne]
+    B -->|ні| C["Використай sync Django<br>Або Celery для CPU"]
+    B -->|так| D[Підняти локальний mock API/DB]
+    D --> E["Налаштувати ASGI-сервер<br>Uvicorn або Daphne"]
     E --> F[Перевірити що middleware async]
     F --> G[Запустити load testing tool]
     G --> H[Виміряти RPS при N concurrent users]
-    H --> I[Порівняти sync vs async при\n10, 50, 100, 500 concurrent]
+    H --> I["Порівняти sync vs async при<br>10, 50, 100, 500 concurrent"]
 
-    style C fill:#fff3e0,stroke:#e65100
-    style H fill:#e8f5e9,stroke:#2e7d32
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,D,E,F,G,I step;
+    class B decision;
+    class H success;
+    class C warning;
 ```
 
 ---
@@ -133,10 +139,10 @@ async def news():
 
 ```bash
 # Запустити mock API
-uvicorn mock_api:app --port 8001
+uvicorn mock_api:app --port 8002   # 8001 уже зайнятий сервісом web
 ```
 
-Тепер тестуй Django views проти `http://localhost:8001` — ніяких rate limits, контрольована затримка.
+Тепер тестуй Django views проти `http://localhost:8002` — ніяких rate limits, контрольована затримка.
 
 ---
 
@@ -227,13 +233,18 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         # ...
         "OPTIONS": {
-            "pool_size": 20,        # Максимум одночасних з'єднань
-            "max_overflow": 5,      # Додаткові при пікі
+            # Вбудований пул з'єднань Django 5.1+ (потрібен psycopg 3: psycopg[pool])
+            "pool": {
+                "min_size": 2,      # Мінімум відкритих з'єднань
+                "max_size": 20,     # Максимум одночасних з'єднань
+            },
         },
-        "CONN_MAX_AGE": 0,          # Вимкнути для async
+        "CONN_MAX_AGE": 0,          # З пулом має бути 0 (persistent connections несумісні)
     }
 }
 ```
+
+Наш проєкт використовує `psycopg2-binary`, тому вбудований пул тут не ввімкнений: для нього потрібно перейти на `psycopg` 3.
 
 При async-навантаженні: моніторь `pg_stat_activity` в PostgreSQL — якщо connection count близько до максимуму, це bottleneck, а не код.
 

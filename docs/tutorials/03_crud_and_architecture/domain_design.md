@@ -192,14 +192,14 @@ NOTEBOOK                      NOTE (центральна)     TAG
                               └───────────────┴──────────────────┘
                                      │ reminds 1:N
                                      ▼
-                              REMINDER                         NOTE_TAGS (junction)
-                              ┌───────────┬──────────────┐     ┌──────────┬────────────┐
-                              │ id        │ bigint PK    │     │ note_id  │ bigint FK  │
-                              │ note_id   │ bigint FK    │     │ tag_id   │ bigint FK  │
-                              │ remind_at │ timestamp    │     └──────────┴────────────┘
-                              │ is_sent   │ boolean      │     UNIQUE(note_id, tag_id)
-                              │ repeat    │ varchar(20)  │     Django створює авто
-                              └───────────┴──────────────┘
+                              REMINDER                              NOTE_TAGS (junction)
+                              ┌────────────────┬──────────────┐     ┌──────────┬────────────┐
+                              │ id             │ bigint PK    │     │ note_id  │ bigint FK  │
+                              │ note_id        │ bigint FK    │     │ tag_id   │ bigint FK  │
+                              │ remind_at      │ timestamp    │     └──────────┴────────────┘
+                              │ is_sent        │ boolean      │     UNIQUE(note_id, tag_id)
+                              │ repeat_pattern │ varchar(20)  │     Django створює авто
+                              └────────────────┴──────────────┘
 
 TODO_LIST                     TODO_ITEM
 ┌─────────────┬──────────┐    ┌────────────────┬──────────────┐
@@ -217,7 +217,7 @@ SHOPPING_LIST                 SHOP_ITEM
 │ user_id     │ bigint FK│───►│ shopping_list_id │ bigint FK        │
 │ title       │ varchar  │    │ name             │ varchar(120)     │
 │ store_name  │ varchar  │    │ quantity         │ decimal(8,2)     │
-└─────────────┴──────────┘    │ unit             │ varchar(20)      │
+└─────────────┴──────────┘    │ unit             │ varchar(5)       │
                               │ is_purchased     │ boolean          │
                               │ estimated_price  │ decimal(10,2)    │
                               └──────────────────┴──────────────────┘
@@ -516,7 +516,7 @@ class Reminder(models.Model):
     message        = models.TextField(blank=True)
     is_sent        = models.BooleanField(default=False)
     repeat_pattern = models.CharField(
-        max_length=10, choices=REPEAT_CHOICES, default='none',
+        max_length=20, choices=REPEAT_CHOICES, default='none',
     )
 
     class Meta:
@@ -566,20 +566,22 @@ class ShoppingList(models.Model):
 
 
 class ShopItem(models.Model):
-    UNIT_PIECE  = 'pcs'
-    UNIT_KG     = 'kg'
-    UNIT_LITER  = 'l'
+    UNIT_PIECE  = 'шт'
+    UNIT_KG     = 'кг'
+    UNIT_LITER  = 'л'
+    UNIT_GRAM   = 'г'
     UNIT_CHOICES = [
-        (UNIT_PIECE, 'шт'),
-        (UNIT_KG,    'кг'),
-        (UNIT_LITER, 'л'),
+        (UNIT_PIECE, 'Штуки'),
+        (UNIT_KG,    'Кілограми'),
+        (UNIT_LITER, 'Літри'),
+        (UNIT_GRAM,  'Грами'),
     ]
 
     shopping_list   = models.ForeignKey(ShoppingList, on_delete=models.CASCADE,
                                         related_name='items')
     name            = models.CharField(max_length=120)
     quantity        = models.DecimalField(max_digits=8, decimal_places=2, default=1)
-    unit            = models.CharField(max_length=20, choices=UNIT_CHOICES,
+    unit            = models.CharField(max_length=5, choices=UNIT_CHOICES,
                                        default=UNIT_PIECE)
     is_purchased    = models.BooleanField(default=False)
     estimated_price = models.DecimalField(max_digits=10, decimal_places=2,

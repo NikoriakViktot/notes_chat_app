@@ -19,7 +19,7 @@ def test_cannot_access_other_users_note(self):
     note = Note.objects.create(user=bob, title="Bob's note", content="secret")
 
     self.client.force_login(alice)
-    response = self.client.get(reverse('note_detail', kwargs={'pk': note.pk}))
+    response = self.client.get(reverse('notes_app:note_detail', kwargs={'pk': note.pk}))
     self.assertEqual(response.status_code, 404)
 ```
 
@@ -48,14 +48,14 @@ class NoteEditPermissionTest(TestCase):
     def test_alice_cannot_edit_bobs_note(self):
         """Alice не повинна мати змогу редагувати нотатку Bob."""
         self.client.force_login(self.alice)
-        url = reverse('note_update', kwargs={'pk': self.bob_note.pk})
+        url = reverse('notes_app:note_edit', kwargs={'pk': self.bob_note.pk})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
 
     def test_alice_cannot_post_to_bobs_note(self):
         """POST до чужої нотатки теж має повернути 404."""
         self.client.force_login(self.alice)
-        url = reverse('note_update', kwargs={'pk': self.bob_note.pk})
+        url = reverse('notes_app:note_edit', kwargs={'pk': self.bob_note.pk})
         response = self.client.post(url, {'title': 'hacked', 'content': 'x', 'priority': 1})
         self.assertEqual(response.status_code, 404)
         # нотатка не змінилась
@@ -190,7 +190,7 @@ class CreateNoteTest(TestCase):
 
 ### В.3. Де тестовий охоплення найважливіше?
 
-Notes Chat App має ~205 тестів у 6 файлах. Уявімо, що є 10 годин на написання нових тестів.
+Notes Chat App має 200+ тестів у 7 файлах. Уявімо, що є 10 годин на написання нових тестів.
 
 **Оціни:**
 - Які два файли/модулі потребують тестів найбільше? Аргументуй через ризик помилки і вартість.

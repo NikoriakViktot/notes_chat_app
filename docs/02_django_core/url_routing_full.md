@@ -354,20 +354,6 @@ def create_book(request):
 4. **Виклик `save()`:** Метод `.save()` бере безпечний словник `cleaned_data` і генерує `INSERT` запит до бази даних.
 
 
-## 5. Завдання на передбачення (Prediction Exercise)
-
-Проаналізуйте наступний код диспетчера маршрутів:
-
-```python
-# urls.py
-urlpatterns = [
-    path('api/users/', views.all_users),               # 1
-    path('api/<str:username>/', views.user_profile),   # 2
-    path('api/users/active/', views.active_users),     # 3
-]
-
-```
-
 ---
 
 ## 4. Максимальна оптимізація: Class-Based Views (CreateView)
@@ -429,9 +415,25 @@ urlpatterns = [
 
 ---
 
+## 5. Завдання на передбачення (Prediction Exercise)
+
+Проаналізуйте наступний код диспетчера маршрутів:
+
+```python
+# urls.py
+urlpatterns = [
+    path('api/users/', views.all_users),               # 1
+    path('api/<str:username>/', views.user_profile),   # 2
+    path('api/users/active/', views.active_users),     # 3
+]
+
+```
+
 **Запитання для роздумів:** Що відбудеться, якщо користувач надішле запит на `/api/users/active/`? Який View виконається і чому?
 
-> **Відповідь:** Виконається **маршрут №2** (`user_profile`), оскільки він стоїть вище і збігається з рядком `users/active/`, сприймаючи `users` як статичну частину, а `active` — як `<str:username>`. Маршрут №3 ніколи не буде досягнутий. Це класична архітектурна помилка маршрутизації зверху вниз. Маршрут №3 необхідно перемістити вище за маршрут №2.
+> **Відповідь:** Виконається **маршрут №3** (`active_users`). Маршрут №1 (`api/users/`) не збігається, бо шлях довший. Маршрут №2 теж не збігається: конвертер `<str:username>` захоплює будь-які символи, **крім** `/`, тому рядок `users/active` (зі слешем) не може стати значенням `username`. Отже, Django доходить до маршруту №3.
+>
+> Пастка порядку «зверху вниз» тут інша: маршрут №2 перехоплює будь-який **односегментний** шлях. Наприклад, `/api/users/` збігається і з №1, і з №2, але виконається №1, бо він стоїть вище. Якби статичний маршрут на кшталт `path('api/active/', ...)` стояв **після** №2, він ніколи не був би досягнутий — `active` сприйнявся б як `username`. Тому статичні маршрути розміщують вище за маршрути з параметрами.
 
 ---
 
@@ -456,25 +458,25 @@ urlpatterns = [
 app_name = 'notes_app'   # ← namespace для reverse()
 
 urlpatterns = [
-    path('', views.home, name='home'),
+    path('', views.index, name='index'),
 
     # Notes CRUD
     path('notes/', views.note_list, name='note_list'),
     path('notes/new/', views.note_create, name='note_create'),    # ← ПЕРЕД <int:pk>!
     path('notes/<int:pk>/', views.note_detail, name='note_detail'),
-    path('notes/<int:pk>/edit/', views.note_update, name='note_update'),
+    path('notes/<int:pk>/edit/', views.note_edit, name='note_edit'),
     path('notes/<int:pk>/delete/', views.note_delete, name='note_delete'),
 
     # Notebooks, Tags
     path('notebooks/', views.notebook_list, name='notebook_list'),
-    path('tags/', views.tag_list, name='tag_list'),
+    path('tags/new/', views.tag_create, name='tag_create'),
 
     # Group chat
     path('groups/<int:pk>/chat/', views.group_chat, name='group_chat'),
 
     # Todos, Shopping
-    path('todos/', views.todo_list, name='todo_list'),
-    path('shopping/', views.shopping_list_view, name='shopping_list'),
+    path('todo/', views.todo_list_list, name='todo_list'),
+    path('shopping/', views.shopping_list_list, name='shopping_list'),
 ]
 ```
 

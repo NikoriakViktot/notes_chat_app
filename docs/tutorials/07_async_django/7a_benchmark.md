@@ -321,11 +321,11 @@ docker compose down -v
 ### Тести в Docker
 
 ```powershell
-# Всі тести (146 unit/integration + 13 Selenium E2E через Remote Chrome)
+# Всі тести (200+ unit/integration + 20+ Selenium E2E через Remote Chrome)
 docker compose exec web python manage.py test --verbosity=2
 
 # Тільки unit тести (без Selenium)
-docker compose exec web python manage.py test notes_app.tests.test_views notes_app.tests.test_async_views notes_app.tests.test_consumers -v 2
+docker compose exec web python manage.py test notes_app.tests.test_models notes_app.tests.test_services notes_app.tests.test_forms notes_app.tests.test_views notes_app.tests.test_consumers notes_app.tests.test_tasks -v 2
 
 # Тільки Selenium (вимагає selenium сервіс запущеним)
 docker compose exec web python manage.py test notes_app.tests.test_selenium -v 2

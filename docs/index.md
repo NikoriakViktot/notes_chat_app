@@ -19,6 +19,12 @@ graph LR
     I --> J["10 Linux & DevOps"]
     J --> K["11 Deployment"]
     K --> L["12 Final Project"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class A,B,C,D,E,F,G,H,I,J,K step;
+    class L success;
 ```
 
 ---
@@ -38,7 +44,7 @@ graph LR
 Notes Chat App — повноцінний Django-застосунок із:
 
 - **Нотатками** — CRUD, теги, пріоритети, нагадування
-- **Груповим чатом** — WebSocket через Django Channels + Daphne (ASGI)
+- **Груповим чатом** — WebSocket через Django Channels + Uvicorn (ASGI)
 - **Автентифікацією** — реєстрація, логін, сесії, права
 - **Тестами** — unit, integration, consumer (WebSocket), Selenium E2E
 - **CI/CD** — GitHub Actions, Docker Compose, PostgreSQL

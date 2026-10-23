@@ -1,7 +1,7 @@
 # Django Admin — Адміністрування
 
 > **Django Admin** — автоматично згенерований інтерфейс для керування даними у базі.
-> Доступний за адресою: `http://127.0.0.1:8000/admin/`
+> Доступний за адресою: `http://127.0.0.1:8001/admin/` (порт `web`-сервісу в Docker)
 
 ---
 
@@ -52,15 +52,18 @@ user.is_superuser = True
 ## 3. Як зареєструвати модель в Admin
 
 ```python
-# notes_app/admin.py
+# notes_app/admin.py — навчальний приклад.
+# У реальному проєкті зараз використано лише простий спосіб: admin.site.register(...)
 
 from django.contrib import admin
 from .models import Note
 
-# Простий спосіб — базова реєстрація:
+# Варіант 1. Простий спосіб — базова реєстрація:
 admin.site.register(Note)
 
-# Розширений спосіб — з кастомізацією:
+# Варіант 2. Розширений спосіб — з кастомізацією.
+# Використовуй ЗАМІСТЬ варіанту 1: повторна реєстрація тієї ж моделі
+# викликає admin.sites.AlreadyRegistered.
 @admin.register(Note)
 class NoteAdmin(admin.ModelAdmin):
     list_display = ('title', 'user', 'group', 'priority', 'created_at')
@@ -103,9 +106,8 @@ class NoteAdmin(admin.ModelAdmin):
 ## 5. Створення суперюзера (командний рядок)
 
 ```bash
-# Перший запуск:
-cd crispy_notes_chat_app/
-python manage.py createsuperuser
+# Перший запуск (стек уже піднятий через docker compose up -d):
+docker compose exec web python manage.py createsuperuser
 
 # Django запитає:
 Username: admin
@@ -113,7 +115,7 @@ Email: admin@example.com
 Password: (мінімум 8 символів)
 
 # Відкрий браузер:
-# http://127.0.0.1:8000/admin/
+# http://127.0.0.1:8001/admin/
 ```
 
 ---
@@ -122,6 +124,6 @@ Password: (мінімум 8 символів)
 
 | Файл | Що є |
 |------|------|
-| `notes_app/admin.py` | Реєстрація моделей (Note, Notebook, Tag тощо) |
-| `notes_chat_app/urls.py` | `path('admin/', admin.site.urls)` |
-| `settings.py` | `django.contrib.admin` у INSTALLED_APPS |
+| `notes_app/admin.py` | Реєстрація моделей через `admin.site.register()` (Note, Notebook, Tag тощо) |
+| `notes_project/urls.py` | `path('admin/', admin.site.urls)` |
+| `notes_project/settings.py` | `django.contrib.admin` у INSTALLED_APPS |

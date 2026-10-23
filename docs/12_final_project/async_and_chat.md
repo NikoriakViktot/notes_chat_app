@@ -44,17 +44,17 @@ ProtocolTypeRouter
 
 ### connect()
 
-1. Читає `group_pk` з `scope["url_route"]["kwargs"]`.
-2. Перевіряє `scope["user"].is_authenticated` → `close(4003)` якщо ні.
-3. Перевіряє членство в групі через `database_sync_to_async` — `close(4004)` якщо не member.
-4. Завантажує останні 50 повідомлень і відправляє клієнту.
-5. Додає канал до room group: `channel_layer.group_add(room_group_name, self.channel_name)`.
-6. `accept()` — рукостискання WebSocket.
+1. Перевіряє `scope["user"].is_authenticated` → `close()` якщо ні.
+2. Читає `group_pk` з `scope["url_route"]["kwargs"]`.
+3. Перевіряє існування групи і членство через `database_sync_to_async` (`check_membership`) — `close()` якщо не member.
+4. Додає канал до room group: `channel_layer.group_add(room_group_name, self.channel_name)`.
+5. `accept()` — рукостискання WebSocket.
+6. Завантажує останні 50 повідомлень (`load_history`) і відправляє клієнту кадрами з `"type": "history"`.
 
 ### receive()
 
-1. Парсить JSON: `{"message": "..."}`.
-2. Перевіряє `content` — якщо порожній, ігнорує.
+1. Парсить JSON: `{"content": "..."}`.
+2. Перевіряє `content` — якщо порожній або довший за 2000 символів, ігнорує.
 3. Зберігає `ChatMessage` через `database_sync_to_async`.
 4. Публікує подію у channel group: `channel_layer.group_send(room_group_name, {...})`.
 5. Кожен consumer у групі отримує подію через `chat_message()` і відправляє JSON клієнту.
@@ -73,9 +73,16 @@ Django ORM є синхронним. У async consumer всі ORM-операці�
 from channels.db import database_sync_to_async
 
 @database_sync_to_async
-def _get_recent_messages(self):
-    messages = ChatMessage.objects.filter(group=self.group).order_by('timestamp')[:50]
-    return list(messages.values('author__username', 'content', 'timestamp'))
+def load_history(self, group_pk):
+    qs = (
+        ChatMessage.objects
+        .filter(group_id=group_pk)
+        .select_related('author')
+        .order_by('-timestamp')[:50]
+    )
+    messages = list(qs.values('id', 'author__username', 'content', 'timestamp'))
+    messages.reverse()
+    return messages
 ```
 
 `list(queryset.values(...))` — обов'язкове. Lazy QuerySet, що повертається в async context, викличе `SynchronousOnlyOperation`.
@@ -103,8 +110,12 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [_REDIS_URL],
-            "socket_timeout": None,  # критично — без цього TimeoutError при idle
+            "hosts": [{
+                "address": _REDIS_URL,
+                "socket_timeout": None,  # критично — без цього TimeoutError при idle
+                "socket_connect_timeout": 5,
+                "health_check_interval": 30,
+            }],
         },
     }
 }

@@ -25,7 +25,7 @@ Note.objects.filter(user=user)
 ## Ментальна модель: QuerySet — рецепт, не страва
 
 ```
-Note.objects.filter(status='published')
+Note.objects.filter(is_archived=False)
      ← це РЕЦЕПТ, а не SQL
 
 .select_related('user')
@@ -58,8 +58,8 @@ len(qs)                  ← виконує і кешує
 ```python
 # Базова модель з Custom Manager
 
-class PublishedNoteManager(models.Manager):
-    """Custom Manager — повертає тільки опубліковані нотатки."""
+class ActiveNoteManager(models.Manager):
+    """Custom Manager — повертає тільки неархівовані нотатки."""
     def get_queryset(self):
         return super().get_queryset().filter(is_archived=False)
 
@@ -91,7 +91,7 @@ class Note(models.Model):
 
     # Два Manager-а:
     objects  = models.Manager()         # стандартний
-    active   = PublishedNoteManager()   # custom: Note.active.all()
+    active   = ActiveNoteManager()      # custom: Note.active.all()
 
     def __str__(self):
         return f"{'📌 ' if self.is_pinned else ''}{self.title}"
@@ -239,6 +239,9 @@ Note.objects.prefetch_related(
 
 ```python
 from django.db.models import F
+
+# Умовний приклад: припустимо, у Note є лічильник views_count
+# (у моделі проекту такого поля немає)
 
 # ❌ НЕБЕЗПЕЧНО — race condition при конкурентних запитах
 note = Note.objects.get(id=1)
@@ -537,7 +540,7 @@ for note in notes:
 
 ```python
 # Варіант A:
-note = Note.objects.get(pk=1); note.is_pinned = True; note.save()
+note = Note.objects.get(pk=1); note.is_pinned = not note.is_pinned; note.save()
 
 # Варіант B:
 Note.objects.filter(pk=1).update(is_pinned=~F('is_pinned'))

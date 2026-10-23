@@ -8,23 +8,22 @@
 
 ```mermaid
 graph TD
-    Browser[🖥️ Браузер] -->|HTTP Request| WebServer[Web Server\nWSGI / ASGI]
-    WebServer -->|HttpRequest об'єкт| MW_IN[Middleware 1..N\nвхідний шлях]
-    MW_IN -->|Security / Sessions / Auth| URLDisp[URL Dispatcher\nurlresolver]
-    URLDisp -->|Знайдено збіг| View((View Function\nабо CBV))
+    Browser[🖥️ Браузер] -->|HTTP Request| WebServer["Web Server<br>WSGI / ASGI"]
+    WebServer -->|HttpRequest об'єкт| MW_IN["Middleware 1..N<br>вхідний шлях"]
+    MW_IN -->|Security / Sessions / Auth| URLDisp["URL Dispatcher<br>urlresolver"]
+    URLDisp -->|Знайдено збіг| View(("View Function<br>або CBV"))
     View <-->|ORM QuerySet → SQL| ORM[ORM Layer]
     ORM <-->|SQL запити| DB[(PostgreSQL)]
-    View <-->|context dict| Tmpl[Template Engine\nJinja2 / DTL]
+    View <-->|context dict| Tmpl["Template Engine<br>Jinja2 / DTL"]
     Tmpl -->|HTML рядок| View
-    View -->|HttpResponse об'єкт| MW_OUT[Middleware N..1\nзворотній шлях]
+    View -->|HttpResponse об'єкт| MW_OUT["Middleware N..1<br>зворотній шлях"]
     MW_OUT -->|Заголовки / Cookies| WebServer
     WebServer -->|HTTP Response| Browser
 
-    style Browser fill:#4A90D9,color:#fff
-    style WebServer fill:#2C7A2C,color:#fff
-    style URLDisp fill:#8B5E3C,color:#fff
-    style View fill:#0C4B33,color:#fff
-    style DB fill:#336791,color:#fff
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class Browser,WebServer,MW_IN,MW_OUT,URLDisp,ORM,Tmpl,DB step;
+    class View success;
 ```
 
 ---
@@ -43,7 +42,7 @@ sequenceDiagram
     N->>G: Forwarding via Unix Socket
     G->>DJ: WSGI environ dict
     
-    Note over DJ: Middleware (вхід):\n1. SecurityMiddleware\n2. SessionMiddleware\n3. AuthMiddleware → request.user
+    Note over DJ: Middleware (вхід):<br>1. SecurityMiddleware<br>2. SessionMiddleware<br>3. AuthMiddleware → request.user
     
     DJ->>DJ: URL Dispatcher: /books/42/ → BookDetailView
     
@@ -53,7 +52,7 @@ sequenceDiagram
     
     DJ->>DJ: Template render: book_detail.html + context
     
-    Note over DJ: Middleware (вихід):\nContent-Length header
+    Note over DJ: Middleware (вихід):<br>Content-Length header
     
     DJ-->>G: HttpResponse (200 OK, HTML)
     G-->>N: HTTP bytes
@@ -66,22 +65,27 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    Req[HTTP Request\nPATH: /api/books/42/] --> Root[myproject/urls.py]
+    Req["HTTP Request<br>PATH: /api/books/42/"] --> Root[myproject/urls.py]
     
     Root -->|path: admin/| Admin[Django Admin]
-    Root -->|path: api/| APIUrls[api/urls.py\ninclude]
+    Root -->|path: api/| APIUrls["api/urls.py<br>include"]
     Root -->|path: нічого не збіглось| NotFound[404 Not Found]
     
-    APIUrls -->|path: books/| BookUrls[books/urls.py\ninclude]
+    APIUrls -->|path: books/| BookUrls["books/urls.py<br>include"]
     APIUrls -->|path: users/| UserUrls[users/urls.py]
     
-    BookUrls -->|path: пусто\nGET /api/books/| BookList[BookListView\nСписок книг]
-    BookUrls -->|path: int:pk /\n/api/books/42/| BookDetail[BookDetailView\nДеталі книги pk=42]
+    BookUrls -->|"path: пусто<br>GET /api/books/"| BookList["BookListView<br>Список книг"]
+    BookUrls -->|"path: int:pk /<br>/api/books/42/"| BookDetail["BookDetailView<br>Деталі книги pk=42"]
     BookUrls -->|path: нічого не збіглось| NotFound
-    
-    style Req fill:#4A90D9,color:#fff
-    style BookDetail fill:#0C4B33,color:#fff
-    style NotFound fill:#c0392b,color:#fff
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class Req,Admin,UserUrls,BookList step;
+    class Root,APIUrls,BookUrls decision;
+    class BookDetail success;
+    class NotFound error;
 ```
 
 ---
@@ -91,33 +95,34 @@ flowchart TD
 ```mermaid
 graph TD
     subgraph Зовнішній шар
-        S1[SecurityMiddleware\nHTTPS redirect, HSTS]
+        S1["SecurityMiddleware<br>HTTPS redirect, HSTS"]
     end
     subgraph Шар сесій
-        S2[SessionMiddleware\nЧитає sessionid cookie]
+        S2["SessionMiddleware<br>Читає sessionid cookie"]
     end
     subgraph Шар захисту
-        S3[CsrfViewMiddleware\nПеревірка CSRF токену]
+        S3["CsrfViewMiddleware<br>Перевірка CSRF токену"]
     end
     subgraph Шар авторизації
-        S4[AuthenticationMiddleware\nrequest.user = User]
+        S4["AuthenticationMiddleware<br>request.user = User"]
     end
     subgraph Центр
-        View[🎯 View Function\nБізнес-логіка]
+        View["🎯 View Function<br>Бізнес-логіка"]
     end
 
     Request[HTTP Request] --> S1
     S1 --> S2 --> S3 --> S4 --> View
 
     View --> S4_out[Middleware 4 out]
-    S4_out --> S3_out[Middleware 3 out\nContent-Length]
-    S3_out --> S2_out[Middleware 2 out\nSet-Cookie session]
-    S2_out --> S1_out[Middleware 1 out\nSecurity headers]
+    S4_out --> S3_out["Middleware 3 out<br>Content-Length"]
+    S3_out --> S2_out["Middleware 2 out<br>Set-Cookie session"]
+    S2_out --> S1_out["Middleware 1 out<br>Security headers"]
     S1_out --> Response[HTTP Response]
 
-    style View fill:#0C4B33,color:#fff
-    style Request fill:#4A90D9,color:#fff
-    style Response fill:#2C7A2C,color:#fff
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class Request,S1,S2,S3,S4,S4_out,S3_out,S2_out,S1_out step;
+    class View,Response success;
 ```
 
 ---
@@ -127,18 +132,18 @@ graph TD
 ```mermaid
 graph LR
     subgraph Python код
-        Model[class Book\nmodels.Model]
-        QS[QuerySet\nBook.objects.filter...]
-        PO[Python об'єкти\nlist of Book instances]
+        Model["class Book<br>models.Model"]
+        QS["QuerySet<br>Book.objects.filter..."]
+        PO["Python об'єкти<br>list of Book instances"]
     end
 
     subgraph Django ORM
-        SQL_GEN[SQL Generator\nDjango DB Backend]
-        CONN[Connection Pool\npsycopg2]
+        SQL_GEN["SQL Generator<br>Django DB Backend"]
+        CONN["Connection Pool<br>psycopg2"]
     end
 
     subgraph База даних
-        PG[(PostgreSQL\nbooks_book table)]
+        PG[("PostgreSQL<br>books_book table")]
     end
 
     Model -->|визначає схему| SQL_GEN
@@ -149,8 +154,10 @@ graph LR
     CONN -->|raw data| SQL_GEN
     SQL_GEN -->|hydration| PO
 
-    style PG fill:#336791,color:#fff
-    style Model fill:#0C4B33,color:#fff
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class Model,QS,SQL_GEN,CONN,PG step;
+    class PO success;
 ```
 
 ---
@@ -160,26 +167,26 @@ graph LR
 ```mermaid
 graph TD
     Root[myproject/] --> Manage[manage.py]
-    Root --> Config[myproject/\nКонфігурація]
-    Root --> App1[books/\nДодаток]
-    Root --> App2[users/\nДодаток]
+    Root --> Config["myproject/<br>Конфігурація"]
+    Root --> App1["books/<br>Додаток"]
+    Root --> App2["users/<br>Додаток"]
 
-    Config --> Settings[settings.py\nНалаштування]
-    Config --> URLs[urls.py\nКореневий роутер]
+    Config --> Settings["settings.py<br>Налаштування"]
+    Config --> URLs["urls.py<br>Кореневий роутер"]
     Config --> WSGI[wsgi.py]
     Config --> ASGI[asgi.py]
 
-    App1 --> Models[models.py\nBook, Author]
-    App1 --> Views[views.py\nBookListView, BookDetailView]
-    App1 --> AppURLs[urls.py\nМаршрути]
-    App1 --> Templates[templates/books/\n*.html]
-    App1 --> Admin_py[admin.py\nАдмін реєстрація]
-    App1 --> Migrations[migrations/\n0001_initial.py...]
+    App1 --> Models["models.py<br>Book, Author"]
+    App1 --> Views["views.py<br>BookListView, BookDetailView"]
+    App1 --> AppURLs["urls.py<br>Маршрути"]
+    App1 --> Templates["templates/books/<br>*.html"]
+    App1 --> Admin_py["admin.py<br>Адмін реєстрація"]
+    App1 --> Migrations["migrations/<br>0001_initial.py..."]
 
-    style Root fill:#555,color:#fff
-    style Config fill:#2C7A2C,color:#fff
-    style App1 fill:#4A90D9,color:#fff
-    style App2 fill:#4A90D9,color:#fff
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    class Root,Manage,Settings,URLs,WSGI,ASGI,Models,Views,AppURLs,Templates,Admin_py,Migrations step;
+    class Config,App1,App2 decision;
 ```
 
 ---
@@ -197,21 +204,21 @@ sequenceDiagram
 
     B->>DJ: POST /login/
 
-    Note over DJ: authenticate(username, password)\nПеревірка хешу пароля
+    Note over DJ: authenticate(username, password)<br>Перевірка хешу пароля
 
     alt ✅ Дані правильні
 
         DJ->>DJ: login(request, user)
 
-        Note over DJ: Створення session\nу django_session
+        Note over DJ: Створення session<br>у django_session
 
-        DJ-->>B: 302 Redirect /dashboard/\nSet-Cookie: sessionid=abc123
+        DJ-->>B: 302 Redirect /dashboard/<br>Set-Cookie: sessionid=abc123
 
-        B->>DJ: GET /dashboard/\nCookie: sessionid=abc123
+        B->>DJ: GET /dashboard/<br>Cookie: sessionid=abc123
 
-        Note over DJ: SessionMiddleware\nзчитує session
+        Note over DJ: SessionMiddleware<br>зчитує session
 
-        Note over DJ: AuthMiddleware\nrequest.user = User(id=42)
+        Note over DJ: AuthMiddleware<br>request.user = User(id=42)
 
         DJ-->>B: HTML Dashboard
 
@@ -225,9 +232,9 @@ sequenceDiagram
 
     B->>DJ: POST /logout/
 
-    Note over DJ: logout(request)\nвидаляє session
+    Note over DJ: logout(request)<br>видаляє session
 
-    DJ-->>B: Redirect /\nочищення session cookie
+    DJ-->>B: Redirect /<br>очищення session cookie
 ```
 
 ---
@@ -236,17 +243,14 @@ sequenceDiagram
 ```mermaid
 flowchart LR
 
-    classDef client fill:#E3F2FD,stroke:#1E88E5,color:#000
-    classDef app fill:#E8F5E9,stroke:#43A047,color:#000
-    classDef db fill:#FFF3E0,stroke:#FB8C00,color:#000
 
-    User["👤 Користувач"]:::client
+    User["👤 Користувач"]
 
-    Browser["🌍 Браузер\nsessionid cookie"]:::client
+    Browser["🌍 Браузер<br>sessionid cookie"]
 
-    Django["🐍 Django\nAuth + SessionMiddleware"]:::app
+    Django["🐍 Django<br>Auth + SessionMiddleware"]
 
-    DB[("🗄️ django_session")]:::db
+    DB[("🗄️ django_session")]
 
     User --> Browser
 
@@ -261,6 +265,11 @@ flowchart LR
     Browser -->|"Cookie: sessionid"| Django
 
     Django -->|"request.user"| User
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class User,Browser,DB step;
+    class Django success;
 ```
 
 
@@ -284,6 +293,11 @@ flowchart TB
     Cookie --> Session
 
     Session --> User
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class Request,Cookie,Session step;
+    class User success;
 ```
 
 
@@ -295,19 +309,16 @@ flowchart TB
 ```mermaid
 flowchart LR
 
-    classDef anon fill:#FFCDD2,stroke:#E53935,color:#000
-    classDef auth fill:#C8E6C9,stroke:#43A047,color:#000
-    classDef process fill:#E3F2FD,stroke:#1E88E5,color:#000
 
-    Anonymous["👤 Анонімний"]:::anon
+    Anonymous["👤 Анонімний"]
 
-    Login["POST /login/"]:::process
+    Login["POST /login/"]
 
-    Auth["✅ Автентифікований\nsessionid cookie"]:::auth
+    Auth["✅ Автентифікований<br>sessionid cookie"]
 
-    Logout["POST /logout/"]:::process
+    Logout["POST /logout/"]
 
-    Expire["Session Expired"]:::process
+    Expire["Session Expired"]
 
     Anonymous --> Login
 
@@ -322,6 +333,15 @@ flowchart LR
     Auth --> Expire
 
     Expire --> Anonymous
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class Login,Logout step;
+    class Expire warning;
+    class Auth success;
+    class Anonymous error;
 ```
 
 ---
@@ -348,6 +368,11 @@ flowchart TB
     Django --> SessionDB
 
     SessionDB --> User
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class Browser,Cookie,Django,SessionDB step;
+    class User success;
 ```
 
 ---
@@ -379,17 +404,17 @@ sequenceDiagram
 ```mermaid
 graph TD
     subgraph WSGI_SYN[WSGI — Синхронна модель]
-        W_Nginx[Nginx] --> W_Gunicorn[Gunicorn\n4 workers]
-        W_Gunicorn --> W1[Worker 1\n🔒 Зайнятий\nчекає БД 3сек]
-        W_Gunicorn --> W2[Worker 2\n🔒 Зайнятий]
-        W_Gunicorn --> W3[Worker 3\n✅ Вільний]
-        W_Gunicorn --> W4[Worker 4\n✅ Вільний]
+        W_Nginx[Nginx] --> W_Gunicorn["Gunicorn<br>4 workers"]
+        W_Gunicorn --> W1["Worker 1<br>🔒 зайнятий: чекає БД 3сек"]
+        W_Gunicorn --> W2["Worker 2<br>🔒 Зайнятий"]
+        W_Gunicorn --> W3["Worker 3<br>✅ Вільний"]
+        W_Gunicorn --> W4["Worker 4<br>✅ Вільний"]
         Note1[Максимум 4 паралельні запити]
     end
 
     subgraph ASGI_ASY[ASGI — Асинхронна модель]
-        A_Nginx[Nginx] --> A_Uvicorn[Uvicorn\n4 workers з event loop]
-        A_Uvicorn --> EL[Event Loop\nWorker 1]
+        A_Nginx[Nginx] --> A_Uvicorn["Uvicorn<br>4 workers з event loop"]
+        A_Uvicorn --> EL["Event Loop<br>Worker 1"]
         EL --> T1[Task 1: await db.query]
         EL --> T2[Task 2: обробляє запит]
         EL --> T3[Task 3: await file.read]
@@ -397,8 +422,14 @@ graph TD
         Note2[Тисячі паралельних з'єднань]
     end
 
-    style Note1 fill:#c0392b,color:#fff
-    style Note2 fill:#2C7A2C,color:#fff
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class W_Nginx,W_Gunicorn,A_Nginx,A_Uvicorn,EL,T1,T2,T3,T4 step;
+    class W1,W2 warning;
+    class W3,W4,Note2 success;
+    class Note1 error;
 ```
 
 ---
@@ -408,19 +439,19 @@ graph TD
 ```mermaid
 graph TD
     subgraph Django App
-        ORM[Django ORM\nQuerySet API]
-        Pool[Connection Pool\nDjango DB connections\nmax 10 за замовчуванням]
+        ORM["Django ORM<br>QuerySet API"]
+        Pool["Connection Pool (Django DB connections)<br>max 10 за замовчуванням"]
     end
 
     subgraph PostgreSQL
-        PG_Auth[Auth\nUser: myapp Password: ***]
-        PG_Parser[Query Parser\nSQL → Query Plan]
+        PG_Auth["Auth<br>User: myapp Password: ***"]
+        PG_Parser["Query Parser<br>SQL → Query Plan"]
         PG_Exec[Query Executor]
-        PG_Storage[(Storage Engine\nHeap / B-Tree Index)]
+        PG_Storage[("Storage Engine<br>Heap / B-Tree Index")]
     end
 
     ORM -->|Python QuerySet| Pool
-    Pool -->|TCP :5432 або Unix Socket\npsycopg2| PG_Auth
+    Pool -->|"TCP :5432 або Unix Socket<br>psycopg2"| PG_Auth
     PG_Auth -->|Authenticated| PG_Parser
     PG_Parser -->|Optimized Query Plan| PG_Exec
     PG_Exec -->|Read/Write| PG_Storage
@@ -428,7 +459,10 @@ graph TD
     PG_Exec -->|Result set| Pool
     Pool -->|Python objects| ORM
 
-    style PG_Storage fill:#336791,color:#fff
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class ORM,PG_Auth,PG_Parser,PG_Exec,PG_Storage step;
+    class Pool warning;
 ```
 
 ---
@@ -439,22 +473,24 @@ graph TD
 graph LR
     User[👤 Користувач] -->|POST /order/| DjangoView[Django View]
     
-    DjangoView -->|send_confirmation_email.delay| Redis[(Redis\nBroker Queue)]
+    DjangoView -->|send_confirmation_email.delay| Redis[("Redis<br>Broker Queue")]
     DjangoView -->|HttpResponse 201| User
-    Note1[Відповідь миттєва!\nEmail іде фоново]
+    Note1["Відповідь миттєва!<br>Email іде фоново"]
     
     Redis -->|Task picked up| CeleryW[Celery Worker]
     CeleryW -->|SMTP| Email[📧 Email Server]
     CeleryW -->|Результат| Redis
 
     subgraph Моніторинг
-        Flower[Flower UI\n:5555]
+        Flower["Flower UI<br>:5555"]
     end
     
     CeleryW --> Flower
-    
-    style Redis fill:#dc382c,color:#fff
-    style Note1 fill:#2C7A2C,color:#fff
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class User,DjangoView,Redis,CeleryW,Email,Flower step;
+    class Note1 success;
 ```
 
 ---
@@ -463,11 +499,11 @@ graph LR
 
 ```mermaid
 graph TD
-    Client[Browser / Mobile] -->|HTTPS :443| Nginx[Nginx\nReverse Proxy]
+    Client[Browser / Mobile] -->|HTTPS :443| Nginx["Nginx<br>Reverse Proxy"]
     
-    Nginx -->|/static/ /media/\nБез Python| Disk[(📁 Файлова система\nstaticfiles/ media/)]
+    Nginx -->|"/static/ /media/<br>Без Python"| Disk[("📁 Файлова система<br>staticfiles/ media/")]
     
-    Nginx -->|Динамічні запити\nUnix Socket| Gunicorn[Gunicorn\nProcess Manager]
+    Nginx -->|"Динамічні запити<br>Unix Socket"| Gunicorn["Gunicorn<br>Process Manager"]
     
     subgraph Python Application
         Gunicorn -->|fork| W1[Uvicorn Worker 1]
@@ -485,12 +521,11 @@ graph TD
     DjApp -->|Cache / Sessions| RedisDB[(Redis :6379)]
     DjApp -->|Tasks| CeleryQ[Celery Workers]
     CeleryQ --> PG
-    
-    style Client fill:#4A90D9,color:#fff
-    style Nginx fill:#2C7A2C,color:#fff
-    style DjApp fill:#0C4B33,color:#fff
-    style PG fill:#336791,color:#fff
-    style RedisDB fill:#dc382c,color:#fff
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class Client,Nginx,Disk,Gunicorn,W1,W2,W3,W4,PG,RedisDB,CeleryQ step;
+    class DjApp success;
 ```
 
 ---
@@ -507,22 +542,22 @@ sequenceDiagram
     participant T as Template Engine
 
     B->>MW: HTTP GET /books/1/
-    Note over MW: Вхідний шлях (зверху вниз):\n1. SecurityMiddleware\n2. SessionMiddleware\n3. AuthMiddleware → request.user
+    Note over MW: Вхідний шлях (зверху вниз):<br>1. SecurityMiddleware<br>2. SessionMiddleware<br>3. AuthMiddleware → request.user
 
     MW->>URL: HttpRequest (request.user доданий)
     URL->>V: invoke book_detail(request, pk=1)
     
     V->>DB: Book.objects.select_related('author').get(id=1)
-    Note over DB: SELECT books_book.*, auth_author.*\nFROM books_book\nJOIN auth_author ON ...\nWHERE books_book.id = 1
+    Note over DB: SELECT books_book.*, auth_author.*<br>FROM books_book<br>JOIN auth_author ON ...<br>WHERE books_book.id = 1
     DB-->>V: Python Book об'єкт (з author)
     
     V->>T: render('books/detail.html', {'book': book})
-    Note over T: Парсинг шаблону\nПідстановка змінних\nEscape HTML (XSS захист)
+    Note over T: Парсинг шаблону<br>Підстановка змінних<br>Escape HTML (XSS захист)
     T-->>V: HTML рядок (4.2KB)
     
     V-->>MW: HttpResponse(html, status=200)
     
-    Note over MW: Зворотній шлях (знизу вгору):\nContent-Length: 4200\nVary: Cookie
+    Note over MW: Зворотній шлях (знизу вгору):<br>Content-Length: 4200<br>Vary: Cookie
     
     MW-->>B: HTTP/1.1 200 OK + HTML
 ```
@@ -533,11 +568,11 @@ sequenceDiagram
 
 ```mermaid
 graph TD
-    Dev[👨‍💻 Розробник] -->|register| AdminSite[django.contrib.admin\nAdminSite]
+    Dev[👨‍💻 Розробник] -->|register| AdminSite["django.contrib.admin<br>AdminSite"]
     
     subgraph Реєстрація моделей
-        AdminSite --> BA[BookAdmin\nlist_display, search_fields]
-        AdminSite --> UA[UserAdmin\nfilter_horizontal]
+        AdminSite --> BA["BookAdmin<br>list_display, search_fields"]
+        AdminSite --> UA["UserAdmin<br>filter_horizontal"]
         AdminSite --> OtherAdmin[...]
     end
     
@@ -546,10 +581,14 @@ graph TD
     AdminSite -->|CRUD операції| ORM_A[Django ORM]
     ORM_A -->|SQL| DB_A[(Database)]
     
-    AdminSite -->|auth check\nis_staff=True| Auth[Authentication System]
-    
-    style AdminSite fill:#0C4B33,color:#fff
-    style DB_A fill:#336791,color:#fff
+    AdminSite -->|"auth check<br>is_staff=True"| Auth[Authentication System]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class Dev,User,BA,UA,OtherAdmin,ORM_A,DB_A step;
+    class AdminSite success;
+    class Auth warning;
 ```
 
 ---
@@ -558,25 +597,28 @@ graph TD
 
 ```mermaid
 graph TD
-    Internet[🌐 Інтернет] --> LB[Load Balancer\nHAProxy / AWS ALB]
+    Internet[🌐 Інтернет] --> LB["Load Balancer<br>HAProxy / AWS ALB"]
     
     LB --> Nginx1[Nginx 1]
     LB --> Nginx2[Nginx 2]
     
-    Nginx1 --> App1[Django App\nContainer 1]
-    Nginx1 --> App2[Django App\nContainer 2]
-    Nginx2 --> App3[Django App\nContainer 3]
-    Nginx2 --> App4[Django App\nContainer 4]
+    Nginx1 --> App1["Django App<br>Container 1"]
+    Nginx1 --> App2["Django App<br>Container 2"]
+    Nginx2 --> App3["Django App<br>Container 3"]
+    Nginx2 --> App4["Django App<br>Container 4"]
     
-    App1 & App2 & App3 & App4 -->|Спільна БД| PG_Master[(PostgreSQL\nMaster)]
-    App1 & App2 & App3 & App4 -->|Read replicas| PG_Read[(PostgreSQL\nRead Replica)]
-    App1 & App2 & App3 & App4 -->|Shared cache\nSessions| Redis_Cluster[(Redis Cluster)]
+    App1 & App2 & App3 & App4 -->|Спільна БД| PG_Master[("PostgreSQL<br>Master")]
+    App1 & App2 & App3 & App4 -->|Read replicas| PG_Read[("PostgreSQL<br>Read Replica")]
+    App1 & App2 & App3 & App4 -->|"Shared cache<br>Sessions"| Redis_Cluster[(Redis Cluster)]
     
     App1 & App2 & App3 & App4 -->|Tasks| CeleryQ[(Redis Queue)]
     CeleryQ --> CW1[Celery Worker 1]
     CeleryQ --> CW2[Celery Worker 2]
-    
-    style LB fill:#555,color:#fff
-    style PG_Master fill:#336791,color:#fff
-    style Redis_Cluster fill:#dc382c,color:#fff
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class Internet,LB,Nginx1,Nginx2,PG_Master,PG_Read,CeleryQ,CW1,CW2 step;
+    class App1,App2,App3,App4 success;
+    class Redis_Cluster warning;
 ```

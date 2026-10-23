@@ -13,30 +13,30 @@
 - [0. Що таке Django Admin і навіщо Unfold](#0-що-таке-django-admin-і-навіщо-unfold)
 - [1. AdminSite — координатор інтерфейсу](#1-adminsite--координатор-інтерфейсу)
 - [2. ModelAdmin — CRUD-генератор](#2-modeladmin--crud-генератор)
-- [3. Admin Request Lifecycle — від HTTP до БД](#3-admin-request-lifecycle--від-http-до-бд)
+- [3. Admin Request Lifecycle — від HTTP до БД](#3-admin-request-lifecycle)
 - [4. ChangeList — рушій списків](#4-changelist--рушій-списків)
-- [5. Query Architecture — оптимізація запитів](#5-query-architecture--оптимізація-запитів)
-- [6. Admin Rendering Pipeline — шаблони і TemplateResponse](#6-admin-rendering-pipeline--шаблони-і-templateresponse)
+- [5. Query Architecture — оптимізація запитів](#5-query-architecture)
+- [6. Admin Rendering Pipeline — шаблони і TemplateResponse](#6-admin-rendering-pipeline)
 - [7. Unfold — встановлення і базова конфігурація](#7-unfold--встановлення-і-базова-конфігурація)
 - [8. Sidebar + Navigation Architecture](#8-sidebar--navigation-architecture)
 - [9. Dashboard — layouts і DASHBOARD_CALLBACK](#9-dashboard--layouts-і-dashboard_callback)
-- [10. Widget Systems — Card, Chart, Tracker, Cohort](#10-widget-systems--card-chart-tracker-cohort)
-- [11. Information Hierarchy — Fieldset tabs, Conditional fields](#11-information-hierarchy--fieldset-tabs-conditional-fields)
-- [12. Enterprise Patterns — паралельний UnfoldAdminSite, InfinitePaginator](#12-enterprise-patterns--паралельний-unfoldadminsite-infinitepaginator)
+- [10. Widget Systems — Card, Chart, Tracker, Cohort](#10-widget-systems)
+- [11. Information Hierarchy — Fieldset tabs, Conditional fields](#11-information-hierarchy)
+- [12. Enterprise Patterns — паралельний UnfoldAdminSite, InfinitePaginator](#12-enterprise-patterns)
 - [13. Admin Anti-Patterns](#13-admin-anti-patterns)
 - [14. Питання для самоперевірки](#14-питання-для-самоперевірки)
-- [15. Advanced Filtering — AutocompleteSelectFilter, RangeDateTimeFilter](#15-advanced-filtering--autocompleteselectfilter-rangedatetimefilter)
-- [16. Bulk Actions і Dialog Actions — BaseDialogForm](#16-bulk-actions-і-dialog-actions--basedialogform)
+- [15. Advanced Filtering — AutocompleteSelectFilter, RangeDateTimeFilter](#15-advanced-filtering--unfold-filters)
+- [16. Bulk Actions і Dialog Actions — BaseDialogForm](#16-bulk-actions-і-dialog-actions)
 - [17. Component Classes — @register_component](#17-component-classes--register_component)
 - [18. Custom Pages — UnfoldModelAdminViewMixin](#18-custom-pages--unfoldmodeladminviewmixin)
-- [19. Advanced Widgets — WysiwygWidget, ArrayWidget](#19-advanced-widgets--wysiwygwidget-arraywidget)
-- [20. Performance і Caching — cached.Loader, full-text search, Redis](#20-performance-і-caching--cachedloader-full-text-search-redis)
+- [19. Advanced Widgets — WysiwygWidget, ArrayWidget](#19-advanced-widgets)
+- [20. Performance і Caching — cached.Loader, full-text search, Redis](#20-performance-і-caching)
 - [21. Datasets — пов'язані записи у ChangeForm](#21-datasets--повязані-записи-у-changeform)
 - [22. Production Checklist](#22-production-checklist)
 
 ---
 - **🧠 Ментальна модель:** Django Admin — це LEGO-конструктор для внутрішніх інструментів. Кожна модель (Note, Category, User) — це набір деталей. Django автоматично будує з них повноцінний CRUD-інтерфейс: список, форму додавання, форму редагування, видалення. Unfold — це новий набір "лего" поверх старого: ті ж деталі, але сучасний дизайн і нові компоненти.
-- **📚 Чому це існує:** До Django Admin, кожен проект мав самостійно будувати адмін-панель: HTML-форми, валідацію, права доступу, пагінацію. Django Admin вирішив цю проблему раз і назавжди — автоматичний CRUD для будь-якої зареєстрованої моделі, з правами, аудитом і пошуком з коробки. Unfold вирішив проблему застарілого Bootstrap 3 UI — без зміни бізнес-логіки.
+- **📚 Чому це існує:** До Django Admin, кожен проект мав самостійно будувати адмін-панель: HTML-форми, валідацію, права доступу, пагінацію. Django Admin вирішив цю проблему раз і назавжди — автоматичний CRUD для будь-якої зареєстрованої моделі, з правами, аудитом і пошуком з коробки. Unfold вирішив проблему застарілого вигляду стандартної адмінки (власний CSS Django, не Bootstrap) — без зміни бізнес-логіки.
 - **🌐 Що відбувається під капотом:** При запуску Django, `apps.py` кожного встановленого додатку виконується. `admin.autodiscover()` знаходить і завантажує `admin.py` у кожному додатку. Кожен `admin.site.register(Model, ModelAdmin)` реєструє модель у глобальному `AdminSite` синглтоні. При запиті до `/admin/` Django викликає `AdminSite.urls`, який динамічно генерує URL-маршрути для всіх зареєстрованих моделей.
 - **❌ Типова помилка початківця:** Думати, що Django Admin — це для кінцевих користувачів. Адмінка призначена ВИКЛЮЧНО для внутрішньої команди: адміністраторів, редакторів, підтримки. Зовнішні користувачі повинні мати окремий інтерфейс на звичайних Django Views + Bootstrap. Використання адмінки як "фронтенду" — анти-патерн.
 ---
@@ -69,13 +69,13 @@
 **Порядок читання для початківців:**
 
 1. [§0 → загальна картина, навіщо взагалі Admin](#0-що-таке-django-admin-і-навіщо-unfold)
-2. [§3 → Request Lifecycle (розумієш як Django обробляє запит до адмінки)](#3-admin-request-lifecycle--від-http-до-бд)
+2. [§3 → Request Lifecycle (розумієш як Django обробляє запит до адмінки)](#3-admin-request-lifecycle)
 3. [§2 → ModelAdmin (основний інструмент, 80% часу тут)](#2-modeladmin--crud-генератор)
-4. [§5 → Query Architecture (N+1 — найпоширеніша проблема)](#5-query-architecture--оптимізація-запитів)
+4. [§5 → Query Architecture (N+1 — найпоширеніша проблема)](#5-query-architecture)
 5. [§7 → Unfold встановлення (після розуміння основ)](#7-unfold--встановлення-і-базова-конфігурація)
 6. [§9 → Dashboard (перша "вау" фіча)](#9-dashboard--layouts-і-dashboard_callback)
 7. [§13 → Anti-Patterns (читай до написання production коду)](#13-admin-anti-patterns)
-8. [§22 → Checklist (перед деплоєм)](#21-datasets--повязані-записи-у-changeform)
+8. [§22 → Checklist (перед деплоєм)](#22-production-checklist)
 
 ---
 
@@ -110,7 +110,7 @@ admin.site.register(Note)
 ```
 Стандартна Django Admin          Unfold Admin
 ─────────────────────────        ─────────────
-Базовий Bootstrap 3 стиль   →   Tailwind CSS з темною темою
+Базовий CSS адмінки Django  →   Tailwind CSS з темною темою
 Плоский список моделей       →   Sidebar з ієрархією і іконками
 Немає дашборду              →   Кастомна сторінка з Chart.js
 Немає command palette        →   Глобальний пошук (Ctrl+K)
@@ -333,7 +333,7 @@ class NoteAdmin(admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         """Поле author тільки для читання при редагуванні."""
         if obj:  # existing object
-            return self.readonly_fields + ('author',)
+            return list(self.readonly_fields) + ['author']
         return self.readonly_fields
 
     def get_form(self, request, obj=None, **kwargs):
@@ -423,7 +423,7 @@ class NoteAdmin(admin.ModelAdmin):
 ---
 - **🧠 Ментальна модель:** Admin Request Lifecycle — це конвеєр. Кожен запит до `/admin/note/42/change/` проходить через фіксовану послідовність "станцій": автентифікація → авторизація → отримання об'єкта → перевірка прав → рендеринг форми (GET) або валідація + збереження (POST). Якщо будь-яка станція "відмовляє" — конвеєр зупиняється і повертає відповідну відповідь (403, 404, форму з помилками).
 - **📚 Чому це існує:** Lifecycle чітко розділяє відповідальність: middleware не знає про моделі, ModelAdmin не знає про HTTP-деталі. Ти можеш перехопити будь-яку "станцію" конвеєра: `get_form()` — для зміни форми, `save_model()` — для зміни логіки збереження, `response_change()` — для зміни редиректу. Не потрібно переписувати все — тільки override потрібної станції.
-- **🌐 Що відбувається під капотом:** `has_change_permission()` виконує SQL-запит для перевірки прав (через `ContentType` фреймворк). `get_form()` динамічно генерує `ModelForm` клас на льоту. `save_model()` викликає `obj.full_clean()` (валідація полів) а потім `obj.save()` (INSERT або UPDATE в БД). `log_change()` записує рядок в таблицю `django_admin_log` — це вбудований аудит-лог.
+- **🌐 Що відбувається під капотом:** `has_change_permission()` виконує SQL-запит для перевірки прав (через `ContentType` фреймворк). `get_form()` динамічно генерує `ModelForm` клас на льоту. Валідацію моделі (`instance.full_clean()`) виконує ще `form.is_valid()` — через `ModelForm._post_clean()`; сам `save_model()` лише викликає `obj.save()` (INSERT або UPDATE в БД). `log_change()` записує рядок в таблицю `django_admin_log` — це вбудований аудит-лог.
 - **❌ Типова помилка початківця:** Виконувати дорогі операції (відправка email, виклик зовнішнього API) прямо в `save_model()` без try/except. Якщо email-сервер недоступний — адмінка "падає" при спробі збереження. Важкі side effects кращe виконувати в Celery task, який запускається з `save_model()`.
 ---
 
@@ -757,9 +757,11 @@ UNFOLD = {
     # ── Кольори (CSS змінні) ───────────────────────────────────
     "COLORS": {
         "primary": {
-            "50": "240 249 255",        # RGB без #
+            # Задайте всі відтінки 50…950 — тут скорочено.
+            # Старі версії Unfold: RGB-трійка без # і ком; нові (Tailwind 4): "oklch(97.7% .014 308.299)".
+            "50": "240 249 255",
             "100": "224 242 254",
-            "500": "14 165 233",        # --un-color-primary-500
+            "500": "14 165 233",        # → --color-primary-500
             "900": "12 74 110",
         },
     },
@@ -991,8 +993,12 @@ def note_tabs_callback(request):
 ```python
 # notes_app/admin_dashboard.py
 
+import json
+from datetime import timedelta
+
 from django.db.models import Count
 from django.db.models.functions import TruncDate
+from django.utils import timezone
 from .models import Note
 
 
@@ -1022,13 +1028,13 @@ def dashboard_callback(request, context):
         .order_by('date')
     )
 
-    context['chart_data'] = {
+    context['chart_data'] = json.dumps({  # Unfold кладе data у data-value="{{ data }}" — потрібен JSON-рядок
         'labels': [str(row['date']) for row in daily_counts],
         'datasets': [{
             'label': 'Нових нотаток',
             'data': [row['count'] for row in daily_counts],
         }],
-    }
+    })
 
     return context
 ```
@@ -1045,46 +1051,21 @@ def dashboard_callback(request, context):
 
     {# ── Stats Cards ──────────────────────────── #}
     <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {% component "unfold/components/card.html" with
-            title="Всього нотаток"
-            value=stats.total_notes
-            icon="description"
-            footer="За весь час"
-        %}{% endcomponent %}
+        {% component "unfold/components/card.html" with title="Всього нотаток" icon="description" footer="За весь час" %}{% component "unfold/components/title.html" %}{{ stats.total_notes }}{% endcomponent %}{% endcomponent %}
 
-        {% component "unfold/components/card.html" with
-            title="Опубліковано"
-            value=stats.published
-            icon="check_circle"
-            class="bg-green-50"
-        %}{% endcomponent %}
+        {% component "unfold/components/card.html" with title="Опубліковано" icon="check_circle" class="bg-green-50" %}{% component "unfold/components/title.html" %}{{ stats.published }}{% endcomponent %}{% endcomponent %}
 
-        {% component "unfold/components/card.html" with
-            title="Чернетки"
-            value=stats.drafts
-            icon="edit_note"
-            class="bg-yellow-50"
-        %}{% endcomponent %}
+        {% component "unfold/components/card.html" with title="Чернетки" icon="edit_note" class="bg-yellow-50" %}{% component "unfold/components/title.html" %}{{ stats.drafts }}{% endcomponent %}{% endcomponent %}
 
-        {% component "unfold/components/card.html" with
-            title="Сьогодні"
-            value=stats.today
-            icon="today"
-        %}{% endcomponent %}
+        {% component "unfold/components/card.html" with title="Сьогодні" icon="today" %}{% component "unfold/components/title.html" %}{{ stats.today }}{% endcomponent %}{% endcomponent %}
     </div>
 
     {# ── Chart ────────────────────────────────── #}
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {% component "unfold/components/chart/line.html" with
-            title="Нові нотатки (14 днів)"
-            data=chart_data
-        %}{% endcomponent %}
+        {% component "unfold/components/chart/line.html" with title="Нові нотатки (14 днів)" data=chart_data %}{% endcomponent %}
 
         {# Tracker — активність #}
-        {% component "unfold/components/tracker.html" with
-            title="Активність за рік"
-            data=tracker_data
-        %}{% endcomponent %}
+        {% component "unfold/components/tracker.html" with title="Активність за рік" data=tracker_data %}{% endcomponent %}
     </div>
 
 </div>
@@ -1094,10 +1075,10 @@ def dashboard_callback(request, context):
 ---
 
 ---
-- **🧠 Ментальна модель:** Unfold Widgets — це "набір меблів преміум-класу" для дашборду. Card — це вітрина (одне число + контекст). Chart — це графік (Chart.js під капотом). Tracker — це теплова карта GitHub-активності. Cohort — це таблиця утримання (retention analysis). Кожен виджет — це Unfold компонент, що приймає Python-dict і рендерить відповідний HTML+JS.
+- **🧠 Ментальна модель:** Unfold Widgets — це "набір меблів преміум-класу" для дашборду. Card — це вітрина (одне число + контекст). Chart — це графік (Chart.js під капотом). Tracker — це теплова карта GitHub-активності. Cohort — це таблиця утримання (retention analysis). Кожен виджет — це Unfold компонент, що приймає дані через `with key=value` і рендерить відповідний HTML+JS.
 - **📚 Чому компоненти замість прямого HTML:** Unfold `{% component %}` тег гарантує консистентний стиль (темна тема, кольори, відступи) без дублювання CSS. Ти передаєш дані через `with key=value`, компонент сам знає як їх відобразити. При оновленні Unfold — стиль компонентів оновлюється автоматично.
-- **🌐 Що відбувається під капотом:** `{% component "unfold/components/chart/line.html" with data=chart_data %}` — це Django template tag `{% include %}` з додатковою логікою. Unfold рендерить частковий шаблон і ін'єктує в нього Python-словник `chart_data`. Шаблон Chart генерує `<canvas>` тег і `<script>` з `new Chart(ctx, {{ data|json_script }})`. Chart.js (JavaScript бібліотека) підхоплює `<canvas>` і малює графік у браузері.
-- **❌ Типова помилка початківця:** Передавати в `data` Chart компонента Python QuerySet напряму. Unfold очікує Python dict з ключами `labels` і `datasets`. QuerySet потрібно попередньо перетворити в словник у `dashboard_callback`. Якщо цього не зробити — шаблон кине `TypeError` або відобразить порожній графік.
+- **🌐 Що відбувається під капотом:** `{% component "unfold/components/chart/line.html" with data=chart_data %}` — це Django template tag `{% include %}` з додатковою логікою. Unfold рендерить частковий шаблон і передає в нього `chart_data`. Шаблон Chart генерує `<canvas data-value="{{ data }}">`, тому `chart_data` має бути JSON-рядком (`json.dumps(...)`); JavaScript Unfold читає цей атрибут і створює `new Chart(...)`. Chart.js (JavaScript бібліотека) підхоплює `<canvas>` і малює графік у браузері.
+- **❌ Типова помилка початківця:** Передавати в `data` Chart компонента Python QuerySet напряму. Unfold очікує JSON-рядок зі словника з ключами `labels` і `datasets`. QuerySet потрібно попередньо перетворити в словник і серіалізувати через `json.dumps()` у `dashboard_callback`. Якщо цього не зробити — серіалізація впаде з `TypeError` або графік буде порожнім.
 ---
 
 ## §10. Widget Systems
@@ -1105,31 +1086,27 @@ def dashboard_callback(request, context):
 ### Card — базовий контейнер
 
 ```python
-# context для card
+# параметри unfold/components/card.html: title, footer, label, icon, class. Саме число — це вміст (children) картки, напр. вкладений title.html
 {
     "title": "Нові реєстрації",
-    "metric": "1,284",
     "footer": "+12% цього тижня",
     "icon": "person_add",
-    "label": "Зростання",
-    "label_value": "+12%",
+    "label": "+12%",
+    "class": "lg:w-1/3",
 }
 ```
 
 ```html
-{% component "unfold/components/card.html" with
-    title="Нові реєстрації"
-    metric="1,284"
-    icon="person_add"
-    footer="+12% цього тижня"
-%}{% endcomponent %}
+{% component "unfold/components/card.html" with title="Нові реєстрації" icon="person_add" footer="+12% цього тижня" %}{% component "unfold/components/title.html" %}1,284{% endcomponent %}{% endcomponent %}
 ```
 
 ### Chart — Chart.js інтеграція
 
 ```python
+import json
+
 # Лінійний графік
-chart_data = {
+chart_data = json.dumps({  # Unfold кладе data у data-value="{{ data }}" — потрібен JSON-рядок
     "labels": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"],
     "datasets": [
         {
@@ -1145,22 +1122,15 @@ chart_data = {
             "borderColor": "rgb(168, 85, 247)",
         },
     ],
-}
+})
 ```
 
 ```html
 {# Line chart #}
-{% component "unfold/components/chart/line.html" with
-    title="Активність за тиждень"
-    data=chart_data
-    height=300
-%}{% endcomponent %}
+{% component "unfold/components/chart/line.html" with title="Активність за тиждень" data=chart_data height=300 %}{% endcomponent %}
 
 {# Bar chart #}
-{% component "unfold/components/chart/bar.html" with
-    title="Нотатки по категоріях"
-    data=bar_chart_data
-%}{% endcomponent %}
+{% component "unfold/components/chart/bar.html" with title="Нотатки по категоріях" data=bar_chart_data %}{% endcomponent %}
 ```
 
 ### Tracker — теплова карта активності
@@ -1177,18 +1147,15 @@ def get_tracker_data():
         day = today - timedelta(days=i)
         count = Note.objects.filter(created_at__date=day).count()
         data.append({
-            "date": str(day),
-            "level": min(count, 4),  # 0-4 рівні інтенсивності
+            # color — Tailwind-клас інтенсивності (Unfold tracker чекає color/tooltip/href)
+            "color": "bg-primary-700" if count >= 4 else "bg-primary-400" if count else "bg-base-300",
             "tooltip": f"{count} нотаток {day.strftime('%d.%m.%Y')}",
         })
     return list(reversed(data))
 ```
 
 ```html
-{% component "unfold/components/tracker.html" with
-    title="Активність за рік"
-    data=tracker_data
-%}{% endcomponent %}
+{% component "unfold/components/tracker.html" with title="Активність за рік" data=tracker_data %}{% endcomponent %}
 ```
 
 ### Cohort — таблиця утримання
@@ -1206,10 +1173,7 @@ cohort_data = {
 ```
 
 ```html
-{% component "unfold/components/cohort.html" with
-    title="Утримання користувачів"
-    data=cohort_data
-%}{% endcomponent %}
+{% component "unfold/components/cohort.html" with title="Утримання користувачів" data=cohort_data %}{% endcomponent %}
 ```
 
 ---
@@ -1312,19 +1276,21 @@ class SortableAttachmentInline(SortableStackedInline):
 
 ```python
 from unfold.admin import ModelAdmin as UnfoldModelAdmin
+from unfold.sections import TableSection
+
+# В Unfold розгорнутий рядок — це "section" (атрибут list_sections).
+# Атрибута list_expandable_fields в Unfold немає.
+class NoteCommentsSection(TableSection):
+    verbose_name = 'Коментарі'
+    related_name = 'comments'          # reverse FK: note.comments
+    fields = ['text', 'created_at']
+
 
 @admin.register(Note)
 class NoteAdmin(UnfoldModelAdmin):
     list_display = ['title', 'status', 'comments_count']
-    # Expandable row — розгорнутий рядок з preview
-    list_expandable_fields = True
-
-    def get_expandable_data(self, obj):
-        """Дані для розгорнутого рядка."""
-        return {
-            'preview': obj.body[:200] + '...' if len(obj.body) > 200 else obj.body,
-            'comments': obj.comments.values_list('text', flat=True)[:3],
-        }
+    # Expandable row — розгорнутий рядок з таблицею коментарів
+    list_sections = [NoteCommentsSection]
 ```
 
 ---
@@ -1532,7 +1498,7 @@ search_fields = ['body']  # WHERE body LIKE '%query%' — no index!
 # ✅ Пошук по індексованих полях
 search_fields = ['^title']   # startswith — використовує btree index
 # Або додати GIN індекс для full-text search у PostgreSQL:
-# CREATE INDEX idx_note_body_gin ON notes_note USING gin(to_tsvector('ukrainian', body));
+# CREATE INDEX idx_note_body_gin ON notes_app_note USING gin(to_tsvector('simple', body));
 ```
 
 ### ❌ Кастомні URL без admin_view
@@ -1575,7 +1541,7 @@ class NoteAdmin(admin.ModelAdmin):
 
 ## §14. Питання для самоперевірки
 
-1. `AdminSite` є синглтоном. Що це означає для методу `get_readonly_fields()`? Чому мутація `self.readonly_fields` небезпечна?
+1. `ModelAdmin` — фактично синглтон (один екземпляр на модель у межах `AdminSite`). Що це означає для методу `get_readonly_fields()`? Чому мутація `self.readonly_fields` небезпечна?
 2. Для чого потрібен `self.admin_site.admin_view()` при додаванні кастомного URL у `get_urls()`? Що станеться без нього?
 3. `list_select_related = True` vs `list_select_related = ['author', 'category']` — яка різниця?
 4. `search_fields = ['body']` на таблиці з 1M рядків. Що відбувається в БД? Як виправити?
@@ -1591,7 +1557,7 @@ class NoteAdmin(admin.ModelAdmin):
 ---
 - **🧠 Ментальна модель:** Unfold Filters — це "розумний пошук" замість "тупого dropdown". Стандартний `list_filter = ['author']` для FK з 100k користувачів завантажує ВСІХ у `<select>` — сторінка підвисає. `AutocompleteSelectFilter` завантажує тільки 10 результатів через AJAX при введенні. `RangeDateFilter` показує "від/до" поля замість списку років. `TextFilter` — текстове поле з кастомною логікою.
 - **📚 Чому `list_filter_submit = True` обов'язковий для деяких фільтрів:** Без `list_filter_submit` кожна зміна фільтра миттєво відправляє запит на сервер (стандартна поведінка). Для `RangeDateFilter` та `TextFilter` — поля вводу, це означало б запит після кожного натиснутого символу. `list_filter_submit = True` додає кнопку "Застосувати" і відправляє запит тільки після явного підтвердження.
-- **🌐 Що відбувається під капотом:** `AutocompleteSelectFilter` під капотом використовує Django вбудований autocomplete API: `GET /admin/auth/user/autocomplete/?term=john&app_label=notes_app&model_name=note&field_name=author`. Django Admin виконує `search_fields` query на UserAdmin і повертає JSON з результатами. Тому `search_fields` на `UserAdmin` є ОБОВ'ЯЗКОВИМ для роботи `AutocompleteSelectFilter`.
+- **🌐 Що відбувається під капотом:** `AutocompleteSelectFilter` під капотом використовує Django вбудований autocomplete API: `GET /admin/autocomplete/?term=john&app_label=notes_app&model_name=note&field_name=author`. Django Admin виконує `search_fields` query на UserAdmin і повертає JSON з результатами. Тому `search_fields` на `UserAdmin` є ОБОВ'ЯЗКОВИМ для роботи `AutocompleteSelectFilter`.
 - **❌ Типова помилка початківця:** Підключити `AutocompleteSelectFilter` для `author` FK, але не додати `search_fields` на `UserAdmin`. Django поверне `Http404` або `ImproperlyConfigured` при AJAX-запиті autocomplete. Правило: якщо FK вказує на модель X — у `XAdmin` ПОВИНЕН бути `search_fields`.
 ---
 
@@ -1667,9 +1633,14 @@ from unfold.contrib.filters.admin import AutocompleteSelectFilter
 list_filter = [('author', AutocompleteSelectFilter)]
 list_filter_submit = True
 
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import User
+
 # Потрібно щоб UserAdmin мав search_fields
+admin.site.unregister(User)  # User вже зареєстрований django.contrib.auth
+
 @admin.register(User)
-class UserAdmin(UserAdmin):
+class UserAdmin(BaseUserAdmin):
     search_fields = ['^username', '^email']  # ← обов'язково
 ```
 
@@ -1690,7 +1661,7 @@ class NoteAdmin(UnfoldModelAdmin):
 
 ---
 - **🧠 Ментальна модель:** Actions — це "масові операції". Стандартний Django "select all + delete" — це теж action. Unfold розширює систему actions трьома рівнями: (1) Bulk actions (для вибраних записів у списку), (2) Dialog actions (bulk дія з формою підтвердження), (3) Row-level actions (для кожного рядка окремо). Dialog action — це "два кроки замість одного": спочатку форма (причина, параметри), потім дія.
-- **📚 Чому Dialog Actions замість простого підтвердження:** Browser `confirm()` — це блокуюче модальне вікно без можливості введення даних. `BaseDialogForm` — це повноцінна Django форма в модальному вікні: поля введення, валідація, Bootstrap стилі. Наприклад, при архівуванні нотатки — запитати причину і чи повідомляти автора. Ці дані передаються у `request.POST` і доступні в action методі.
+- **📚 Чому Dialog Actions замість простого підтвердження:** Browser `confirm()` — це блокуюче модальне вікно без можливості введення даних. `BaseDialogForm` — це повноцінна Django форма в модальному вікні: поля введення, валідація, стилі Unfold (Tailwind CSS). Наприклад, при архівуванні нотатки — запитати причину і чи повідомляти автора. Ці дані передаються у `request.POST` і доступні в action методі.
 - **🌐 Що відбувається під капотом:** Bulk action flow: (1) Користувач вибирає checkbox-и в ChangeList, (2) Вибирає action з dropdown, (3) POST запит на `/admin/notes_app/note/` з `action='publish_notes'` і `_selected_action=[1, 2, 3]`, (4) Django знаходить метод `publish_notes` в `NoteAdmin.actions`, (5) Викликає `publish_notes(modeladmin, request, queryset)` де `queryset` вже відфільтрований по вибраних записах.
 - **❌ Типова помилка початківця:** Виконувати дорогу операцію (наприклад, відправку email) у bulk action синхронно. Якщо обрати 1000 записів і натиснути "Архівувати і повідомити" — HTTP запит займе хвилини. Браузер може втратити з'єднання. Важкі операції у bulk actions — завжди через Celery task.
 ---
@@ -1792,7 +1763,7 @@ class NoteAdmin(UnfoldModelAdmin):
 ---
 - **🧠 Ментальна модель:** Component Classes — це "окремий відділ" для кожного дашборд-блоку. Замість одного великого `dashboard_callback` що робить все — кожен компонент (графік активності, таблиця топ-авторів, трекер) є окремим класом з власним `get_context_data()`. Це "розділення відповідальності" у чистому вигляді: тестується окремо, оновлюється окремо, кешується окремо.
 - **📚 Чому `apps.py → ready()` для реєстрації:** `@register_component` реєструє компонент у глобальний реєстр при імпорті модуля. Але Python не імпортує модуль автоматично — лише якщо він явно import-ований. `apps.py → ready()` — це правильне місце для "побічних ефектів при старті Django": він виконується після повного завантаження всіх моделей і налаштувань. `import notes_app.admin_components` у `ready()` ініціює реєстрацію.
-- **🌐 Що відбувається під капотом:** `{% component "notes_app.admin_components.NoteActivityChartComponent" %}` — Unfold знаходить клас у реєстрі за рядковим шляхом, створює екземпляр, викликає `get_context_data()`, і рендерить вміст блоку компонента у цьому контексті. Вміст між `{% component %}` і `{% endcomponent %}` — це шаблон компонента, якому доступні дані з `get_context_data()`.
+- **🌐 Що відбувається під капотом:** `{% component "unfold/components/card.html" with component_class="NoteActivityChartComponent" %}` — Unfold знаходить клас у реєстрі за іменем класу (`component_class`), створює екземпляр, викликає `get_context_data()`, і рендерить шаблон `card.html` та вміст блоку компонента у цьому контексті. Вміст між `{% component %}` і `{% endcomponent %}` — це шаблон компонента, якому доступні дані з `get_context_data()`.
 - **❌ Типова помилка початківця:** Забути `import notes_app.admin_components` у `apps.py → ready()`. Компоненти не будуть зареєстровані. `{% component "..." %}` тихо відобразить нічого або кине `ComponentNotFound`. Перевірка: після зупинки та перезапуску сервера — помилка `ComponentNotFound` → `ready()` не імпортує потрібний модуль.
 ---
 
@@ -1821,6 +1792,8 @@ class NoteActivityChart:
 ```python
 # notes_app/admin_components.py
 
+import json
+
 from unfold.components import BaseComponent, register_component
 from django.db.models import Count
 from django.db.models.functions import TruncDate
@@ -1845,7 +1818,7 @@ class NoteActivityChartComponent(BaseComponent):
             .order_by('date')
         )
 
-        context['chart_data'] = {
+        context['chart_data'] = json.dumps({
             'labels': [str(row['date']) for row in daily],
             'datasets': [{
                 'label': 'Нових нотаток',
@@ -1854,7 +1827,7 @@ class NoteActivityChartComponent(BaseComponent):
                 'backgroundColor': 'rgba(14, 165, 233, 0.1)',
                 'fill': True,
             }],
-        }
+        })
         context['title'] = 'Активність за 30 днів'
         return context
 
@@ -1893,12 +1866,12 @@ class HelloAppConfig(AppConfig):
 <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 
     {# Component Class — автоматично викликає get_context_data() #}
-    {% component "notes_app.admin_components.NoteActivityChartComponent" %}
-    {% component "notes_app/components/chart/line.html" with data=chart_data title=title %}
+    {% component "unfold/components/card.html" with component_class="NoteActivityChartComponent" %}
+    {% component "unfold/components/chart/line.html" with data=chart_data %}
     {% endcomponent %}
     {% endcomponent %}
 
-    {% component "notes_app.admin_components.TopAuthorsTableComponent" %}
+    {% component "unfold/components/card.html" with component_class="TopAuthorsTableComponent" %}
     <table class="w-full text-sm">
         {% for author in authors %}
         <tr>
@@ -2015,10 +1988,7 @@ UNFOLD = {
     {# По статусах #}
     <div class="grid grid-cols-3 gap-4">
         {% for item in stats.by_status %}
-        {% component "unfold/components/card.html" with
-            title=item.status
-            metric=item.count
-        %}{% endcomponent %}
+        {% component "unfold/components/card.html" with title=item.status %}{% component "unfold/components/title.html" %}{{ item.count }}{% endcomponent %}{% endcomponent %}
         {% endfor %}
     </div>
 </div>
@@ -2086,8 +2056,8 @@ class NoteAdmin(UnfoldModelAdmin):
 ```python
 @admin.register(Note)
 class NoteAdmin(UnfoldModelAdmin):
-    # ❌ Завантажує всіх users у <select>
-    # raw_id_fields = ['author']
+    # ❌ Стандартний FK-<select> завантажує всіх users
+    # (raw_id_fields = ['author'] не завантажує всіх, але показує лише поле для ID — гірший UX)
 
     # ✅ AJAX пошук — не завантажує всіх
     autocomplete_fields = ['author', 'category']
@@ -2101,8 +2071,8 @@ class NoteAdmin(UnfoldModelAdmin):
 ---
 - **🧠 Ментальна модель:** Admin Performance — це "фільтрація перед входом". Cache — це "вахтер з пам'яттю": перший раз він пускає тебе, перевіряє документи (виконує SQL), і записує результат. Наступний раз — просто відкриває двері без перевірки. `cache.set(key, value, timeout=300)` → 5 хвилин без SQL. `cache.delete(key)` при зміні даних → "вахтер забуває" → наступний запит знову перевіряє.
 - **📚 Чому `cached.Loader` критичний у production:** Без `cached.Loader` Django читає файл шаблону з диску і парсить його при КОЖНОМУ запиті. 1000 запитів/секунда = 1000 читань диску + 1000 парсингів. `cached.Loader` парсить один раз при першому запиті і зберігає compiled Node tree в RAM. Наступні 999 запитів — тільки рендеринг з RAM. 10-50x прискорення рендерингу шаблонів.
-- **🌐 Що відбувається під капотом:** PostgreSQL Full-Text Search з `SearchVector` і `GIN` індексом: `to_tsvector('ukrainian', title || ' ' || body)` — перетворює текст на lexemes (нормалізовані слова). `SearchQuery('django')` — теж нормалізується. GIN індекс зберігає `{lexeme → [doc_id, ...]}` mapping. Пошук — бінарний пошук по B-tree індексу GIN замість `LIKE '%query%'` full scan.
-- **❌ Типова помилка початківця:** Увімкнути `cached.Loader` в development. При зміні шаблону — браузер показує стару версію. Потрібен перезапуск сервера щоб оновити кеш. `cached.Loader` — ВИКЛЮЧНО для production. В development залиш `APP_DIRS: True`.
+- **🌐 Що відбувається під капотом:** PostgreSQL Full-Text Search з `SearchVector` і `GIN` індексом: `to_tsvector('simple', title || ' ' || body)` — перетворює текст на lexemes (нормалізовані слова; у стандартному PostgreSQL немає конфігурації `ukrainian`, тому `simple` або власна hunspell-конфігурація). `SearchQuery('django')` — теж нормалізується. GIN — це інвертований індекс: він зберігає `{lexeme → [doc_id, ...]}` mapping (самі ключі-лексеми організовані у внутрішнє дерево). Пошук — швидкий lookup лексеми в GIN замість `LIKE '%query%'` full scan.
+- **❌ Типова помилка початківця:** Увімкнути `cached.Loader` в development. При зміні шаблону — браузер показує стару версію. Потрібен перезапуск сервера щоб оновити кеш. `cached.Loader` — ВИКЛЮЧНО для production. В development залиш `APP_DIRS: True`. Примітка щодо версій: з Django 4.1, якщо `loaders` не задано явно, cached loader вмикається автоматично і в development, а dev-сервер скидає кеш при зміні шаблону — явне налаштування потрібне лише для власного списку loaders.
 ---
 
 ## §20. Performance і Caching
@@ -2159,10 +2129,7 @@ def invalidate_dashboard_cache(sender, **kwargs):
 
 {# Кешування HTML фрагменту на 5 хвилин #}
 {% cache 300 "dashboard_top_authors" %}
-    {% component "unfold/components/card.html" with
-        title="Топ автори"
-        data=top_authors
-    %}{% endcomponent %}
+    {% component "unfold/components/card.html" with title="Топ автори" %}{% component "unfold/components/table.html" with table=top_authors %}{% endcomponent %}{% endcomponent %}
 {% endcache %}
 ```
 
@@ -2204,9 +2171,9 @@ class NoteAdmin(UnfoldModelAdmin):
     def get_search_results(self, request, queryset, search_term):
         if search_term and len(search_term) >= 3:
             # Full-text search по title + body
-            search_vector = SearchVector('title', weight='A') + \
-                            SearchVector('body', weight='B')
-            search_query = SearchQuery(search_term, config='ukrainian')
+            search_vector = SearchVector('title', weight='A', config='simple') + \
+                            SearchVector('body', weight='B', config='simple')
+            search_query = SearchQuery(search_term, config='simple')  # у стандартному PostgreSQL немає конфігурації 'ukrainian' — 'simple' або власна (hunspell)
 
             queryset = (
                 queryset
@@ -2220,17 +2187,21 @@ class NoteAdmin(UnfoldModelAdmin):
         return super().get_search_results(request, queryset, search_term)
 ```
 
-```sql
--- Міграція: GIN індекс для full-text search
--- notes_app/migrations/0002_note_search_index.py
+```python
+# Міграція: GIN індекс для full-text search
+# notes_app/migrations/0002_note_search_index.py
 
 from django.db import migrations
 
 class Migration(migrations.Migration):
+    atomic = False  # CREATE INDEX CONCURRENTLY не можна виконувати всередині транзакції
+
+    dependencies = [('notes_app', '0001_initial')]
+
     operations = [
         migrations.RunSQL(
             "CREATE INDEX CONCURRENTLY idx_note_fts ON notes_app_note "
-            "USING gin(to_tsvector('ukrainian', title || ' ' || body));",
+            "USING gin(to_tsvector('simple', title || ' ' || body));",
             reverse_sql="DROP INDEX IF EXISTS idx_note_fts;",
         ),
     ]
@@ -2244,7 +2215,11 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Hash-файли для агресивного browser caching
-STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+# Django 4.2+: STORAGES (STATICFILES_STORAGE видалено в Django 5.1)
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'},
+}
 # → main.css → main.02b59bcc5cd9.css
 # → Браузер кешує на рік (immutable)
 # → Після зміни файлу hash змінюється → примусове оновлення
@@ -2272,11 +2247,41 @@ python manage.py collectstatic --noinput
 Datasets дозволяють вбудувати повноцінний ChangeList (список пов'язаних записів)
 прямо у форму редагування батьківського об'єкта.
 
+Нові версії `django-unfold` мають вбудований Datasets API: `BaseDataset` + `change_form_datasets`:
+
 ```python
 from unfold.admin import ModelAdmin as UnfoldModelAdmin
-from unfold.contrib.inlines.admin import UnfoldStackedInline
+from unfold.datasets import BaseDataset
 
-# Замість стандартного Inline — Dataset (з пагінацією)
+
+class CommentDatasetAdmin(UnfoldModelAdmin):
+    list_display = ['author', 'text', 'created_at']
+    search_fields = ['text']
+
+    def get_queryset(self, request):
+        # extra_context["object"] — pk батьківської нотатки
+        return super().get_queryset(request).filter(note_id=self.extra_context.get('object'))
+
+
+class CommentDataset(BaseDataset):
+    model = Comment
+    model_admin = CommentDatasetAdmin
+    tab = True                       # показати як вкладку форми
+
+
+@admin.register(Note)
+class NoteAdmin(UnfoldModelAdmin):
+    change_form_datasets = [CommentDataset]
+```
+
+Datasets рендеряться разом із формою (окремий запит не потрібен). Пояснення вище про окремий HTTP-запит і `each_context()` стосуються ручного варіанта нижче — власного partial view:
+
+```python
+from django.core.paginator import Paginator
+from django.shortcuts import get_object_or_404, render
+from unfold.admin import ModelAdmin as UnfoldModelAdmin
+
+# Ручний варіант — partial view з пагінацією замість стандартного Inline
 @admin.register(Note)
 class NoteAdmin(UnfoldModelAdmin):
     # Tabs для форми
@@ -2316,7 +2321,7 @@ class NoteAdmin(UnfoldModelAdmin):
 - **🧠 Ментальна модель:** Production Checklist — це "список перед зльотом". Пілоти не покладаються на пам'ять — вони завжди проходять checklist. Так само з production Django Admin: кожен пункт закриває конкретну категорію ризику (безпека, продуктивність, UX, архітектура). Пропуск будь-якого пункту — потенційна проблема у production.
 - **📚 Чому ManifestStaticFilesStorage критичний:** Без ManifestStaticFilesStorage браузер кешує `main.css` агресивно (місяцями). Після деплою нової версії — користувачі бачать старі стилі, бо браузер показує кешовану версію. ManifestStaticFilesStorage додає hash до імені файлу: `main.02b59bcc.css`. При зміні файлу hash змінюється → нове ім'я → браузер завантажує нову версію. Стара version кешується нескінченно (cache-busting).
 - **🌐 Що відбувається під капотом:** `collectstatic` з `ManifestStaticFilesStorage`: (1) збирає всі static файли у `STATIC_ROOT`, (2) обчислює MD5 hash кожного файлу, (3) створює копії з hash у імені: `main.css` → `main.02b59bcc.css`, (4) генерує `staticfiles.json` — маппінг `{'main.css': 'main.02b59bcc.css'}`. `{% static 'main.css' %}` → читає `staticfiles.json` → повертає `main.02b59bcc.css`.
-- **❌ Типова помилка початківця:** Запустити production сервер з `DEBUG=True` "тимчасово". `DEBUG=True` у production означає: (1) Django показує traceback зі стеком викликів при кожній помилці (витік внутрішньої структури коду), (2) Django роздає static файли сам (повільно), (3) ALLOWED_HOSTS не перевіряється (вразливість Host header injection). Ніколи `DEBUG=True` у production.
+- **❌ Типова помилка початківця:** Запустити production сервер з `DEBUG=True` "тимчасово". `DEBUG=True` у production означає: (1) Django показує traceback зі стеком викликів при кожній помилці (витік внутрішньої структури коду), (2) Django роздає static файли сам (повільно), (3) Django зберігає кожен SQL-запит у пам'яті (`connection.queries`), тож пам'ять процесу постійно росте. (`ALLOWED_HOSTS` при цьому перевіряється; порожній список з `DEBUG=True` дозволяє лише localhost.) Ніколи `DEBUG=True` у production.
 ---
 
 ## §22. Production Checklist

@@ -328,7 +328,8 @@ docker compose up -d
 **Завдання 4 — авторизація:**
 ```
 Спробуй підключитись до групи, членом якої не є.
-Який close code у DevTools → Network → WS? (має бути 4003)
+Що показує DevTools → Network → WS і який event.code отримує onclose?
+(handshake відхилено до accept() → 1006; consumer використовує close() без власного коду)
 ```
 
 **Завдання 5 — логування:**
@@ -351,7 +352,7 @@ docker compose logs -f web
 ## Навігація
 
 - Попередній: [Крок 6 — Testing](../06_testing/index.md)
-- Наступний: [Крок 8 — Celery та фонові задачі](../08_celery/index.md)
+- Наступний: [Крок 8 — Celery та фонові задачі](../08_background_tasks/index.md)
 
 ### Модулі документації
 

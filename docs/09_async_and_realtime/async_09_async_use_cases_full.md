@@ -53,9 +53,9 @@ sequenceDiagram
 
     B->>V: GET /dashboard/
     Note over V: Запускає всі три паралельно
-    V->>A1: await httpx.get()
-    V->>A2: await httpx.get()
-    V->>A3: await httpx.get()
+    V->>A1: await client.get()
+    V->>A2: await client.get()
+    V->>A3: await client.get()
     Note over V: Event loop вільний!
     A3-->>V: 0.6s — відповідь
     A1-->>V: 0.8s — відповідь
@@ -178,16 +178,20 @@ async def generate_report_view(request):
 
 ```mermaid
 graph TD
-    A[Браузер] -->|POST /generate-report/| B[Django View\nSync або Async]
+    A[Браузер] -->|POST /generate-report/| B["Django View<br>Sync або Async"]
     B -->|Celery task| C[Redis / RabbitMQ]
     B -->|202 Accepted + task_id| A
-    C --> D[Celery Worker\nGenerates PDF]
-    D --> E[Зберігає файл\nNotifies user]
+    C --> D["Celery Worker<br>Generates PDF"]
+    D --> E["Зберігає файл<br>Notifies user"]
     A -->|GET /report/status/task_id| B
-    B --> F[{"status": "done", "url": "..."}]
+    B --> F["{ status: done, url: ... }"]
 
-    style D fill:#fff3e0,stroke:#e65100
-    style C fill:#e3f2fd,stroke:#1565c0
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,B,C,E step;
+    class F success;
+    class D warning;
 ```
 
 ```python
@@ -218,24 +222,27 @@ def request_report_view(request):
 
 ```mermaid
 graph TD
-    A[Нова задача] --> B{Потрібне постійне\nз'єднання?\nWebSocket, SSE}
-    B -->|Так| C[Django Channels + ASGI ✅]
-    B -->|Ні| D{CPU-bound?\nОбробка зображень,\nML, PDF}
+    A[Нова задача] --> B{"Потрібне постійне з'єднання?<br>WebSocket, SSE"}
+    B -->|так| C[Django Channels + ASGI ✅]
+    B -->|ні| D{"CPU-bound?<br>Обробка зображень, ML, PDF"}
 
-    D -->|Так| E[Sync View + Celery Worker ✅]
-    D -->|Ні| F{Кілька повільних\nзовнішніх API-запитів?}
+    D -->|так| E[Sync View + Celery Worker ✅]
+    D -->|ні| F{"Кілька повільних<br>зовнішніх API-запитів?"}
 
-    F -->|Так| G[Async View + httpx + gather ✅]
-    F -->|Ні| H{Велика кількість\nодночасних запитів?}
+    F -->|так| G[Async View + httpx + gather ✅]
+    F -->|ні| H{"Велика кількість<br>одночасних запитів?"}
 
-    H -->|Так| I[Async View + ASGI ✅]
-    H -->|Ні| J[Standard Sync View ✅\nПростіший і достатній]
+    H -->|так| I[Async View + ASGI ✅]
+    H -->|ні| J["Standard Sync View ✅<br>Простіший і достатній"]
 
-    style C fill:#e8f5e9,stroke:#2e7d32
-    style E fill:#fff3e0,stroke:#e65100
-    style G fill:#e8f5e9,stroke:#2e7d32
-    style I fill:#e8f5e9,stroke:#2e7d32
-    style J fill:#e3f2fd,stroke:#1565c0
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A step;
+    class B,D,F,H decision;
+    class C,G,I,J success;
+    class E warning;
 ```
 
 ---
@@ -244,7 +251,7 @@ graph TD
 
 ```mermaid
 graph TD
-    Browser -->|GET /dashboard/| ASGI[ASGI Server\nUvicorn]
+    Browser -->|GET /dashboard/| ASGI["ASGI Server<br>Uvicorn"]
     ASGI --> View[Async View]
     View -->|await gather| H1[httpx → Billing API]
     View -->|await gather| H2[httpx → Inventory API]
@@ -257,8 +264,10 @@ graph TD
     View --> ASGI
     ASGI --> Browser
 
-    style View fill:#e8f5e9,stroke:#2e7d32
-    style ASGI fill:#e3f2fd,stroke:#1565c0
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class Browser,ASGI,H1,H2,H3,DB step;
+    class View success;
 ```
 
 ---
@@ -270,14 +279,18 @@ graph TD
     Browser -->|POST /process/| WebServer[Django Sync View]
     WebServer -->|task.delay| Broker[(Redis / RabbitMQ)]
     WebServer -->|202 task_id| Browser
-    Broker --> Worker[Celery Worker\nCPU-bound Processing]
+    Broker --> Worker["Celery Worker<br>CPU-bound Processing"]
     Worker -->|Результат| Storage[S3 / DB]
     Worker -->|Notification| Notification[Email / WebSocket]
     Browser -->|GET /status/task_id| WebServer
     WebServer -->|task.result| Browser
 
-    style Worker fill:#fff3e0,stroke:#e65100
-    style Broker fill:#e3f2fd,stroke:#1565c0
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class Browser,WebServer,Broker,Notification step;
+    class Storage success;
+    class Worker warning;
 ```
 
 ---

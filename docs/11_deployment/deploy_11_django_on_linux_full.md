@@ -14,15 +14,22 @@
 
 ```mermaid
 flowchart TD
-    Local["Local Django project\n(ноутбук, DEBUG=True)"] --> Git["Push to Git\n(GitHub/GitLab)"]
-    Git --> Server["Pull on Linux server\n(Ubuntu)"]
-    Server --> Venv["Створити virtualenv\nВстановити залежності"]
-    Venv --> Env["Налаштувати .env\n(DEBUG=False, DB credentials)"]
+    Local["Local Django project<br>(ноутбук, DEBUG=True)"] --> Git["Push to Git<br>(GitHub/GitLab)"]
+    Git --> Server["Pull on Linux server<br>(Ubuntu)"]
+    Server --> Venv["Створити virtualenv<br>Встановити залежності"]
+    Venv --> Env["Налаштувати .env<br>(DEBUG=False, DB credentials)"]
     Env --> Migrate["python manage.py migrate"]
     Migrate --> Static["python manage.py collectstatic"]
     Static --> AppServer["Запустити Gunicorn/Uvicorn"]
-    AppServer --> Nginx["Nginx приймає запити\nі проксує до app server"]
+    AppServer --> Nginx["Nginx приймає запити<br>і проксує до app server"]
     Nginx --> Users["Користувачі"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class Local,Git,Server,Venv,Migrate,Static,AppServer,Nginx step;
+    class Users success;
+    class Env warning;
 ```
 
 ---

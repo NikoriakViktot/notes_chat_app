@@ -191,7 +191,7 @@ self.helper.form_show_labels = True       # Показувати label
 def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
     self.helper = FormHelper(self)   # ← crispy сам знайде всі поля
-    # Тепер можна не писати Layout() — Django автоматично побудує дефолтний
+    # Тепер можна не писати Layout() — crispy автоматично побудує дефолтний
 ```
 
 ---
@@ -417,12 +417,12 @@ INSTALLED_APPS = ['crispy_forms']   # тільки ядро, немає template
 INSTALLED_APPS = ['crispy_forms', 'crispy_bootstrap5']
 ```
 
-#### ❌ Забув `form_method` — форма відправляється GET
+#### ❌ Забув `form_method` — метод неявний (за замовчуванням POST)
 
 ```python
 # ❌ Без form_method — за замовч. POST, але явний код краще
 self.helper = FormHelper()
-# форма рендериться але метод невідомий
+# форма рендериться з method="post" (дефолт crispy), але з коду це не видно
 
 # ✅ Завжди вказуй явно
 self.helper.form_method = 'post'
@@ -503,8 +503,9 @@ class NoteForm(forms.ModelForm):
 ### Formsets
 
 ```python
-from django.forms.models import formset_factory
+from django.forms import formset_factory
 from crispy_forms.helper import FormHelper
+from crispy_forms.layout import Layout, Submit
 
 ExampleFormSet = formset_factory(ExampleForm, extra=3)
 

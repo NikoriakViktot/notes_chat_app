@@ -421,7 +421,7 @@ def complete_todo_list(todo_list):
 
 ---
 
-## Крок 8 — `forms.py` функція за функцією
+## Крок 9 — `forms.py` функція за функцією
 
 ### `NoteForm.__init__(self, *args, user=None, **kwargs)`
 
@@ -480,7 +480,7 @@ def clean_name(self):
 
 ---
 
-## Крок 8 — `views.py` функція за функцією
+## Крок 10 — `views.py` функція за функцією
 
 ### `note_list(request)` — GET запит з фільтрами
 

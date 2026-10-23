@@ -12,10 +12,17 @@
 
 ```mermaid
 flowchart TD
-    OS["Операційна система\n(Ubuntu)"] --> APT["apt\nСистемні програми:\nNginx, Python, Git, PostgreSQL"]
-    Python["Python-проєкт"] --> PIP["pip\nPython-бібліотеки:\nDjango, requests, celery"]
-    APT --> System["Встановлюється в /usr/bin,\n/usr/lib — для всієї системи"]
-    PIP --> Venv["Краще встановлювати у virtualenv\n— ізольовано для проєкту"]
+    OS["Операційна система<br>(Ubuntu)"] --> APT["apt: системні програми<br>Nginx, Python, Git, PostgreSQL"]
+    Python["Python-проєкт"] --> PIP["pip: Python-бібліотеки<br>Django, requests, celery"]
+    APT --> System["Встановлюється в /usr/bin, /usr/lib<br>— для всієї системи"]
+    PIP --> Venv["Краще встановлювати у virtualenv<br>— ізольовано для проєкту"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class OS,APT,Python,PIP step;
+    class Venv success;
+    class System warning;
 ```
 
 > `apt` встановлює програми для операційної системи.
@@ -114,9 +121,14 @@ Virtualenv ізолює бібліотеки для кожного проєкт�
 
 ```mermaid
 flowchart TD
-    System["Системний Python 3.11"] --> P1["project_A/.venv/\nDjango 3.2\npillow 9.0"]
-    System --> P2["project_B/.venv/\nDjango 4.2\npillow 10.0"]
-    System --> P3["project_C/.venv/\nFastAPI\nsqlalchemy"]
+    System["Системний Python 3.11"] --> P1["project_A/.venv/<br>Django 3.2, pillow 9.0"]
+    System --> P2["project_B/.venv/<br>Django 4.2, pillow 10.0"]
+    System --> P3["project_C/.venv/<br>FastAPI, sqlalchemy"]
+
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class P1,P2,P3 success;
+    class System warning;
 ```
 
 ### Команди virtualenv

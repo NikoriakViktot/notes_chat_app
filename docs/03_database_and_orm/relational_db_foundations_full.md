@@ -23,7 +23,7 @@
 
 > **🧠 Ментальна модель:** Реляційна база даних — це не "папка з таблицями Excel". Це **математична система** заснована на реляційній алгебрі (Едгар Кодд, 1970). Кожна таблиця — це **відношення (relation)** між сутностями. SQL — це мова запитів до цих відношень. ORM — це прошарок що дозволяє писати ці запити мовою Python, а не SQL.
 >
-> **📚 Чому СУБД існують:** До баз даних системи зберігали дані у плоских файлах (CSV, txt). Спробуй уявити: тисяча користувачів одночасно редагують один файл — катастрофа. СУБД вирішує три проблеми: **конкурентний доступ** (тисячі одночасних запитів), **цілісність** (неможливо записати рядок без обов'язкового поля), **пошук** (знайти запис за умовою серед мільярдів — мілісекунди).
+> **📚 Чому СУБД існують:** До баз даних системи зберігали дані у плоских файлах (CSV, txt). Спробуй уявити: тисяча користувачів одночасно редагують один файл — катастрофа. СУБД вирішує чотири проблеми: **конкурентний доступ** (тисячі одночасних запитів), **цілісність** (неможливо записати рядок без обов'язкового поля), **пошук** (знайти запис за умовою серед мільярдів — мілісекунди), **відновлення** (збій не означає втрату даних завдяки WAL).
 >
 > **🌐 Як це стосується Django:** Кожна твоя модель (`class Note(models.Model)`) — це таблиця. Кожен `QuerySet` — це SQL-запит. Django ORM генерує SQL за тебе, але якщо ти не розумієш SQL — ти не зрозумієш чому деякі запити повільні, а деякі — ні. `select_related` і `prefetch_related` мають сенс тільки якщо ти розумієш що таке JOIN.
 >
@@ -96,7 +96,7 @@ HTTP Response → Браузер
 - **Таблиця (relation)** — набір рядків з однаковою структурою
 
 ```
-Таблиця: notes_note
+Таблиця: notes_app_note
 ┌────┬──────────────────────┬───────────────┬─────────────┬────────────┐
 │ id │ title                │ status        │ views_count │ user_id    │
 ├────┼──────────────────────┼───────────────┼─────────────┼────────────┤
@@ -137,7 +137,7 @@ class Note(models.Model):
     title = models.CharField(max_length=200)
 
 # Генерує SQL:
-# CREATE TABLE notes_note (
+# CREATE TABLE notes_app_note (
 #     id BIGSERIAL PRIMARY KEY,   ← автоматично!
 #     title VARCHAR(200) NOT NULL
 # );
@@ -154,7 +154,7 @@ UUID                 → 550e8400-e29b-41d4-a716-446655440000 (глобальн�
 **Foreign Key** — стовпець що зберігає PK іншого рядка (в іншій або тій же таблиці). Це **структурний зв'язок**.
 
 ```
-auth_user              notes_note
+auth_user              notes_app_note
 ┌────┬──────────┐      ┌────┬────────────────┬─────────┐
 │ id │ username │      │ id │ title          │ user_id │
 ├────┼──────────┤      ├────┼────────────────┼─────────┤
@@ -215,7 +215,7 @@ class Note(models.Model):
             # CHECK: views_count не може бути від'ємним
             # Перевіряється на рівні PostgreSQL — навіть при прямому SQL
             models.CheckConstraint(
-                check=models.Q(views_count__gte=0),
+                condition=models.Q(views_count__gte=0),
                 name='note_views_non_negative'
             ),
         ]
@@ -410,7 +410,7 @@ class Note(models.Model):
 # Використання:
 note.tags.add(tag)           # INSERT INTO notes_app_note_tags (note_id, tag_id)
 note.tags.remove(tag)        # DELETE FROM notes_app_note_tags WHERE...
-note.tags.all()              # SELECT * FROM tags JOIN note_tags...
+note.tags.all()              # SELECT * FROM notes_app_tag JOIN notes_app_note_tags...
 tag.notes.all()              # зворотній запит через related_name
 ```
 
@@ -451,11 +451,11 @@ parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True) # repli
 ## 6. SQL — мова запитів
 
 ---
-> **🧠 Ментальна модель:** SQL — **декларативна** мова. Ти описуєш **ЩО** хочеш отримати, а не **ЯК**. `SELECT * FROM notes WHERE status='published'` — ти не кажеш "прочитай файл рядок за рядком, перевір кожен". Ти кажеш "дай мені опубліковані нотатки". СУБД сама вирішує як це зробити найефективніше — через індекс, кеш або sequential scan.
+> **🧠 Ментальна модель:** SQL — **декларативна** мова. Ти описуєш **ЩО** хочеш отримати, а не **ЯК**. `SELECT * FROM notes_app_note WHERE status='published'` — ти не кажеш "прочитай файл рядок за рядком, перевір кожен". Ти кажеш "дай мені опубліковані нотатки". СУБД сама вирішує як це зробити найефективніше — через індекс, кеш або sequential scan.
 >
 > **📚 Чому розуміти SQL важливо навіть з ORM:** Django ORM генерує SQL. Іноді він генерує неефективний SQL (наприклад, кілька запитів замість одного JOIN). Щоб це помітити і виправити — потрібно розуміти SQL. `print(queryset.query)` покаже тобі що саме ORM згенерував.
 >
-> **🌐 Як ORM транслює Python у SQL:** `Note.objects.filter(status='published').order_by('-created_at')` → `SELECT * FROM notes_note WHERE status = 'published' ORDER BY created_at DESC`. Кожен метод QuerySet відповідає конкретному SQL-ключовому слову.
+> **🌐 Як ORM транслює Python у SQL:** `Note.objects.filter(status='published').order_by('-created_at')` → `SELECT * FROM notes_app_note WHERE status = 'published' ORDER BY created_at DESC`. Кожен метод QuerySet відповідає конкретному SQL-ключовому слову.
 >
 > **❌ Типова помилка:** Ніколи не дивитись на згенерований SQL. `print(qs.query)` — команда яку потрібно знати і використовувати. Якщо сторінка завантажується повільно — подивись на SQL, часто проблема очевидна.
 ---
@@ -467,21 +467,21 @@ parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True) # repli
 SELECT стовпці FROM таблиця WHERE умова ORDER BY поле LIMIT n;
 
 -- Прості приклади
-SELECT id, title, status FROM notes_note;
-SELECT * FROM notes_note WHERE status = 'published';
-SELECT title, views_count FROM notes_note WHERE views_count > 100 ORDER BY views_count DESC LIMIT 10;
+SELECT id, title, status FROM notes_app_note;
+SELECT * FROM notes_app_note WHERE status = 'published';
+SELECT title, views_count FROM notes_app_note WHERE views_count > 100 ORDER BY views_count DESC LIMIT 10;
 ```
 
 ```python
 # Відповідність Python → SQL:
 Note.objects.all()
-# → SELECT * FROM notes_note
+# → SELECT * FROM notes_app_note
 
 Note.objects.filter(status='published')
-# → SELECT * FROM notes_note WHERE status = 'published'
+# → SELECT * FROM notes_app_note WHERE status = 'published'
 
 Note.objects.filter(views_count__gt=100).order_by('-views_count')[:10]
-# → SELECT * FROM notes_note WHERE views_count > 100 ORDER BY views_count DESC LIMIT 10
+# → SELECT * FROM notes_app_note WHERE views_count > 100 ORDER BY views_count DESC LIMIT 10
 ```
 
 ### JOIN — об'єднання таблиць
@@ -490,12 +490,12 @@ JOIN — найважливіша операція в реляційних БД.
 
 ```
 Без JOIN:
-  Запит 1: SELECT * FROM notes_note WHERE id=1         → {id:1, title:'Django', user_id:5}
+  Запит 1: SELECT * FROM notes_app_note WHERE id=1         → {id:1, title:'Django', user_id:5}
   Запит 2: SELECT * FROM auth_user WHERE id=5          → {id:5, username:'alice'}
   = 2 запити (це і є N+1 проблема!)
 
 З JOIN:
-  SELECT n.*, u.username FROM notes_note n
+  SELECT n.*, u.username FROM notes_app_note n
   INNER JOIN auth_user u ON n.user_id = u.id
   WHERE n.id=1
   → {id:1, title:'Django', user_id:5, username:'alice'}
@@ -512,14 +512,14 @@ JOIN — найважливіша операція в реляційних БД.
 ```sql
 -- INNER JOIN: тільки нотатки з категорією (без NULL category)
 SELECT n.title, c.name AS category_name
-FROM notes_note n
-INNER JOIN notes_category c ON n.category_id = c.id
+FROM notes_app_note n
+INNER JOIN notes_app_category c ON n.category_id = c.id
 WHERE n.status = 'published';
 
 -- LEFT JOIN: всі нотатки, навіть без категорії
 SELECT n.title, c.name AS category_name
-FROM notes_note n
-LEFT JOIN notes_category c ON n.category_id = c.id;
+FROM notes_app_note n
+LEFT JOIN notes_app_category c ON n.category_id = c.id;
 -- Нотатки без категорії: category_name = NULL
 ```
 
@@ -540,8 +540,8 @@ Note.objects.select_related('category').all()
 ```sql
 -- Скільки нотаток в кожній категорії
 SELECT c.name, COUNT(n.id) AS note_count, AVG(n.views_count) AS avg_views
-FROM notes_category c
-LEFT JOIN notes_note n ON n.category_id = c.id
+FROM notes_app_category c
+LEFT JOIN notes_app_note n ON n.category_id = c.id
 GROUP BY c.id, c.name
 HAVING COUNT(n.id) > 3          -- фільтр ПІСЛЯ групування (WHERE до, HAVING після)
 ORDER BY note_count DESC;
@@ -576,18 +576,18 @@ categories = Category.objects.annotate(
 ### Чотири фази виконання
 
 ```
-Raw SQL: "SELECT * FROM notes_note WHERE user_id=5 ORDER BY created_at DESC"
+Raw SQL: "SELECT * FROM notes_app_note WHERE user_id=5 ORDER BY created_at DESC"
             │
             ▼
     ┌─── 1. PARSING ──────────────────────────────────────────────────────┐
-    │  Lexer токенізує рядок: SELECT, *, FROM, notes_note, WHERE, ...      │
+    │  Lexer токенізує рядок: SELECT, *, FROM, notes_app_note, WHERE, ...  │
     │  Parser перевіряє синтаксис                                           │
     │  Будує Abstract Syntax Tree (AST)                                     │
     └─────────────────────────────────────────────────────────────────────┘
             │
             ▼
     ┌─── 2. SEMANTIC ANALYSIS ────────────────────────────────────────────┐
-    │  Перевіряє: чи існує таблиця notes_note?                             │
+    │  Перевіряє: чи існує таблиця notes_app_note?                         │
     │  Чи існує стовпець user_id?                                          │
     │  Чи є у поточного користувача права на SELECT?                       │
     │  (Все з system catalog — PostgreSQL metadata)                        │
@@ -785,14 +785,14 @@ class Note(models.Model):
 
 **Питання:** Скільки SQL таблиць Django створить для цього?
 
-> Відповідь: **2 таблиці** — `notes_note_tags` (junction) буде створена автоматично.
-> Плюс існуюча `notes_note`. `notes_tag` створюється окремою моделлю.
+> Відповідь: для поля `tags` Django створює **одну додаткову таблицю** — junction `notes_app_note_tags` (`note_id`, `tag_id`).
+> Разом у схемі буде **3 таблиці**: `notes_app_note` (модель Note), `notes_app_tag` (окрема модель Tag) і `notes_app_note_tags`.
 
 ### Exercise 4: SQL JOIN
 
 ```sql
 SELECT n.title, u.username
-FROM notes_note n
+FROM notes_app_note n
 LEFT JOIN auth_user u ON n.user_id = u.id
 WHERE u.username = 'alice'
 ```
@@ -838,7 +838,7 @@ Trust Boundary — це архітектурний кордон між **нен�
 ```mermaid
 graph TD
     subgraph Hostile["❌ Untrusted (Hostile)"]
-        A["Browser / Client"] -->|Raw HTTP POST| B["Web Server\nrequest.POST"]
+        A["Browser / Client"] -->|Raw HTTP POST| B["Web Server<br>request.POST"]
     end
 
     subgraph Quarantine["⚠️ Quarantine (Validation Layer)"]
@@ -847,10 +847,21 @@ graph TD
     end
 
     subgraph Trusted["✅ Trusted (Safe Execution)"]
-        C -- Passes --> E["Cleaned Python Objects\nform.cleaned_data"]
+        C -- Passes --> E["Cleaned Python Objects<br>form.cleaned_data"]
         E --> F["ORM Parameterization"]
         F --> G[(Database)]
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,F step;
+    class C decision;
+    class E,G success;
+    class D error;
+    class B warning;
 ```
 
 ---
@@ -868,9 +879,9 @@ user_input = "'; DROP TABLE notes_app_note; --"
 
 # ❌ НЕБЕЗПЕЧНО: string concatenation (Inline SQL)
 # Ніколи так не роби!
-query = f"SELECT * FROM notebooks WHERE title = '{user_input}'"
+query = f"SELECT * FROM notes_app_notebook WHERE title = '{user_input}'"
 # Що вийде:
-# SELECT * FROM notebooks WHERE title = ''; DROP TABLE notes_app_note; --'
+# SELECT * FROM notes_app_notebook WHERE title = ''; DROP TABLE notes_app_note; --'
 #                                           ↑ кінець першого запиту
 #                                                     ↑ ДРУГИЙ ЗАПИТ!
 #                                                                    ↑ коментар
@@ -881,12 +892,14 @@ cursor.execute(query)  # БД виконає DROP TABLE!
 ```mermaid
 graph TD
     A["Browser: User submits: ' OR 1=1 --"] -->|HTTP GET| B[Backend View]
-    B -->|String Concatenation| C["SQL: SELECT * FROM note WHERE title = '' OR 1=1 --'"]
+    B -->|String Concatenation| C["SQL: SELECT * FROM notes_app_note WHERE title = '' OR 1=1 --'"]
     C --> D[(Database)]
     D -->|Executes modified logic| E[Returns ALL records — всі нотатки всіх юзерів!]
-    style A fill:#ffebee,stroke:#c62828
-    style C fill:#ffebee,stroke:#c62828
-    style E fill:#ffebee,stroke:#c62828
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class B,D step;
+    class A,C,E error;
 ```
 
 #### Безпечний підхід: Параметризація
@@ -895,7 +908,7 @@ graph TD
 # ✅ БЕЗПЕЧНО: параметризований запит
 # Дані і команда передаються ОКРЕМО!
 cursor.execute(
-    "SELECT * FROM notebooks WHERE title = %s",
+    "SELECT * FROM notes_app_notebook WHERE title = %s",
     [user_input]   # ← дані як окремий параметр (не в SQL рядку!)
 )
 # БД driver (psycopg2) екранує user_input:
@@ -907,11 +920,14 @@ cursor.execute(
 ```mermaid
 graph TD
     A["Browser: User submits: ' OR 1=1 --"] -->|HTTP GET| B[Backend View]
-    B -->|"Provides Template & Params"| C["SQL Template: SELECT * FROM note WHERE title = %s\nParams: [''' OR 1=1 --']"]
+    B -->|"Provides Template & Params"| C["SQL Template: SELECT * FROM notes_app_note WHERE title = %s<br>Params: [''' OR 1=1 --']"]
     C --> D[(Database Engine)]
     D -->|"Safely evaluates param as literal string"| E[Returns 0 records — безпечно!]
-    style C fill:#e8f5e9,stroke:#2e7d32
-    style E fill:#e8f5e9,stroke:#2e7d32
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class A,B,D step;
+    class C,E success;
 ```
 
 ---
@@ -949,10 +965,14 @@ graph TD
     E --> G[(Database safely executes)]
     F --> H[SQL Injection possible!]
 
-    style F fill:#ffebee,stroke:#c62828
-    style H fill:#ffebee,stroke:#c62828
-    style E fill:#e8f5e9,stroke:#2e7d32
-    style G fill:#e8f5e9,stroke:#2e7d32
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A,C step;
+    class B,D decision;
+    class E,G success;
+    class F,H error;
 ```
 
 ---
@@ -966,14 +986,14 @@ ORM — не магічний щит. Є випадки де потрібна о
 user_input = "'; DROP TABLE notes_app_note; --"
 
 # НІКОЛИ ТАК НЕ РОБИ:
-Note.objects.raw(f"SELECT * FROM note WHERE title = '{user_input}'")
+Note.objects.raw(f"SELECT * FROM notes_app_note WHERE title = '{user_input}'")
 # або:
-cursor.execute(f"SELECT * FROM note WHERE title = '{user_input}'")
+cursor.execute(f"SELECT * FROM notes_app_note WHERE title = '{user_input}'")
 # f-string вставляє дані прямо в SQL рядок → SQL ін'єкція!
 
 # ✅ ПРАВИЛЬНО: передавати через params
 Note.objects.raw(
-    "SELECT * FROM note WHERE title = %s",
+    "SELECT * FROM notes_app_note WHERE title = %s",
     [user_input]    # ← params: окремий аргумент, НЕ в SQL рядку!
 )
 cursor.execute(
@@ -982,7 +1002,7 @@ cursor.execute(
 )
 
 # ❌ НЕБЕЗПЕЧНО: не ставити лапки навколо %s в SQL!
-cursor.execute("SELECT * FROM note WHERE title = '%s'", [user_input])
+cursor.execute("SELECT * FROM notes_app_note WHERE title = '%s'", [user_input])
 # '%s' → лапки в SQL ламають параметризацію → вразливість!
 # Правильно: %s (без лапок), psycopg2 сам додасть необхідні лапки
 

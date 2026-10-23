@@ -20,6 +20,13 @@
 flowchart TD
 Login --> Session --> Cookie --> AuthenticationMiddleware --> request_user
 request_user --> ScopedQueryset --> ObjectPermission
+
+classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+class Login,Session,Cookie,AuthenticationMiddleware step;
+class ObjectPermission success;
+class request_user,ScopedQueryset warning;
 ```
 
 ## IDOR

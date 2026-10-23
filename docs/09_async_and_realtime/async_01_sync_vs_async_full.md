@@ -49,10 +49,10 @@
 |----------|-------------|----------------------|
 | L1 cache hit | ~1 нс | 3 секунди |
 | RAM access | ~100 нс | 5 хвилин |
-| SSD read | ~100 мкс | 2.5 дні |
-| Network request | ~150 мс | 7.6 років |
+| SSD read | ~100 мкс | 3.5 дні |
+| Network request | ~150 мс | 14 років |
 
-Коли Django-view робить запит до зовнішнього API — OS-потік просто **стоїть і чекає 7.6 умовних років**. Нічого більше не робить. Просто чекає.
+Коли Django-view робить запит до зовнішнього API — OS-потік просто **стоїть і чекає 14 умовних років**. Нічого більше не робить. Просто чекає.
 
 Якщо 100 користувачів одночасно зайдуть на такий endpoint — сервер заморозить 100 потоків. Це швидко вичерпає пам'ять.
 
@@ -88,10 +88,10 @@ sequenceDiagram
     Note over S: Запит 2 (тільки тепер)
 
     Note over A: Запит 1
-    A->>DB: Неблокуючий запит (await httpx.get)
+    A->>DB: Неблокуючий запит (await client.get, httpx.AsyncClient)
     Note over A: Призупиняє Запит 1, переходить до Запиту 2
     Note over A: Запит 2
-    A->>DB: await httpx.get
+    A->>DB: await client.get
     DB-->>A: Відповідь на Запит 1
     Note over A: Повертається до Запиту 1
     DB-->>A: Відповідь на Запит 2
@@ -136,8 +136,14 @@ graph TD
     E --> G[httpx, aiohttp, async ORM]
     F --> H[Celery, ProcessPoolExecutor]
 
-    style E fill:#e8f5e9,stroke:#2e7d32
-    style F fill:#ffebee,stroke:#c62828
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A,C,D step;
+    class B decision;
+    class E,G,H success;
+    class F error;
 ```
 
 ---

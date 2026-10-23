@@ -214,8 +214,8 @@ channels_redis використовує Redis BRPOP з timeout=5
   Немає spurious disconnects → WS з'єднання стабільне
 ```
 
-!!! note "Redis timeout fix — зафіксовано в пам'яті проєкту"
-    Ця проблема задокументована у `/home/niko_notebook/.claude/projects/.../memory/redis_timeout_fix.md`.
+!!! note "Redis timeout fix у notes_chat_app"
+    Цей фікс застосовано у `notes_project/settings.py` — див. коментар біля `CHANNEL_LAYERS`.
     `socket_timeout=None` у `RedisChannelLayer CONFIG` вирішує `TimeoutError` при idle WebSocket з'єднаннях.
 
 ---
@@ -249,35 +249,34 @@ from django.urls import re_path
 from notes_app import consumers
 
 websocket_urlpatterns = [
-    re_path(r'^ws/groups/(?P<group_id>\d+)/chat/$', consumers.GroupChatConsumer.as_asgi()),
+    # group_pk → scope['url_route']['kwargs']['group_pk'] у consumer
+    re_path(r'^ws/groups/(?P<group_pk>\d+)/chat/$', consumers.GroupChatConsumer.as_asgi()),
 ]
 ```
 
 ```python
-# notes_project/asgi.py
+# notes_project/asgi.py (без довгих коментарів)
 import os
+from django.core.asgi import get_asgi_application
+from django.contrib.staticfiles.handlers import ASGIStaticFilesHandler
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'notes_project.settings')
 
 # КРИТИЧНО: django.setup() через get_asgi_application() ПЕРЕД імпортами app-рівня!
 # Якщо імпортувати consumers ДО цього виклику → AppRegistryNotReady
-from django.core.asgi import get_asgi_application
 django_asgi_app = get_asgi_application()
 
-from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.security.websocket import AllowedHostsOriginValidator
-
+from channels.auth import AuthMiddlewareStack
 from notes_project.routing import websocket_urlpatterns
 
 application = ProtocolTypeRouter({
-    # HTTP → стандартний Django ASGI handler
-    "http": django_asgi_app,
+    # HTTP → стандартний Django ASGI handler (+ /static/ через ASGIStaticFilesHandler)
+    "http": ASGIStaticFilesHandler(django_asgi_app),
 
     # WebSocket → AuthMiddlewareStack → URLRouter → Consumer
-    "websocket": AllowedHostsOriginValidator(
-        AuthMiddlewareStack(
-            URLRouter(websocket_urlpatterns)
-        )
+    "websocket": AuthMiddlewareStack(
+        URLRouter(websocket_urlpatterns)
     ),
 })
 ```
@@ -286,9 +285,11 @@ application = ProtocolTypeRouter({
 
 | Middleware | Роль |
 |-----------|------|
-| `AllowedHostsOriginValidator` | Відхиляє WS з Origin що не в `ALLOWED_HOSTS` |
+| `AllowedHostsOriginValidator` | Відхиляє WS з Origin що не в `ALLOWED_HOSTS` (у проєкті **не** використовується — див. нижче) |
 | `AuthMiddlewareStack` | Читає session cookie → заповнює `scope["user"]` |
 | `URLRouter` | Маршрутизує URL `/ws/groups/7/chat/` до `GroupChatConsumer` |
+
+У реальному `asgi.py` немає `AllowedHostsOriginValidator`. Для production його варто додати як захист від Cross-Site WebSocket Hijacking: `"websocket": AllowedHostsOriginValidator(AuthMiddlewareStack(URLRouter(websocket_urlpatterns)))` (імпорт з `channels.security.websocket`).
 
 ---
 
@@ -307,15 +308,16 @@ F12 → вкладка Network → фільтр "WS"
    ─ З'явився → кліки на нього → Status → Messages
 
 2. Status 101 Switching Protocols → WS встановлений ✓
-3. Status 403 → AllowedHostsOriginValidator відхилила
+3. Status 403 → consumer викликав close() до accept() (не залогінений
+                або не член групи); з AllowedHostsOriginValidator — ще й чужий Origin
 4. Status 404 → URL не знайдений → перевір routing.py
 5. Status 500 → помилка в Consumer або asgi.py → перевір логи
 ```
 
 **Вкладка Messages у DevTools:**
 ```
-▲ sent   → {"type": "chat_message", "message": "Привіт"}   (JavaScript → сервер)
-▼ receive → {"type": "chat_message", "message": "Привіт", "username": "alice"}  (сервер → браузер)
+▲ sent   → {"content": "Привіт"}   (JavaScript → сервер)
+▼ receive → {"type": "message", "message_id": 42, "author": "alice", "content": "Привіт", "timestamp": "..."}  (сервер → браузер)
 ```
 
 ### Крок 2 — Логи Django/Uvicorn
@@ -424,7 +426,7 @@ nginx лог: 400 Bad Request (WS Upgrade rejected)
 | Симптом | Причина | Рішення |
 |---------|---------|---------|
 | WS з'єднання 404 | routing.py не підключений або неправильний URL pattern | Перевір `websocket_urlpatterns` і URL у JS |
-| WS з'єднання 403 | `AllowedHostsOriginValidator` відхиляє Origin | Додати hostname до `ALLOWED_HOSTS` |
+| WS з'єднання 403 | Consumer відхилив handshake (не залогінений або не член групи); або `AllowedHostsOriginValidator` відхиляє Origin, якщо його додано | Залогінитись / перевірити членство; для validator — додати hostname до `ALLOWED_HOSTS` |
 | `AppRegistryNotReady` в asgi.py | Імпорт consumers перед `get_asgi_application()` | Перенести імпорти після `django_asgi_app = get_asgi_application()` |
 | WebSocket не працює (HTTP OK) | `daphne` не перший у `INSTALLED_APPS` | Перемістити `'daphne'` першим |
 | `TimeoutError` після простою | `socket_timeout=5` у RedisChannelLayer | Встановити `socket_timeout=None` |

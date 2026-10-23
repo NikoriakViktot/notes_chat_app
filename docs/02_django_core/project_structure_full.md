@@ -57,6 +57,11 @@ graph TD
     subgraph Сховище даних
         Model <-->|SQL| DB[(База даних)]
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class Client,Nginx,Static,Gateway,Middleware,Router,Model,Template,DB step;
+    class View success;
 ```
 
 ### Життєвий цикл HTTP-запиту

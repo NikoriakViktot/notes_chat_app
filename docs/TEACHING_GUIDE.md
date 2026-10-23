@@ -73,4 +73,5 @@
 - Deep indexing.
 - Advanced transactions.
 - SIEM.
-- Serializers і Celery, бо вони не реалізовані у фінальному проєкті.
+- Serializers, бо вони не реалізовані у фінальному проєкті.
+- Celery (фонові нагадування), якщо бракує часу: він реалізований (`notes_app/tasks.py`, сервіси `celery-worker` і `celery-beat`), але решта застосунку працює і без нього.

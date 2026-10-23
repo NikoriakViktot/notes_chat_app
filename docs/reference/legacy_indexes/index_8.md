@@ -73,6 +73,12 @@ flowchart TD
     O --> P["16. DevOps workflow"]
     P --> Q["17. Kubernetes overview"]
     Q --> R["18. Roadmap & next steps"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q step;
+    class R success;
 ```
 
 ---

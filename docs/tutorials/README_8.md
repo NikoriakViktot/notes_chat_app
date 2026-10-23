@@ -54,27 +54,27 @@ Async views і async ORM показують **як** писати async код.
 
 ```mermaid
 flowchart TD
-    Browser["Браузер / Postman"] --> ASGI["Uvicorn ASGI\n:8001"]
-    Browser --> WSGI["runserver WSGI\n:8000"]
+    Browser["Браузер / Postman"] --> ASGI["Uvicorn ASGI<br>:8001"]
+    Browser --> WSGI["runserver WSGI<br>:8000"]
 
-    ASGI --> PTR["ProtocolTypeRouter\nasgi.py"]
+    ASGI --> PTR["ProtocolTypeRouter<br>asgi.py"]
     PTR -->|"http"| URLs["hello_app/urls.py"]
-    PTR -->|"websocket"| WS["WebSocket URLRouter\nhello_project/routing.py"]
+    PTR -->|"websocket"| WS["WebSocket URLRouter<br>hello_project/routing.py"]
 
     WSGI --> URLs
 
-    URLs --> SyncViews["views.py\nsync views\n/notes/, /groups/, ..."]
-    URLs --> AsyncViews["async_views.py\nasync views\n/async/notes/"]
-    URLs --> ChatView["views.group_chat()\n/groups/&lt;pk&gt;/chat/"]
+    URLs --> SyncViews["views.py (sync views)<br>/notes/, /groups/, ..."]
+    URLs --> AsyncViews["async_views.py (async views)<br>/async/notes/"]
+    URLs --> ChatView["views.group_chat()<br>/groups/&lt;pk&gt;/chat/"]
 
-    WS --> Consumer["consumers.GroupChatConsumer\n/ws/groups/&lt;pk&gt;/chat/"]
+    WS --> Consumer["consumers.GroupChatConsumer<br>/ws/groups/&lt;pk&gt;/chat/"]
 
     SyncViews --> Selectors["selectors.py"]
     SyncViews --> Services["services.py"]
     AsyncViews --> AsyncSelectors["async_selectors.py"]
     AsyncViews --> AsyncServices["async_services.py"]
 
-    Consumer --> ChannelLayer["InMemoryChannelLayer\n(pub/sub broadcast)"]
+    Consumer --> ChannelLayer["InMemoryChannelLayer<br>(pub/sub broadcast)"]
     ChannelLayer --> Consumer
 
     Selectors --> DB[("SQLite DB")]
@@ -83,6 +83,14 @@ flowchart TD
     AsyncServices --> DB
     Consumer --> DB
     ChatView --> DB
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class Browser,ASGI,WSGI,PTR,URLs,WS,SyncViews,AsyncViews,ChatView,Consumer,DB step;
+    class Selectors,Services,AsyncSelectors,AsyncServices success;
+    class ChannelLayer warning;
 ```
 
 ### Таблиця файлів
@@ -1050,12 +1058,12 @@ Django Channels — пакет що додає WebSocket підтримку до
 flowchart TD
     Browser["Браузер"]
     Uvicorn["Uvicorn ASGI :8001"]
-    PTR["ProtocolTypeRouter\nasgi.py"]
-    Auth["AuthMiddlewareStack\n(читає session cookie → User)"]
-    WS_Router["WebSocket URLRouter\nrouting.py"]
-    Consumer["GroupChatConsumer\nconsumers.py"]
-    DjangoHTTP["Django HTTP\n(звичайні views)"]
-    ChannelLayer["InMemoryChannelLayer\n(pub/sub in-process)"]
+    PTR["ProtocolTypeRouter<br>asgi.py"]
+    Auth["AuthMiddlewareStack<br>(читає session cookie → User)"]
+    WS_Router["WebSocket URLRouter<br>routing.py"]
+    Consumer["GroupChatConsumer<br>consumers.py"]
+    DjangoHTTP["Django HTTP<br>(звичайні views)"]
+    ChannelLayer["InMemoryChannelLayer<br>(pub/sub in-process)"]
     DB[("SQLite DB")]
 
     Browser -->|"HTTP GET /notes/"| Uvicorn
@@ -1068,6 +1076,14 @@ flowchart TD
     Consumer <-->|"group_add / group_send / group_discard"| ChannelLayer
     ChannelLayer -->|"chat_message()"| Consumer
     Consumer -->|"database_sync_to_async"| DB
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class Browser,Uvicorn,PTR,WS_Router,DjangoHTTP,DB step;
+    class Auth,ChannelLayer warning;
+    class Consumer success;
 ```
 
 Ключові компоненти:

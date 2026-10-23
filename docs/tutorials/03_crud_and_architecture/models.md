@@ -147,18 +147,18 @@ class ShopItem(models.Model):
     UNIT_PIECE  = 'шт'
     UNIT_KG     = 'кг'
     UNIT_LITER  = 'л'
-    UNIT_PACK   = 'уп'
+    UNIT_GRAM   = 'г'
     UNIT_CHOICES = [
-        (UNIT_PIECE, 'Штука'),
-        (UNIT_KG,    'Кілограм'),
-        (UNIT_LITER, 'Літр'),
-        (UNIT_PACK,  'Упаковка'),
+        (UNIT_PIECE, 'Штуки'),
+        (UNIT_KG,    'Кілограми'),
+        (UNIT_LITER, 'Літри'),
+        (UNIT_GRAM,  'Грами'),
     ]
 
     shopping_list   = models.ForeignKey(ShoppingList, on_delete=models.CASCADE, related_name='items')
     name            = models.CharField(max_length=120)
     quantity        = models.DecimalField(max_digits=8, decimal_places=2, default=1)
-    unit            = models.CharField(max_length=20, choices=UNIT_CHOICES, default=UNIT_PIECE)
+    unit            = models.CharField(max_length=5, choices=UNIT_CHOICES, default=UNIT_PIECE)
     is_purchased    = models.BooleanField(default=False)
     estimated_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     # DecimalField для грошей і кількості! FloatField → 0.1+0.2 = 0.30000000000000004

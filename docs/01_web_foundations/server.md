@@ -426,18 +426,13 @@ Python framework —
 ```mermaid
 flowchart TB
 
-    classDef client fill:#263238,stroke:#90a4ae,color:#fff
-    classDef proxy fill:#4a3b00,stroke:#ff9800,color:#fff
-    classDef server fill:#1b5e20,stroke:#4CAF50,color:#fff
-    classDef framework fill:#4e1f1f,stroke:#f44336,color:#fff
+    Browser["🌍 Browser"]
 
-    Browser["🌍 Browser"]:::client
+    Nginx["Nginx<br>Reverse Proxy"]
 
-    Nginx["Nginx\nReverse Proxy"]:::proxy
+    Gunicorn["Gunicorn<br>WSGI Server"]
 
-    Gunicorn["Gunicorn\nWSGI Server"]:::server
-
-    Django["Django / Flask\nWSGI App"]:::framework
+    Django["Django / Flask<br>WSGI App"]
 
     Browser -->|"HTTP Request"| Nginx
 
@@ -450,6 +445,14 @@ flowchart TB
     Gunicorn --> Nginx
 
     Nginx --> Browser
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class Browser,Gunicorn step;
+    class Nginx warning;
+    class Django success;
 ```
 
 ---
@@ -459,21 +462,15 @@ flowchart TB
 ```mermaid
 flowchart TB
 
-    classDef client fill:#263238,stroke:#90a4ae,color:#fff
-    classDef proxy fill:#4a3b00,stroke:#ff9800,color:#fff
-    classDef server fill:#1b5e20,stroke:#4CAF50,color:#fff
-    classDef framework fill:#4e1f1f,stroke:#f44336,color:#fff
-    classDef async fill:#1565C0,stroke:#42A5F5,color:#fff
+    Browser["🌍 Browser"]
 
-    Browser["🌍 Browser"]:::client
+    Nginx["Nginx<br>:80 / :443"]
 
-    Nginx["Nginx\n:80 / :443"]:::proxy
+    Uvicorn["Uvicorn<br>ASGI Server"]
 
-    Uvicorn["Uvicorn\nASGI Server"]:::server
+    Loop["asyncio Event Loop"]
 
-    Loop["asyncio Event Loop"]:::async
-
-    FastAPI["FastAPI\nASGI App"]:::framework
+    FastAPI["FastAPI<br>ASGI App"]
 
     Browser --> Nginx
 
@@ -482,6 +479,16 @@ flowchart TB
     Uvicorn --> Loop
 
     Loop --> FastAPI
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class Browser,Uvicorn step;
+    class Nginx warning;
+    class Loop decision;
+    class FastAPI success;
 ```
 
 ---
@@ -491,26 +498,21 @@ flowchart TB
 ```mermaid
 flowchart TB
 
-    classDef user fill:#263238,stroke:#90a4ae,color:#fff
-    classDef app fill:#1b5e20,stroke:#4CAF50,color:#fff
-    classDef kernel fill:#4a3b00,stroke:#ff9800,color:#fff
-    classDef hardware fill:#4e1f1f,stroke:#f44336,color:#fff
-
     subgraph USER["USER SPACE"]
-        App["FastAPI / Django / Flask"]:::app
-        Server["Uvicorn / Gunicorn"]:::app
+        App["FastAPI / Django / Flask"]
+        Server["Uvicorn / Gunicorn"]
     end
 
     subgraph KERNEL["KERNEL SPACE"]
-        TCP["TCP/IP Stack"]:::kernel
-        Buffers["Socket Buffers"]:::kernel
-        Scheduler["Scheduler"]:::kernel
-        Epoll["epoll/select"]:::kernel
+        TCP["TCP/IP Stack"]
+        Buffers["Socket Buffers"]
+        Scheduler["Scheduler"]
+        Epoll["epoll/select"]
     end
 
-    NIC["🌐 NIC Driver"]:::hardware
+    NIC["🌐 NIC Driver"]
 
-    Internet["🌍 Internet"]:::hardware
+    Internet["🌍 Internet"]
 
     App --> Server
 
@@ -523,6 +525,14 @@ flowchart TB
     Buffers --> NIC
 
     NIC --> Internet
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class App,Server success;
+    class TCP,Buffers,Scheduler,Epoll warning;
+    class NIC,Internet step;
 ```
 
 ---
@@ -532,17 +542,13 @@ flowchart TB
 ```mermaid
 flowchart TB
 
-    classDef master fill:#4a3b00,stroke:#ff9800,color:#fff
-    classDef worker fill:#1b5e20,stroke:#4CAF50,color:#fff
-    classDef app fill:#263238,stroke:#90a4ae,color:#fff
+    Master["Gunicorn Master Process"]
 
-    Master["Gunicorn Master Process"]:::master
+    W1["Worker 1"]
+    W2["Worker 2"]
+    W3["Worker 3"]
 
-    W1["Worker 1"]:::worker
-    W2["Worker 2"]:::worker
-    W3["Worker 3"]:::worker
-
-    Flask["Flask/Django App"]:::app
+    Flask["Flask/Django App"]
 
     Master --> W1
     Master --> W2
@@ -551,6 +557,14 @@ flowchart TB
     W1 --> Flask
     W2 --> Flask
     W3 --> Flask
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class Master warning;
+    class W1,W2,W3 step;
+    class Flask success;
 ```
 
 ---
@@ -561,17 +575,13 @@ flowchart TB
 
 flowchart LR
 
-    classDef loop fill:#1565C0,stroke:#42A5F5,color:#fff
-    classDef socket fill:#263238,stroke:#90a4ae,color:#fff
-    classDef app fill:#1b5e20,stroke:#4CAF50,color:#fff
+    EventLoop["🔄 asyncio Event Loop"]
 
-    EventLoop["🔄 asyncio Event Loop"]:::loop
+    Socket1["Socket A"]
+    Socket2["Socket B"]
+    Socket3["Socket C"]
 
-    Socket1["Socket A"]:::socket
-    Socket2["Socket B"]:::socket
-    Socket3["Socket C"]:::socket
-
-    FastAPI["FastAPI ASGI App"]:::app
+    FastAPI["FastAPI ASGI App"]
 
     EventLoop --> Socket1
     EventLoop --> Socket2
@@ -580,6 +590,14 @@ flowchart LR
     Socket1 --> FastAPI
     Socket2 --> FastAPI
     Socket3 --> FastAPI
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class EventLoop warning;
+    class Socket1,Socket2,Socket3 step;
+    class FastAPI success;
 ```
 
 ---
@@ -634,6 +652,12 @@ flowchart LR
     Nginx --> Gunicorn
     Gunicorn --> Workers
     Workers --> Buffers
+
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+
+    class FlaskRun,Single,NoWorkers error;
+    class Nginx,Gunicorn,Workers,Buffers success;
 ```
 
 ---
@@ -643,23 +667,27 @@ flowchart LR
 ```mermaid
 flowchart LR
 
-    classDef client fill:#263238,stroke:#90a4ae,color:#fff
-    classDef proxy fill:#4a3b00,stroke:#ff9800,color:#fff
-    classDef backend fill:#1b5e20,stroke:#4CAF50,color:#fff
+    Browser["🌍 Browser"]
 
-    Browser["🌍 Browser"]:::client
+    Nginx["Nginx Reverse Proxy"]
 
-    Nginx["Nginx Reverse Proxy"]:::proxy
-
-    API1["FastAPI Worker 1"]:::backend
-    API2["FastAPI Worker 2"]:::backend
-    API3["FastAPI Worker 3"]:::backend
+    API1["FastAPI Worker 1"]
+    API2["FastAPI Worker 2"]
+    API3["FastAPI Worker 3"]
 
     Browser --> Nginx
 
     Nginx --> API1
     Nginx --> API2
     Nginx --> API3
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class Browser step;
+    class Nginx warning;
+    class API1,API2,API3 success;
 ```
 
 ---

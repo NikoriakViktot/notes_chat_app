@@ -27,7 +27,7 @@ GitHub Actions читає workflow **ТІЛЬКИ** з директорії `.gi
 GitHub:  Detect event → push до main
          │
          ▼
-Azure:   Provision Ubuntu 22.04 VM (нова, чиста)
+Azure:   Provision Ubuntu 24.04 VM (нова, чиста)
          │
          ├── Job 1: Unit + Integration + Consumer (~1-2 хв)
          │     checkout → python 3.12 → pip install
@@ -85,7 +85,7 @@ jobs:
     runs-on: ubuntu-latest
 ```
 
-**`runs-on: ubuntu-latest`** — свіжа Ubuntu 22.04 VM на Azure. Після завершення VM знищується. Між запусками немає стану.
+**`runs-on: ubuntu-latest`** — свіжа Ubuntu 24.04 VM на Azure. Після завершення VM знищується. Між запусками немає стану.
 
 ```yaml
     services:

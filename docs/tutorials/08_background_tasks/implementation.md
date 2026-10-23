@@ -145,7 +145,7 @@ def _schedule_next(reminder):
     from dateutil.relativedelta import relativedelta
 
     # relativedelta замість timedelta для місяців:
-    # timedelta(days=30) для 31 січня дає 2 березня (пропускає лютий!)
+    # timedelta(days=30) для 31 січня дає 1 березня у 2024 (2 березня у невисокосному році) — пропускає лютий!
     # relativedelta(months=1) для 31 січня дає 28/29 лютого (коректно)
     delta_map = {
         'daily':   relativedelta(days=1),

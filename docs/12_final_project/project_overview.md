@@ -41,7 +41,8 @@
 | Django Channels 4 | WebSocket / ASGI |
 | Uvicorn | ASGI server |
 | PostgreSQL 16 | БД |
-| Redis 7 | Channel layer |
+| Redis 7 | Channel layer (DB 0), Celery broker (DB 1) |
+| Celery 5 (worker + beat) | Фонові задачі: email-нагадування |
 | Nginx 1.27 | Reverse proxy |
 | Docker Compose | Оркестрація |
 | Crispy Forms + Bootstrap 5 | UI |
@@ -68,7 +69,6 @@
 | Компонент | Причина |
 |-----------|---------|
 | DRF / REST API | фокус курсу на templates |
-| Celery | поза scope |
 | Async HTTP views | `async_views.py` відсутній у поточному working tree |
 | Production hardening | потребує доопрацювань (SECRET_KEY, DEBUG, HTTPS) |
 
@@ -80,13 +80,14 @@
 notes_chat_app/
 ├── notes_project/          ← Django project (settings, urls, asgi, routing)
 ├── notes_app/              ← Django app
-│   ├── models.py           ← 9 моделей
+│   ├── models.py           ← 10 моделей
 │   ├── views.py
 │   ├── forms.py
 │   ├── selectors.py
 │   ├── services.py
 │   ├── consumers.py        ← GroupChatConsumer
-│   ├── tests/              ← 6 test files
+│   ├── tasks.py            ← Celery: send_reminder_notifications
+│   ├── tests/              ← 7 test files
 │   ├── templates/
 │   └── static/
 ├── templates/              ← base templates

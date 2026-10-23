@@ -77,7 +77,7 @@ class Employee(models.Model):
 
 ### Чому виникає N+1
 
-N+1 виникає **саме тому**, що QuerySet ліниий. Студент вже знає, що `for note in notes:` матеріалізує один SELECT. Але щойно в шаблоні з'являється `note.notebook` — Django не знає, що `notebook` буде потрібен для кожної нотатки, і робить окремий SELECT для кожного:
+N+1 виникає **саме тому**, що QuerySet лінивий. Студент вже знає, що `for note in notes:` матеріалізує один SELECT. Але щойно в шаблоні з'являється `note.notebook` — Django не знає, що `notebook` буде потрібен для кожної нотатки, і робить окремий SELECT для кожного:
 
 ```
 {% for note in notes %}
@@ -104,7 +104,7 @@ for note in notes:
 ## select_related — вирішення N+1 для FK
 
 ```python
-# ❌ N+1: 100 нотаток + 100 запитів для user + 100 для category = 201 запит
+# ❌ N+1: 100 нотаток + 100 запитів для user + 100 для notebook = 201 запит
 notes = Note.objects.filter(is_archived=False)[:100]
 for note in notes:
     print(note.user.username, note.notebook.title)  # нові SQL для кожного!

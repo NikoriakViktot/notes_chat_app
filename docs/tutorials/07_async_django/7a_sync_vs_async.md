@@ -32,27 +32,27 @@ Async views і async ORM показують **як** писати async код.
 
 ```mermaid
 flowchart TD
-    Browser["Браузер / Postman"] --> ASGI["Uvicorn ASGI\n:8001"]
-    Browser --> WSGI["runserver WSGI\n:8000"]
+    Browser["Браузер / Postman"] --> ASGI["Uvicorn ASGI<br>:8001"]
+    Browser --> WSGI["runserver WSGI<br>:8000"]
 
-    ASGI --> PTR["ProtocolTypeRouter\nasgi.py"]
-    PTR -->|"http"| URLs["hello_app/urls.py"]
-    PTR -->|"websocket"| WS["WebSocket URLRouter\nhello_project/routing.py"]
+    ASGI --> PTR["ProtocolTypeRouter<br>asgi.py"]
+    PTR -->|"http"| URLs["notes_app/urls.py"]
+    PTR -->|"websocket"| WS["WebSocket URLRouter<br>notes_project/routing.py"]
 
     WSGI --> URLs
 
-    URLs --> SyncViews["views.py\nsync views\n/notes/, /groups/, ..."]
-    URLs --> AsyncViews["async_views.py\nasync views\n/async/notes/"]
-    URLs --> ChatView["views.group_chat()\n/groups/&lt;pk&gt;/chat/"]
+    URLs --> SyncViews["views.py (sync views)<br>/notes/, /groups/, ..."]
+    URLs --> AsyncViews["async_views.py (async views)<br>/async/notes/"]
+    URLs --> ChatView["views.group_chat()<br>/groups/&lt;pk&gt;/chat/"]
 
-    WS --> Consumer["consumers.GroupChatConsumer\n/ws/groups/&lt;pk&gt;/chat/"]
+    WS --> Consumer["consumers.GroupChatConsumer<br>/ws/groups/&lt;pk&gt;/chat/"]
 
     SyncViews --> Selectors["selectors.py"]
     SyncViews --> Services["services.py"]
     AsyncViews --> AsyncSelectors["async_selectors.py"]
     AsyncViews --> AsyncServices["async_services.py"]
 
-    Consumer --> ChannelLayer["InMemoryChannelLayer\n(pub/sub broadcast)"]
+    Consumer --> ChannelLayer["InMemoryChannelLayer<br>(pub/sub broadcast)"]
     ChannelLayer --> Consumer
 
     Selectors --> DB[("SQLite DB")]
@@ -61,13 +61,23 @@ flowchart TD
     AsyncServices --> DB
     Consumer --> DB
     ChatView --> DB
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class Browser,WSGI,URLs,WS,SyncViews,AsyncViews,ChatView,Consumer,Selectors,Services,AsyncSelectors,AsyncServices,DB step;
+    class PTR decision;
+    class ASGI success;
+    class ChannelLayer warning;
 ```
 
 ### Таблиця файлів
 
 | Файл | Роль | Чи змінювали? |
 |------|------|---------------|
-| `models.py` | 9 моделей: Note, Notebook, Tag, ..., **ChatMessage** | ✅ Додали ChatMessage |
+| `models.py` | 10 моделей: Note, Notebook, Tag, ..., **ChatMessage** | ✅ Додали ChatMessage |
 | `views.py` | 50+ sync views + **group_chat** | ✅ Додали group_chat |
 | `selectors.py` | Sync ORM SELECT-запити | ❌ Без змін |
 | `services.py` | Sync business logic | ❌ Без змін |
@@ -81,8 +91,8 @@ flowchart TD
 | `requirements.txt` | Залежності | ✅ Додали uvicorn, httpx, channels |
 | `settings.py` | Конфігурація Django | ✅ CHANNEL_LAYERS, channels у INSTALLED_APPS |
 | `asgi.py` | ASGI точка входу | ✅ ProtocolTypeRouter |
-| **`hello_project/routing.py`** | **WebSocket URL patterns** | **✅ Новий** |
-| **`static/hello_app/js/group_chat.js`** | **Vanilla JS WebSocket клієнт** | **✅ Новий** |
+| **`notes_project/routing.py`** | **WebSocket URL patterns** | **✅ Новий** |
+| **`notes_app/static/notes_app/js/group_chat.js`** | **Vanilla JS WebSocket клієнт** | **✅ Новий** |
 
 ---
 

@@ -40,7 +40,7 @@ def note_detail(request, pk):
 # ✅ БЕЗПЕЧНО: Q-scoped queryset
 @login_required
 def note_detail(request, pk):
-    note = selectors.get_note_detail(user=request.user, pk=pk)
+    note = selectors.get_note_detail(user=request.user, note_id=pk)
     if not note:
         raise Http404
     return render(request, 'note_detail.html', {'note': note})

@@ -98,7 +98,7 @@ def get_todo_list_detail(user, pk):
 
 ## Частина 4 — Самостійне завдання
 
-**Умова:** `get_group_with_members` у `selectors.py` використовує `prefetch_related('user_set')`. Напишіть тест, що підтверджує: при 10 учасниках групи виконується не більше 2 SQL запитів.
+**Умова:** `get_group_with_members` у `selectors.py` використовує `prefetch_related('user_set')`. Напишіть тест, що підтверджує: при 10 учасниках групи виконується не більше 3 SQL запитів (група + prefetch `user_set` + перевірка членства `.exists()`), а не 1 + N.
 
 ```python
 # notes_app/tests/test_selectors.py (новий файл)

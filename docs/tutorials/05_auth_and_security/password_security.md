@@ -36,7 +36,7 @@ path("accounts/", include("django.contrib.auth.urls")),
 | `/accounts/reset/<uidb64>/<token>/` | `PasswordResetConfirmView` | `password_reset_confirm` | `registration/password_reset_confirm.html` |
 | `/accounts/reset/done/` | `PasswordResetCompleteView` | `password_reset_complete` | `registration/password_reset_complete.html` |
 
-**Висновок:** 8 URL + 7 views вже написані Django — ти пишеш тільки HTML шаблони!
+**Висновок:** 8 URL + 8 views вже написані Django — ти пишеш тільки HTML шаблони!
 
 ---
 
@@ -52,7 +52,9 @@ path("accounts/", include("django.contrib.auth.urls")),
 ─────────────────────────────────────────────────────────────────────────
 Django шукає User з таким email (нічого не повідомляє якщо не знайдено —
 безпечна поведінка: не розкриваємо чи є такий email)
-Генерує унікальний токен: sha256(user_pk + timestamp + SECRET_KEY)
+Генерує унікальний токен (PasswordResetTokenGenerator): HMAC з SECRET_KEY над
+user.pk + хеш пароля + last_login + email + timestamp
+(після зміни пароля або входу старий токен стає недійсним)
 Надсилає email з посиланням:
   /accounts/reset/<uidb64>/<token>/
 
@@ -265,7 +267,7 @@ docker compose logs -f web
 
 ```python
 # Що зберігається у БД (auth_user.password):
-'pbkdf2_sha256$600000$salt$hash'
+'pbkdf2_sha256$1000000$salt$hash'
 #  ↑алгоритм   ↑ітерації  ↑сіль ↑хеш
 
 # Ніколи не зберігається plain text!
@@ -273,14 +275,14 @@ docker compose logs -f web
 
 # Перевірка:
 # authenticate(request, username='alice', password='mysecret')
-# → pbkdf2_sha256(600000 iterations, 'mysecret' + stored_salt)
+# → pbkdf2_sha256(1000000 iterations, 'mysecret' + stored_salt)
 # → порівнює з stored_hash
 # → повертає User або None
 
-# Чому 600000 ітерацій?
+# Чому 1 000 000 ітерацій (значення за замовчуванням у Django 5.2)?
 # Якщо хакер вкрав БД → brute force:
 #   SHA-256 без stretching: 10 мільярдів спроб/сек
-#   PBKDF2 з 600000 ітер:  ~10 000 спроб/сек (у 1 000 000 разів повільніше!)
+#   PBKDF2 з 1000000 ітер: ~10 000 спроб/сек (у 1 000 000 разів повільніше!)
 ```
 
 ---
@@ -309,7 +311,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 ---
 
-## Крок 5 — Password Change
+## Password Change
 
 Password change вимагає що юзер **вже залогінений** (на відміну від password reset).
 `PasswordChangeView` сам перевіряє `is_authenticated` — не треба `@login_required`.

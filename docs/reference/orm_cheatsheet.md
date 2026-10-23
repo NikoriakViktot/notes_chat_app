@@ -1,7 +1,7 @@
 # ORM Cheatsheet — Django QuerySet API
 
 > Швидка довідка по всіх основних операціях Django ORM.
-> Приклади адаптовані для `notes_chat_app` (моделі: `Note`, `Notebook`, `Tag`, `User`).
+> Приклади адаптовані для `notes_chat_app` (моделі: `Note`, `Notebook`, `Tag`, `TodoItem`, `User`).
 
 ---
 
@@ -35,7 +35,7 @@ note = Note.objects.create(user=alice, title='Test', priority=2)
 
 # Або: __init__ + save()
 note = Note(user=alice, title='Test', priority=2)
-note.save()   # INSERT INTO hello_app_note ...
+note.save()   # INSERT INTO notes_app_note ...
 
 # bulk_create — вставити кілька рядків одним запитом
 Note.objects.bulk_create([
@@ -43,7 +43,7 @@ Note.objects.bulk_create([
     Note(user=alice, title='Note 2'),
     Note(user=alice, title='Note 3'),
 ])
-# SQL: INSERT INTO hello_app_note (...) VALUES (...), (...), (...)
+# SQL: INSERT INTO notes_app_note (...) VALUES (...), (...), (...)
 # УВАГА: не викликає .save() і не спрацьовують pre_save/post_save сигнали
 
 # get_or_create — знайти або створити
@@ -77,7 +77,7 @@ n = Note.objects.filter(user=alice).count()
 # exists() — EXISTS запит (найшвидший для перевірки)
 if Note.objects.filter(user=alice, is_pinned=True).exists():
     ...
-# SQL: SELECT 1 FROM hello_app_note WHERE ... LIMIT 1   (дуже швидко!)
+# SQL: SELECT 1 FROM notes_app_note WHERE ... LIMIT 1   (дуже швидко!)
 
 # filter() — вибірка (QuerySet)
 notes = Note.objects.filter(user=alice, is_archived=False)
@@ -96,7 +96,7 @@ note.save(update_fields=['title', 'updated_at'])
 
 # Масове оновлення (QuerySet.update)
 Note.objects.filter(user=alice).update(is_archived=True)
-# SQL: UPDATE hello_app_note SET is_archived=TRUE WHERE user_id=alice.id
+# SQL: UPDATE notes_app_note SET is_archived=TRUE WHERE user_id=alice.id
 # Повертає кількість оновлених рядків (int)
 # УВАГА: не викликає .save() і не спрацьовують сигнали
 
@@ -112,13 +112,13 @@ notebook, created = Notebook.objects.update_or_create(
 ```python
 # Одиночний об'єкт
 note = Note.objects.get(pk=1)
-note.delete()   # DELETE FROM hello_app_note WHERE id=1
+note.delete()   # DELETE FROM notes_app_note WHERE id=1
 # CASCADE автоматично видалить пов'язані Reminder
 
 # Масове видалення
 Note.objects.filter(user=alice, is_archived=True).delete()
 # Повертає (кількість, {model: кількість})
-# → (5, {'hello_app.Note': 5, 'hello_app.Reminder': 12})
+# → (5, {'notes_app.Note': 5, 'notes_app.Reminder': 12})
 
 # Видалити все (з ОБЕРЕЖНІСТЮ!)
 Note.objects.all().delete()   # Видаляє ВСІ нотатки!
@@ -251,20 +251,21 @@ Note.objects.filter(updated_at__gt=F('created_at'))
 # SQL: WHERE updated_at > created_at
 
 # Атомарне оновлення без race condition:
-Note.objects.all().update(views_count=F('views_count') + 1)
-# SQL: UPDATE ... SET views_count = views_count + 1
+TodoItem.objects.filter(todo_list=todo_list).update(order_position=F('order_position') + 1)
+# SQL: UPDATE ... SET order_position = order_position + 1
 # БЕЗ F: треба SELECT → Python → UPDATE (два запити + race condition!)
 
 # Використання в annotate:
 from django.db.models import ExpressionWrapper, DurationField
+from django.db.models.functions import Now
 Note.objects.annotate(
     age=ExpressionWrapper(Now() - F('created_at'), output_field=DurationField())
 )
 
 # F у save():
-note.views_count = F('views_count') + 1
-note.save(update_fields=['views_count'])
-# SQL: UPDATE ... SET views_count = views_count + 1
+item.order_position = F('order_position') + 1
+item.save(update_fields=['order_position'])
+# SQL: UPDATE ... SET order_position = order_position + 1
 ```
 
 ---
@@ -346,10 +347,10 @@ for note in notes:
 
 # З prefetch_related: 2 SQL total (незалежно від кількості нотаток)
 notes = Note.objects.prefetch_related('tags')
-# SQL 1: SELECT * FROM hello_app_note WHERE ...
+# SQL 1: SELECT * FROM notes_app_note WHERE ...
 # SQL 2: SELECT tags.* FROM tags
-#         INNER JOIN hello_app_note_tags ON ...
-#         WHERE hello_app_note_tags.note_id IN (1, 2, 3, ...)
+#         INNER JOIN notes_app_note_tags ON ...
+#         WHERE notes_app_note_tags.note_id IN (1, 2, 3, ...)
 # Django сам склеює у пам'яті
 
 # Реверс FK:
@@ -381,7 +382,7 @@ notes = Note.objects.prefetch_related(
 # values() → список словників (швидше ніж повні об'єкти)
 Note.objects.values('title', 'priority')
 # → [{'title': 'Test', 'priority': 1}, {'title': 'Django', 'priority': 2}]
-# SQL: SELECT title, priority FROM hello_app_note
+# SQL: SELECT title, priority FROM notes_app_note
 
 # values() з FK traversal:
 Note.objects.values('title', 'notebook__title')
@@ -435,7 +436,7 @@ Note.objects.all()[-1]                        # ⚠️ НЕ ПІДТРИМУЄТ
 # ── only() / defer() — завантажувати тільки потрібні поля ────────────────
 # only(): завантажити ТІЛЬКИ вказані поля
 Note.objects.only('id', 'title', 'priority')
-# SQL: SELECT id, title, priority FROM hello_app_note
+# SQL: SELECT id, title, priority FROM notes_app_note
 # УВАГА: доступ до іншого поля → додатковий SELECT!
 
 # defer(): завантажити ВСІ КРІМ вказаних
@@ -457,13 +458,14 @@ for note in Note.objects.filter(user=alice).iterator():
 Note.objects.filter(user=alice, is_archived=False).update(
     is_archived=True
 )
-# SQL: UPDATE hello_app_note SET is_archived=TRUE WHERE user_id=... AND is_archived=FALSE
+# SQL: UPDATE notes_app_note SET is_archived=TRUE WHERE user_id=... AND is_archived=FALSE
 # Повертає: int (кількість оновлених рядків)
 
 # З F():
-Note.objects.all().update(views_count=F('views_count') + 1)
+TodoItem.objects.filter(todo_list=todo_list).update(order_position=F('order_position') + 1)
 
 # З умовою:
+from datetime import timedelta
 from django.utils import timezone
 Note.objects.filter(
     created_at__lt=timezone.now() - timedelta(days=365)
@@ -475,7 +477,7 @@ deleted_count, breakdown = Note.objects.filter(
     user=alice, is_archived=True
 ).delete()
 # deleted_count = 5
-# breakdown = {'hello_app.Note': 5, 'hello_app.Reminder': 12}
+# breakdown = {'notes_app.Note': 5, 'notes_app.Reminder': 12}
 # Django автоматично видаляє пов'язані об'єкти (CASCADE)
 
 # ── bulk_update() — масове оновлення об'єктів ────────────────────────────
@@ -560,7 +562,7 @@ cloned_qs = qs.all()           # Новий QuerySet з тими самими п
 ## get_object_or_404 та get_or_create
 
 ```python
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, get_list_or_404
 from django.http import Http404
 
 # get_object_or_404 — get() або Http404
@@ -623,7 +625,7 @@ def create_notebook(user, title, is_default=False):
 with transaction.atomic():
     note = Note.objects.select_for_update().get(pk=1)
     # Інші транзакції чекають поки цей блок не завершиться
-    note.views_count += 1
+    note.is_pinned = not note.is_pinned
     note.save()
 ```
 
@@ -636,7 +638,7 @@ with transaction.atomic():
 
 # Manager.raw() — raw SQL, повертає RawQuerySet
 notes = Note.objects.raw(
-    "SELECT * FROM hello_app_note WHERE user_id = %s ORDER BY priority DESC",
+    "SELECT * FROM notes_app_note WHERE user_id = %s ORDER BY priority DESC",
     [alice.id]
 )
 
@@ -645,7 +647,7 @@ from django.db import connection
 
 with connection.cursor() as cursor:
     cursor.execute(
-        "SELECT notebook_id, COUNT(*) FROM hello_app_note WHERE user_id=%s GROUP BY notebook_id",
+        "SELECT notebook_id, COUNT(*) FROM notes_app_note WHERE user_id=%s GROUP BY notebook_id",
         [alice.id]
     )
     rows = cursor.fetchall()

@@ -19,21 +19,24 @@ docker compose up
 | Сервіс | Образ | Роль |
 |--------|-------|------|
 | `db` | `postgres:16-alpine` | PostgreSQL — основна БД |
-| `redis` | `redis:7-alpine` | Redis — channel layer для WebSocket |
+| `redis` | `redis:7-alpine` | Redis — channel layer для WebSocket (DB 0) і Celery broker (DB 1) |
 | `web` | Django ASGI (Uvicorn) | Застосунок на порту 8001 |
 | `nginx` | `nginx:1.27-alpine` | Reverse proxy, порт 80 |
-| `ngrok` | `ngrok/ngrok:latest` | Публічний тунель (dev) |
-| `selenium` | `selenium/standalone-chrome` | E2E тести |
+| `celery-worker` | той самий image, що й `web` | Виконує Celery-задачі |
+| `celery-beat` | той самий image, що й `web` | Планувальник Celery (`CELERY_BEAT_SCHEDULE`) |
+| `ngrok` | `ngrok/ngrok:latest` | Публічний тунель (dev, profile `tunnel`) |
+| `selenium` | `selenium/standalone-chrome` | E2E тести (profile `test`) |
+| `selenium-tests` | той самий image, що й `web` | Запуск `test_selenium` проти Selenium (profile `test`) |
 
 ### Автоматична ініціалізація (`entrypoint.sh`)
 
 При старті `web` контейнера виконується:
 
 ```text
-python manage.py migrate
-python manage.py collectstatic --no-input
-python manage.py seed_demo_data   ← якщо SEED_DEMO_DATA=1
-exec uvicorn notes_project.asgi:application --host 0.0.0.0 --port 8001 --reload
+python manage.py migrate --noinput
+python manage.py collectstatic --noinput
+python manage.py seed_demo_data --force   ← якщо SEED_DEMO_DATA=1 (+ --reset, якщо SEED_DEMO_RESET=1)
+exec python -m uvicorn notes_project.asgi:application --host 0.0.0.0 --port 8001 --proxy-headers --forwarded-allow-ips '*' --reload   ← --reload, якщо UVICORN_RELOAD=1
 ```
 
 ### Демо-дані
@@ -63,7 +66,7 @@ cp .env.example .env
 | `DATABASE_URL` | `postgres://notes:notes@db:5432/notes_db` | ✅ завжди |
 | `REDIS_URL` | `redis://redis:6379/0` | ✅ для WebSocket |
 | `SECRET_KEY` | будь-який рядок | ✅ |
-| `DEBUG` | `1` | рекомендовано для dev |
+| `DJANGO_DEBUG` | `1` | рекомендовано для dev |
 | `SEED_DEMO_DATA` | `1` | для автоматичного сіду |
 
 ---

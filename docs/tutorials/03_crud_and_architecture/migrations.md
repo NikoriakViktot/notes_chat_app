@@ -46,12 +46,11 @@ graph TD
     D --> F["hello_app.0005_constraint<br/>ADD CONSTRAINT CHECK"]
     E --> F
 
-    style A fill:#e3f2fd,stroke:#1565c0
-    style B fill:#f1f8e9,stroke:#2e7d32
-    style C fill:#f1f8e9,stroke:#2e7d32
-    style D fill:#f1f8e9,stroke:#2e7d32
-    style E fill:#f1f8e9,stroke:#2e7d32
-    style F fill:#f1f8e9,stroke:#2e7d32
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class A step;
+    class B,C,D,E,F success;
 ```
 
 > **`django_migrations`** — спеціальна таблиця-журнал. `migrate` застосовує тільки ті вузли,

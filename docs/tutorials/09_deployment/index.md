@@ -13,8 +13,8 @@
 !!! warning "Передумови"
     Перед початком переконайся, що пройдені:
 
-    - [Крок 7. Async і WebSocket](../07_async/index.md) — ASGI, Channels, Consumer, channel layer
-    - [Крок 8. Тестування](../08_testing/index.md) — піраміда тестів, TestCase, WebsocketCommunicator
+    - [Крок 7. Async і WebSocket](../07_async_django/index.md) — ASGI, Channels, Consumer, channel layer
+    - [Крок 6. Тестування](../06_testing/index.md) — піраміда тестів, TestCase, WebsocketCommunicator
 
 ---
 

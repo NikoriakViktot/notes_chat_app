@@ -11,10 +11,12 @@
 > 🔬 **QuerySet у формах — у ноутбуку:**
 > [`docs/reference/legacy_source/orm_laboratory_reference.md`](../reference/legacy_source/orm_laboratory_reference.md)
 >
+> ⚠️ Сам notebook не входить до цього репозиторію: файл за посиланням лише пояснює це. Назви розділів у таблиці нижче — орієнтири з оригінальної структури ноутбука, а не якорі. Ці ж запити можна виконати самостійно в `python manage.py shell` або в [ORM-лабораторії](../labs/orm_lab.md).
+>
 > | Концепція форм | Розділ ноутбука |
 > |---------------|-----------------|
 > | ModelForm + FK choices (queryset для вибору) | `## 2. 🔍 Lazy Methods` → filter() |
-> |  → ORM (Trust Boundary) | `## 14. 🧪 Raw SQL` — безпечні параметри |
+> | `form.cleaned_data` → ORM (Trust Boundary) | `## 14. 🧪 Raw SQL` — безпечні параметри |
 > | PRG pattern після POST | `README.md` → секція `03 · WRITE flow` |
 
 
@@ -155,8 +157,8 @@ Browser                    Django View                      Database
 
 **Чому форма відображається знову з помилками?**
 
-Щоб користувач не втратив введені дані! Django зберігає вже введені значення
-в `form.initial` і повертає їх у HTML при повторному рендері.
+Щоб користувач не втратив введені дані! Зв'язана (bound) форма тримає вже введені значення
+в `form.data` (тобто `request.POST`) і повертає їх у HTML при повторному рендері.
 
 ### 🌐 Sequence Diagram: обидва шляхи (success + validation failure)
 
@@ -217,7 +219,7 @@ def note_create(request):
 ```mermaid
 graph LR
     subgraph Untrusted["❌ Небезпечна зона (Client / Network)"]
-        A[Browser Submission] -->|HTTP POST| B["request.POST\nRaw Strings"]
+        A[Browser Submission] -->|HTTP POST| B["request.POST<br>Raw Strings"]
     end
 
     subgraph Boundary["⚠️ Кордон довіри (Django Form Pipeline)"]
@@ -226,9 +228,20 @@ graph LR
     end
 
     subgraph Trusted["✅ Безпечна зона (Backend / ORM)"]
-        C -- Passes --> E["form.cleaned_data\nTyped Python Objects"]
+        C -- Passes --> E["form.cleaned_data<br>Typed Python Objects"]
         E --> F[Database Save]
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A step;
+    class C decision;
+    class E,F success;
+    class D error;
+    class B warning;
 ```
 
 **Все що лівіше `is_valid()` — небезпечні рядки. Все що правіше — безпечні об'єкти.**
@@ -550,6 +563,11 @@ graph LR
         D --> E["input type='text' class='form-control is-invalid'"]
         E --> F["Bootstrap CSS: red borders, focus rings"]
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class A,B,C,D,E step;
+    class F success;
 ```
 
 ### 🌐 Form Rendering Pipeline
@@ -565,6 +583,13 @@ graph TD
     F --> H[Bootstrap Styled HTML]
     G --> H
     H --> I[Browser Rendering]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class A,B,C,E,F,G,I step;
+    class D decision;
+    class H success;
 ```
 
 **Bootstrap класи для Django widgets:**
@@ -615,6 +640,11 @@ graph TD
     D --> E
     E --> F[Template Pack Resolution]
     F --> G[Render full Bootstrap grid, labels, and inputs]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class A,B,C,D,E,F step;
+    class G success;
 ```
 
 **Чому crispy-forms порушує DRY-принцип без нього:**
@@ -682,6 +712,13 @@ graph TD
     F --> G["5. clean: Cross-Field Validation"]
     G --> H[form.cleaned_data complete]
     G -.->|ValidationError| I[non_field_errors]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A,B,C,D,E,G step;
+    class F,H success;
+    class Z,I error;
 ```
 
 ### 🌐 Практичний приклад: clean_<fieldname>
@@ -784,13 +821,24 @@ def clean(self):
 ```mermaid
 graph TD
     A[ValidationError Raised] --> B{Where was it raised?}
-    B -->|"Field-level pipeline\n(to_python/validate/clean_field)"| C[Mapped to specific field]
-    B -->|"Form.clean()\nor add_error(None, ...)"| D["Mapped to '__all__'"]
+    B -->|"Field-level pipeline<br>(to_python/validate/clean_field)"| C[Mapped to specific field]
+    B -->|"Form.clean()<br>or add_error(None, ...)"| D["Mapped to '__all__'"]
     C --> E[Removed from cleaned_data]
     C --> F["Available in form.errors['fieldname']"]
     D --> G["Available via form.non_field_errors()"]
     G --> H["In template: {{ form.non_field_errors }}"]
     F --> I["In template: {{ form.field.errors }}"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class C,D,F,G step;
+    class B decision;
+    class H,I success;
+    class E error;
+    class A warning;
 ```
 
 ### 📚 add_error() — програматичне додавання помилок
@@ -906,16 +954,25 @@ POST запит з помилками:
   1. Аліса залогінена на bank.com (є cookie сесії)
   2. Аліса відвідує evil.com
   3. evil.com містить:
-     <img src="http://bank.com/transfer?to=hacker&amount=10000">
-  4. Браузер Аліси автоматично надсилає запит до bank.com
+     <form action="http://bank.com/transfer" method="post">
+       <input type="hidden" name="to" value="hacker">
+       <input type="hidden" name="amount" value="10000">
+     </form>
+     <script>document.forms[0].submit()</script>
+  4. Браузер Аліси автоматично надсилає POST-запит до bank.com
      (з cookies! — браузер завжди додає cookies домену)
   5. bank.com думає що це Аліса і переводить гроші!
 
 Django захист:
-  1. При кожному GET запиті Django генерує унікальний CSRF token
-  2. Token зберігається в сесії + відправляється як hidden поле
-  3. При POST Django перевіряє: token у POST == token у сесії?
+  1. Під час рендеру {% csrf_token %} Django видає секрет у cookie csrftoken
+     (за замовчуванням — у cookie; у сесії лише при CSRF_USE_SESSIONS = True)
+  2. Той самий секрет (у замаскованому вигляді) йде у форму як hidden поле
+  3. При POST Django перевіряє: token з POST відповідає секрету з cookie?
   4. evil.com не знає token (Same-Origin Policy) → 403 Forbidden!
+
+  ⚠️ CsrfViewMiddleware перевіряє лише "небезпечні" методи (POST, PUT, PATCH, DELETE).
+     GET-атаку на кшталт <img src="http://bank.com/transfer?..."> він не зупинить —
+     тому GET ніколи не повинен змінювати дані.
 ```
 
 ### 🌐 Як Django реалізує CSRF
@@ -1133,12 +1190,23 @@ graph TD
     A["Browser: HTML Form Submit"] -->|HTTP POST| B["Django HTTP Request"]
     B --> C["View: form = FormClass(request.POST)"]
     C --> D{form.is_valid?}
-    D -- Yes --> E["Generate form.cleaned_data"]
+    D -- так --> E["Generate form.cleaned_data"]
     E --> F["Execute Business Logic / form.save()"]
     F --> G["HTTP 302 Redirect (PRG)"]
-    D -- No --> H["Generate form.errors"]
+    D -- ні --> H["Generate form.errors"]
     H --> I["Re-render HTML with Errors & Input Data"]
     I -->|HTTP 200| A
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,B,C,E,F step;
+    class D decision;
+    class G success;
+    class H error;
+    class I warning;
 ```
 
 ### Validation Pipeline
@@ -1156,6 +1224,13 @@ graph TD
     F -- Success --> G["clean: Cross-field validation"]
     G -- Error --> H[Add to non_field_errors]
     G -- Success --> I[Populate form.cleaned_data]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A,B,D,E,F,G step;
+    class I success;
+    class C,H error;
 ```
 
 ### HTML ↔ Django ↔ ORM (двонаправлений міст)
@@ -1163,17 +1238,17 @@ graph TD
 ```mermaid
 graph LR
     subgraph Frontend["Browser Domain"]
-        HTML_Form["HTML Form\nRaw Text Input"]
+        HTML_Form["HTML Form<br>Raw Text Input"]
     end
 
     subgraph Backend["Django Form Domain — Trust Boundary"]
-        Widget["Widget\nHTML generation"]
-        Field["Form Field\nType coercion & Validation"]
-        CleanedData["cleaned_data\nSafe Python Objects"]
+        Widget["Widget<br>HTML generation"]
+        Field["Form Field<br>Type coercion & Validation"]
+        CleanedData["cleaned_data<br>Safe Python Objects"]
     end
 
     subgraph Database["ORM Domain"]
-        Model["Django Model\nDB Table mapping"]
+        Model["Django Model<br>DB Table mapping"]
     end
 
     HTML_Form -- POST Data --> Field
@@ -1182,6 +1257,13 @@ graph LR
     Model -- Initial Data --> Field
     Field --> Widget
     Widget -- Render HTML --> HTML_Form
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class HTML_Form,Widget,Model step;
+    class CleanedData success;
+    class Field warning;
 ```
 
 ### Trust Zones
@@ -1189,7 +1271,7 @@ graph LR
 ```mermaid
 graph LR
     subgraph Untrusted["❌ Небезпечна зона (Client / Network)"]
-        A[Browser Submission] -->|HTTP POST| B["request.POST\nRaw Strings"]
+        A[Browser Submission] -->|HTTP POST| B["request.POST<br>Raw Strings"]
     end
 
     subgraph Boundary["⚠️ Кордон довіри (Django Form Pipeline)"]
@@ -1198,9 +1280,20 @@ graph LR
     end
 
     subgraph Trusted["✅ Безпечна зона (Backend / ORM)"]
-        C -- Passes --> E["form.cleaned_data\nTyped Python Objects"]
+        C -- Passes --> E["form.cleaned_data<br>Typed Python Objects"]
         E --> F[Database Save]
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A step;
+    class C decision;
+    class E,F success;
+    class D error;
+    class B warning;
 ```
 
 ---

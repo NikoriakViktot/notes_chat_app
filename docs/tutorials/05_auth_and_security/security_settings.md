@@ -203,7 +203,7 @@ document.cookie → "csrftoken=xyz..."  (sessionid ВІДСУТНІЙ — HttpOn
 
 Захист X_FRAME_OPTIONS = "DENY":
 Браузер відмовляється вбудовувати mysite.com у <iframe>
-Content-Security-Policy: frame-ancestors 'none'  (еквівалент для HTTPS)
+Content-Security-Policy: frame-ancestors 'none'  (сучасна CSP-альтернатива, працює і для HTTP, і для HTTPS)
 ```
 
 ---

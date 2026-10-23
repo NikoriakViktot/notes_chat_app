@@ -41,7 +41,8 @@ def application(environ, start_response):
 
 # ASGI — асинхронний: один потік = тисячі корутин, await звільняє потік
 async def application(scope, receive, send):
-    data = await httpx.get(url)   # потік вільний — обробляє інші з'єднання
+    async with httpx.AsyncClient() as client:
+        data = await client.get(url)   # потік вільний — обробляє інші з'єднання
     ...
 ```
 
@@ -58,7 +59,7 @@ Django Channels — це Django-реалізація ASGI, яка додає Web
 | [asyncio: Event Loop](lesson_34_documentation.md) | архітектура event loop, callbacks, futures, libuv |
 | [ASGI](async_03_asgi_full.md) | ASGI spec, `ProtocolTypeRouter`, lifecycle, scope |
 | [Django Async Views](async_04_django_async_views_full.md) | `async def view()`, обмеження, коли варто |
-| [Async ORM](async_05_async_orm_full.md) | `aadd`, `acreate`, `afilter`, `aget`, відмінності від sync |
+| [Async ORM](async_05_async_orm_full.md) | `aadd`, `acreate`, `aget`, `async for`, відмінності від sync |
 | [sync_to_async](async_06_sync_to_async_full.md) | `database_sync_to_async`, `sync_to_async`, thread safety |
 | [Async HTTP Clients](async_07_async_http_clients_full.md) | `httpx`, `aiohttp`, connection pooling |
 | [Benchmarking](async_08_benchmarking_full.md) | порівняння sync vs async, `locust`, результати |
@@ -90,16 +91,21 @@ asyncio.run(main())
 ```python
 # notes_project/asgi.py
 # ПОРЯДОК ІМПОРТІВ КРИТИЧНИЙ!
-import django
+import os
+from django.core.asgi import get_asgi_application
+from django.contrib.staticfiles.handlers import ASGIStaticFilesHandler
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'notes_project.settings')
 django_asgi_app = get_asgi_application()  # ← ПЕРЕД будь-яким notes_app імпортом
 
-from notes_app.consumers import GroupChatConsumer  # ← ПІСЛЯ
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.auth import AuthMiddlewareStack
+from notes_project.routing import websocket_urlpatterns  # ← ПІСЛЯ (імпортує GroupChatConsumer)
 
 application = ProtocolTypeRouter({
-    "http":      django_asgi_app,
+    "http":      ASGIStaticFilesHandler(django_asgi_app),  # статика — тільки для розробки
     "websocket": AuthMiddlewareStack(
-        URLRouter([re_path(r"^ws/groups/(?P<group_pk>\d+)/chat/$", GroupChatConsumer.as_asgi())])
+        URLRouter(websocket_urlpatterns)  # r"^ws/groups/(?P<group_pk>\d+)/chat/$"
     ),
 })
 ```
@@ -119,7 +125,7 @@ class GroupChatConsumer(AsyncWebsocketConsumer):
         if not is_member:
             await self.close(); return
 
-        self.room_group_name = f"chat_{group_pk}"
+        self.room_group_name = f"chat_group_{group_pk}"
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
@@ -133,7 +139,7 @@ class GroupChatConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         data    = json.loads(text_data)
-        content = data.get('message', '').strip()
+        content = data.get('content', '').strip()
         if not content:
             return
         user = self.scope['user']
@@ -157,8 +163,8 @@ def load_history(self, group_pk):
     return list(
         ChatMessage.objects.filter(group_id=group_pk)
         .select_related('author')
-        .order_by('-created_at')[:50]
-        .values('content', 'author__username', 'created_at')
+        .order_by('-timestamp')[:50]
+        .values('content', 'author__username', 'timestamp')
     )
 
 # ❌ НЕПРАВИЛЬНО: повертає lazy QuerySet → SynchronousOnlyOperation

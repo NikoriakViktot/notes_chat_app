@@ -15,7 +15,7 @@
 | [Анатомія Task](#анатомія-task) | Базова структура, правила |
 | [Task = Transport Layer](#task--transport-layer) | Чому логіка не в task |
 | [on_commit](#on_commit--безпечний-запуск-task) | Гарантія цілісності з БД |
-| [Retry та помилки](#retry-та-обробка-помилок) | `autoretry_for`, `max_retries`, `countdown` |
+| [Retry та помилки](#retry-та-обробка-помилок) | `autoretry_for`, `max_retries`, `retry_backoff` |
 | [Ідемпотентність](#ідемпотентність) | Задачі безпечні для повторного запуску |
 | [Типові патерни](#типові-патерни) | Chains, Groups, Chords |
 | [Конфігурація](#конфігурація) | Налаштування Celery у Django |
@@ -264,8 +264,8 @@ from celery import shared_task
 @shared_task(
     autoretry_for=(httpx.HTTPError, ConnectionError),  # при яких помилках повторювати
     max_retries=3,                                      # максимум спроб
-    countdown=60,                                       # затримка між спробами (секунди)
-    retry_backoff=True,                                 # експоненційне збільшення затримки
+    retry_backoff=60,                                   # експоненційна затримка: база 60 с
+    retry_jitter=False,                                 # без випадкового розкиду затримки
 )
 def fetch_sliderule_data_task(job_id: int) -> None:
     from apps.satellite.services import icesat2_job_fetch
@@ -273,7 +273,7 @@ def fetch_sliderule_data_task(job_id: int) -> None:
     icesat2_job_fetch(job_id=job_id)
 ```
 
-З `retry_backoff=True` затримки будуть: 60с → 120с → 240с.
+З `retry_backoff=60` і `retry_jitter=False` затримки будуть: 60с → 120с → 240с. (`retry_backoff=True` означає базу 1 с: 1с → 2с → 4с, а `countdown` — це аргумент `apply_async()`/`self.retry()`, а не опція декоратора `@shared_task`.)
 
 ### Ручний retry
 
@@ -302,7 +302,7 @@ logger = get_task_logger(__name__)
 @shared_task(
     autoretry_for=(Exception,),
     max_retries=3,
-    countdown=60,
+    default_retry_delay=60,
 )
 def critical_processing_task(job_id: int) -> None:
     from apps.flood.services import flood_job_process, flood_job_mark_failed
@@ -513,6 +513,7 @@ def process_task(event_id):
 # ДОБРЕ
 @shared_task
 def process_task(event_id):
+    from apps.flood.selectors import flood_event_get_by_id
     from apps.flood.services import flood_event_complete
     event = flood_event_get_by_id(event_id=event_id)
     flood_event_complete(event=event)
@@ -521,7 +522,7 @@ def process_task(event_id):
 ### Передача ORM-об'єкта в task
 
 ```python
-# ПОГАНО — об'єкт серіалізується через pickle, нестабільно
+# ПОГАНО — ORM-об'єкт не серіалізується в JSON (помилка EncodeError), а з pickle передав би застарілий стан
 process_task.delay(event=flood_event_object)
 
 # ДОБРЕ — передавати тільки ID
@@ -588,8 +589,8 @@ logger = get_task_logger(__name__)
 @shared_task(
     autoretry_for=(Exception,),
     max_retries=3,
-    countdown=60,
-    retry_backoff=True,
+    retry_backoff=60,
+    retry_jitter=False,
 )
 def <model>_<action>_task(<model>_id: int) -> None:
     from apps.<app>.selectors import <model>_get_by_id

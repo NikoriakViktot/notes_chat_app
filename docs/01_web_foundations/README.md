@@ -45,7 +45,7 @@ URL → DNS lookup → TCP handshake → (TLS handshake) → HTTP request
 |------|-----------|
 | `notes_project/urls.py` | перший рівень Django routing після отримання HTTP-запиту |
 | `notes_app/views.py` | функції що обробляють `GET`/`POST` і повертають `HttpResponse`/`redirect` |
-| `nginx/nginx.conf` | reverse proxy: приймає HTTP :80, передає Daphne :8001 |
+| `nginx/nginx.conf` | reverse proxy: приймає HTTP :80, передає Uvicorn (`web`) :8001 |
 | `notes_project/settings.py` | `CSRF_TRUSTED_ORIGINS`, `SESSION_COOKIE_SECURE`, `SECURE_SSL_REDIRECT` |
 
 **Mermaid: request до Notes Chat App**
@@ -54,7 +54,7 @@ URL → DNS lookup → TCP handshake → (TLS handshake) → HTTP request
 sequenceDiagram
     participant B as Browser
     participant N as Nginx :80
-    participant D as Daphne :8001
+    participant D as Uvicorn :8001
     participant V as views.py
     participant DB as PostgreSQL
 

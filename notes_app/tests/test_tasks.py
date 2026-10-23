@@ -17,7 +17,7 @@ from datetime import timedelta
 from django.core import mail
 
 from notes_app.models import Note, Reminder
-from notes_app.tasks import send_reminder_notifications
+from notes_app.tasks import send_email_message, send_reminder_notifications
 
 
 class SendReminderTaskTest(TestCase):
@@ -118,6 +118,38 @@ class SendReminderTaskTest(TestCase):
         self.assertTrue(r1.is_sent)
         self.assertTrue(r2.is_sent)
         self.assertEqual(len(mail.outbox), 2)
+
+
+class SendEmailMessageTaskTest(TestCase):
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_sends_email_message_through_celery_task(self):
+        result = send_email_message.apply(
+            kwargs={
+                'subject': 'Celery notification',
+                'message': 'Message from Celery task',
+                'recipient_list': ['user@example.com'],
+            }
+        ).get()
+
+        self.assertEqual(result['sent'], 1)
+        self.assertEqual(result['recipients'], ['user@example.com'])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, 'Celery notification')
+        self.assertIn('Message from Celery task', mail.outbox[0].body)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_empty_recipient_list_does_not_send_email(self):
+        result = send_email_message.apply(
+            kwargs={
+                'subject': 'No recipients',
+                'message': 'This should not be sent',
+                'recipient_list': ['', '  '],
+            }
+        ).get()
+
+        self.assertEqual(result['sent'], 0)
+        self.assertEqual(result['recipients'], [])
+        self.assertEqual(len(mail.outbox), 0)
 
 
 class RemindersCheckViewTest(TestCase):

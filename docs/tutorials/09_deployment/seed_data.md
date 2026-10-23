@@ -12,7 +12,7 @@
 **Рішення:** seed command створює реалістичні демо-дані:
 - 3 юзери з паролями — можна одразу залогінитись
 - Групи з учасниками — можна тестувати групові нотатки і чат у різних вкладках
-- Різні типи нотаток (особисті, групові, закріплені, архівні) — видна вся функціональність
+- Різні типи нотаток (особисті, групові, закріплені, з нагадуваннями) — видна вся функціональність
 - Повідомлення у групових чатах — чат не виглядає порожнім
 
 ---
@@ -23,9 +23,9 @@
 
 | Логін | Пароль | Роль |
 |-------|--------|------|
-| `demo_alice` | `demo1234` | Основний юзер: нотатки, todos, групи |
+| `demo_alice` | `demo1234` | Учасниця "Команда розробки" і "Сімейний чат" |
 | `demo_bob` | `demo1234` | Учасник "Команда розробки" |
-| `demo_carol` | `demo1234` | Учасник "Сімя" |
+| `demo_carol` | `demo1234` | Учасниця "Команда розробки" і "Сімейний чат" |
 
 Кожен юзер має свій `UserProfile`.
 
@@ -33,27 +33,29 @@
 
 | Група | Учасники |
 |-------|---------|
-| `Команда розробки` | alice, bob |
-| `Сімя` | alice, carol |
+| `demo_команда_розробки` ("Команда розробки") | alice, bob, carol |
+| `demo_сімейний_чат` ("Сімейний чат") | alice, carol |
 
-Alice — учасниця обох груп → бачить нотатки і чат обох груп.
+У БД група зберігається під назвою з префіксом `demo_` (саме цей префікс використовує `--reset`). Alice і Carol — учасниці обох груп → бачать групові нотатки і чат обох груп; Bob — тільки "Команди розробки".
 
-### Нотатки alice
+### Нотатки кожного юзера
+
+Кожен із трьох юзерів отримує однаковий набір із 10 власних нотаток:
 
 | Тип | Кількість |
 |-----|---------|
-| Особисті (різні пріоритети) | ~5 |
-| Закріплені (`is_pinned=True`) | 1 |
-| Архівні (`is_archived=True`) | 1 |
-| Групові (group="Команда розробки") | 2 |
+| Усього (різні пріоритети 1–3) | 10 |
+| Закріплені (`is_pinned=True`) | 3 |
+| З нагадуваннями (`Reminder`) | 4 |
+| Групові (group="Команда розробки") | 3 |
 
 ### Інші дані
 
-- **Notebooks:** "Особисті" (default), "Робота", "Проєкти"
-- **Tags:** python, django, ідеї, туторіали — кожен з унікальним кольором
-- **TodoList** з 3 незавершеними TodoItems
-- **ShoppingList** з продуктами
-- **ChatMessages** для групових чатів — history для обох груп
+- **Notebooks:** "Робочі нотатки" (default), "Особисте", "Навчання Python"
+- **Tags:** робота, особисте, навчання, важливо, ідеї, перечитати — кожен з унікальним кольором
+- **TodoList:** 3 списки ("Задачі спринту", "Домашні справи", "Навчальний план"), у кожному перші два TodoItems виконані
+- **ShoppingList:** 3 списки, один з них ("Спільні покупки для офісу") — у групі "Команда розробки"
+- **ChatMessages:** 20 повідомлень у "Команді розробки" і 10 у "Сімейному чаті"
 
 ---
 
@@ -63,8 +65,13 @@ Alice — учасниця обох груп → бачить нотатки і 
 
 ```sh
 # entrypoint.sh
-if [ "${SEED_DEMO_DATA}" = "1" ]; then
-    python manage.py seed_demo_data --force
+if [ "${SEED_DEMO_DATA:-0}" = "1" ]; then
+    seed_args="--force"
+    if [ "${SEED_DEMO_RESET:-0}" = "1" ]; then
+        seed_args="--force --reset"
+    fi
+    log "Seeding demo data with args: ${seed_args}"
+    python manage.py seed_demo_data ${seed_args}
 fi
 ```
 
@@ -72,8 +79,9 @@ fi
 # docker-compose.yml
 web:
   environment:
-    SEED_DEMO_DATA: ${SEED_DEMO_DATA:-0}
-    # ↑ Якщо .env не містить SEED_DEMO_DATA — default 0 (seed вимкнений)
+    SEED_DEMO_DATA: ${SEED_DEMO_DATA:-1}
+    # ↑ Якщо .env не містить SEED_DEMO_DATA — default 1 (seed увімкнений)
+    SEED_DEMO_RESET: ${SEED_DEMO_RESET:-0}
 ```
 
 ```bash
@@ -101,8 +109,9 @@ docker compose run --rm web python manage.py seed_demo_data
 ```
 
 !!! note "`--force` у entrypoint.sh"
-    `entrypoint.sh` запускає `seed_demo_data --force`, а не `--reset`.
-    `--force` дозволяє виконати seed навіть якщо БД не порожня, але не видаляє існуючі дані.
+    `entrypoint.sh` запускає `seed_demo_data --force` (або `--force --reset`, якщо `SEED_DEMO_RESET=1`).
+    `--force` дозволяє виконати seed навіть при `DEBUG=False`; існуючі дані він не видаляє.
+    Команда ідемпотентна (`update_or_create`), тому повторний запуск не створює дублікатів.
     `--reset` спочатку видаляє demo дані, потім сідує знову.
 
 ---
@@ -124,9 +133,10 @@ print('ChatMessages:', ChatMessage.objects.count())
 
 # Очікуваний вивід:
 # Users: 3
-# Notes: 9
+# Notes: 30
 # Groups: 2
-# ChatMessages: 8 (або більше)
+# ChatMessages: 30 (або більше)
+# (на чистій БД; команда також сама друкує підсумок після seed)
 ```
 
 ```bash
@@ -166,8 +176,8 @@ Seed дозволяє тестувати реальні сценарії:
 ### Сценарій: ізоляція даних
 
 ```
-1. demo_carol: намагається відкрити нотатку demo_alice
-2. → 404 (alice не є членом груп carol, нотатка не з спільної групи)
+1. demo_carol: намагається відкрити особисту нотатку demo_alice
+2. → 404 (нотатка не належить carol і не прив'язана до спільної групи)
 3. demo_bob: намагається відкрити нотатку demo_alice
 4. → 404 якщо особиста нотатка, 200 якщо з "Команди розробки"
 ```
@@ -212,8 +222,7 @@ cp .env.example .env
 ### `CommandError: Demo data disabled`
 
 ```
-CommandError: seed_demo_data disabled in production (DEBUG=False)
-Use --force to override
+CommandError: Demo data seeding is disabled when DEBUG=False. Use --force to override.
 ```
 
 **Причина:** `seed_demo_data` перевіряє `DEBUG = True`. У production він вимкнений за замовчуванням щоб не перезаписати реальні дані.
@@ -227,7 +236,7 @@ docker compose exec web python manage.py seed_demo_data --force
 
 ### `IntegrityError: duplicate key`
 
-Якщо запустити seed двічі без `--reset`:
+Поточна команда ідемпотентна: вона використовує `update_or_create`, тому повторний запуск без `--reset` **не** дає цієї помилки. Вона можлива лише у власних seed-командах, що використовують `create()`, або якщо дані змінені вручну:
 
 ```
 django.db.utils.IntegrityError: duplicate key value violates unique constraint
@@ -271,10 +280,10 @@ http://localhost/accounts/login/
 
 Alice бачить:
 - Особисті нотатки з різними пріоритетами і тегами
-- Закріплена нотатка вгорі списку
-- Групові нотатки "Команда розробки" і "Сімя"
-- Активний Todo список з кількома задачами
-- Shopping list з продуктами
+- Закріплені нотатки вгорі списку
+- Групові нотатки "Команди розробки" (свої й інших учасників)
+- Todo списки з кількома задачами
+- Shopping lists з продуктами
 - Групові чати обох груп з history повідомлень
 
 ---

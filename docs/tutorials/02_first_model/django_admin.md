@@ -105,7 +105,7 @@ search_fields = ['^title', 'content', '=status']
 # (none) | LIKE '%query%'    | Повнотекстовий (повільно на великих таблицях)
 # '^'    | LIKE 'query%'     | Пошук з початку (індексується, швидше)
 # '='    | = 'query'         | Точний збіг
-# '@'    | Повнотекстовий    | MySQL full-text (не SQLite)
+# '@'    | Повнотекстовий    | PostgreSQL full-text (__search, потрібен django.contrib.postgres; не SQLite)
 ```
 
 ### list_filter — вбудовані фільтри

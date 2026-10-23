@@ -118,10 +118,15 @@ WSL дає тобі справжній Ubuntu-термінал без потре
 
 ```mermaid
 flowchart LR
-    Dev["Твій ноутбук\n(Python/Django)"] --> Git["GitHub / GitLab\n(сховище коду)"]
-    Git --> Server["Linux server\n(Ubuntu)"]
-    Server --> App["Django app\n(Gunicorn/Uvicorn)"]
-    App --> Users["Користувачі сайту\n(браузер)"]
+    Dev["Твій ноутбук<br>(Python/Django)"] --> Git["GitHub / GitLab<br>(сховище коду)"]
+    Git --> Server["Linux server<br>(Ubuntu)"]
+    Server --> App["Django app<br>(Gunicorn/Uvicorn)"]
+    App --> Users["Користувачі сайту<br>(браузер)"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class Dev,Git,Server,App step;
+    class Users success;
 ```
 
 Ось як виглядає типовий шлях:
@@ -139,12 +144,17 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    Internet["Інтернет"] --> Nginx["Nginx\n(port 80/443)"]
-    Nginx --> Gunicorn["Gunicorn / Uvicorn\n(port 8000)"]
+    Internet["Інтернет"] --> Nginx["Nginx<br>(port 80/443)"]
+    Nginx --> Gunicorn["Gunicorn / Uvicorn<br>(port 8000)"]
     Gunicorn --> Django["Django Application"]
-    Django --> DB["PostgreSQL\n(port 5432)"]
-    Django --> Cache["Redis\n(port 6379)"]
-    Django --> Static["Static files\n(/var/www/static)"]
+    Django --> DB["PostgreSQL<br>(port 5432)"]
+    Django --> Cache["Redis<br>(port 6379)"]
+    Django --> Static["Static files<br>(/var/www/static)"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class Internet,Nginx,Gunicorn,DB,Cache,Static step;
+    class Django success;
 ```
 
 Кожен компонент — окрема програма на сервері. Всі вони запущені паралельно і спілкуються між собою через мережу або файлову систему.

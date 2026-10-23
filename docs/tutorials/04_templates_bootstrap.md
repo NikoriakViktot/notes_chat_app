@@ -22,7 +22,7 @@
 - [03 · CRISPY FORMS — три рівні рендерингу форм](#03--crispy-forms)
 - [04 · CONTEXT PROCESSORS — дані для всіх шаблонів](#04--context-processors)
 - [05 · STATIC FILES — власні CSS/JS](#05--static-files)
-- [06 · TEMPLATE TAGS і FILTERS — довідник](#06--template-tags-і-filters)
+- [06 · TEMPLATE TAGS і FILTERS — довідник](#06--template-tags-і-filters--довідник)
 
 **Покрокова реалізація**
 1. [Крок 1 — Встановити Crispy Forms](#крок-1--встановити-crispy-forms)
@@ -31,8 +31,8 @@
 4. [Крок 4 — Рівень 3: сторінки контенту](#крок-4--рівень-3-сторінки)
 5. [Крок 5 — NoteForm з FormHelper і Layout](#крок-5--noteform-з-formhelper)
 6. [Крок 6 — Context Processor для Sidebar](#крок-6--context-processor)
-7. [Крок 7 — Active state у навігації](#крок-7--active-state)
-8. [Крок 8 — Реєстрація в settings.py](#крок-8--реєстрація)
+7. [Крок 7 — Active state у навігації](#крок-7--active-state-у-навігації)
+8. [Крок 8 — Реєстрація в settings.py](#крок-8--реєстрація-в-settingspy)
 
 ---
 

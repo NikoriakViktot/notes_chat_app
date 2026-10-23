@@ -73,18 +73,25 @@ Django буквально каже: "Ти не можеш це зробити т
 graph LR
     A[Async View] --> B{Що ти викликаєш?}
 
-    B -->|.filter .exclude .order_by .values| C[Lazy AST\nБез SQL-запиту]
+    B -->|.filter .exclude .order_by .values| C["Lazy AST<br>Без SQL-запиту"]
     C --> D[Безпечно у async ✅]
 
-    B -->|.aget .acount .afirst .adelete| E[Native Async SQL]
+    B -->|.aget .acount .afirst .adelete| E["SQL у thread pool<br>через sync_to_async"]
     E --> F[Безпечно у async ✅]
 
-    B -->|.get .count .first .delete\nfor item in qs| G[Синхронний SQL]
+    B -->|.get .count .first .delete<br>for item in qs| G[Синхронний SQL]
     G --> H[SynchronousOnlyOperation ❌]
 
-    style D fill:#e8f5e9,stroke:#2e7d32
-    style F fill:#e8f5e9,stroke:#2e7d32
-    style H fill:#ffebee,stroke:#c62828
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,C,E step;
+    class B decision;
+    class D,F success;
+    class H error;
+    class G warning;
 ```
 
 ---
@@ -190,7 +197,7 @@ sequenceDiagram
 
     EL->>AV: Route Request
     AV->>ORM: await User.objects.aget(id=1)
-    Note over AV: View передає управління\nEvent loop'у
+    Note over AV: View передає управління<br>Event loop'у
     ORM->>DB: SELECT * FROM auth_user WHERE id=1
     DB-->>ORM: Рядок даних
     ORM-->>AV: User instance

@@ -193,10 +193,10 @@ Browser ←──TLS──→ Server
 ```
 
 **TLS handshake** (відбувається перед першим HTTP запитом):
-1. Browser → Server: "Підтримую TLS 1.3, ось мої cipher suites"
-2. Server → Browser: "Certificate (підписаний CA), публічний ключ"
+1. Browser → Server: "Підтримую TLS 1.3, ось мої cipher suites і key share" (ClientHello)
+2. Server → Browser: ServerHello + key share, "Certificate (підписаний CA), публічний ключ"
 3. Browser: Перевіряє certificate у системному сховищі CA
-4. Browser → Server: Обмін ключами, встановлення shared secret
+4. Обидві сторони вже обчислили shared secret з key share (Diffie-Hellman); Browser → Server: Finished
 5. Далі: всі HTTP запити і відповіді шифруються
 
 **Чому `Session Cookie Secure = True` у production:**

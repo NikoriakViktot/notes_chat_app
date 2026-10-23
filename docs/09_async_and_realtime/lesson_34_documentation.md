@@ -35,11 +35,11 @@
 |----------|--------------|-----------------------|
 | CPU cache (L1) | 1 нс | 3 секунди |
 | RAM | 100 нс | 5 хвилин |
-| SSD read | 100 мкс | 4 дні |
-| TCP round trip | 100 мс | 11 місяців |
-| External API | 500 мс | **5.5 років** |
+| SSD read | 100 мкс | 3.5 дні |
+| TCP round trip | 100 мс | ~9.5 років |
+| External API | 500 мс | **~48 років** |
 
-Asyncio вирішує це через **cooperative multitasking**: замість того щоб тримати потік заблокованим 5.5 "людських років", `await` звільняє Event Loop обслуговувати тисячі інших з'єднань.
+Asyncio вирішує це через **cooperative multitasking**: замість того щоб тримати потік заблокованим ~48 "людських років", `await` звільняє Event Loop обслуговувати тисячі інших з'єднань.
 
 ---
 
@@ -165,7 +165,7 @@ while True:
 | | Preemptive (Threading) | Cooperative (Asyncio) |
 |--|------------------------|----------------------|
 | Хто перериває | ОС примусово у будь-який момент | Coroutine добровільно через `await` |
-| Race conditions | Так — треба Lock/Semaphore | Ні — один потік |
+| Race conditions | Так — треба Lock/Semaphore | Рідше — перемикання тільки на `await`, але між `await` стан може змінитися (`asyncio.Lock`) |
 | Стек | ~8 MB/потік | ~2 KB/coroutine |
 | Max concurrent | ~500–1000 | ~100 000+ |
 | Blocking виклик | Зупиняє 1 потік | Зупиняє **весь** Event Loop |
@@ -311,7 +311,7 @@ Asyncio ASGI (uvicorn):
 | GIL | Один на всіх | Власний у кожного | Один (не обмеження) |
 | Планування | Preemptive (ОС) | Preemptive (ОС) | Cooperative (await) |
 | Пам'ять/unit | ~8 MB/потік | ~50 MB/процес | ~2 KB/coroutine |
-| Race conditions | Так | Ні | Ні |
+| Race conditions | Так | Ні | Рідше (тільки на `await`) |
 | CPU-bound | ❌ GIL | ✅ Реальний паралелізм | ❌ Блокує loop |
 | I/O-bound | ✅ ОК | ✅ ОК | ✅ Найкраще |
 | Max concurrent | ~500 | ~CPU cores | ~100 000+ |

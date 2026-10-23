@@ -10,13 +10,13 @@
 |----------|-------------|
 | **[Project Overview](project_overview.md)** | ролі, стек, архітектурні патерни |
 | **[Architecture](architecture.md)** | компоненти, ASGI routing, шари, Docker |
-| **[Domain Model](domain_model.md)** | 9 моделей, ER-діаграма, поля, deletion behavior |
+| **[Domain Model](domain_model.md)** | 10 моделей, ER-діаграма, поля, deletion behavior |
 | **[Feature Map](feature_map.md)** | що реалізовано і де у коді |
 | **[Request Flows](request_flows.md)** | HTTP CRUD, auth, WebSocket flows (Mermaid) |
 | **[Security Model](security_model.md)** | IDOR, Q-filter, group sharing, WebSocket auth |
 | **[Async and Chat](async_and_chat.md)** | ASGI, GroupChatConsumer, channel layer |
 | **[Background Tasks](background_tasks.md)** | Celery Worker, Beat, email-нагадування, Browser Toast |
-| **[Testing Strategy](testing_strategy.md)** | 6 test файлів, 205 тестів, TransactionTestCase |
+| **[Testing Strategy](testing_strategy.md)** | 7 test файлів, 200+ тестів, TransactionTestCase |
 | **[Setup](setup.md)** | запуск через Docker Compose |
 | **[Deployment](deployment.md)** | Docker сервіси, production checklist |
 | **[Student Tasks](student_tasks.md)** | практичні завдання 3 рівнів |
@@ -27,26 +27,36 @@
 
 ```mermaid
 flowchart TD
-    Browser --> Nginx["Nginx :80\n(reverse proxy, static)"]
-    Nginx -->|HTTP| Daphne["Daphne :8001\nASGI server"]
-    Nginx -->|WebSocket upgrade| Daphne
+    Browser --> Nginx["Nginx :80<br>(reverse proxy, static)"]
+    Nginx -->|HTTP| Uvicorn["Uvicorn :8001<br>ASGI server"]
+    Nginx -->|WebSocket upgrade| Uvicorn
 
-    Daphne --> Router["ProtocolTypeRouter\nnotes_project/asgi.py"]
+    Uvicorn --> Router["ProtocolTypeRouter<br>notes_project/asgi.py"]
     Router -->|http| HTTP["Django HTTP stack"]
-    Router -->|websocket| Auth["AuthMiddlewareStack\n→ URLRouter\n→ GroupChatConsumer"]
+    Router -->|websocket| Auth["AuthMiddlewareStack<br>→ URLRouter"]
 
-    HTTP --> Views["views.py\n(thin layer)"]
-    Views --> Forms["forms.py\n(validation)"]
-    Views --> Sel["selectors.py\n(read-only ORM)"]
-    Views --> Srv["services.py\n(mutations)"]
+    HTTP --> Views["views.py<br>(thin layer)"]
+    Views --> Forms["forms.py<br>(validation)"]
+    Views --> Sel["selectors.py<br>(read-only ORM)"]
+    Views --> Srv["services.py<br>(mutations)"]
     Sel --> ORM["Django ORM"]
     Srv --> ORM
     ORM --> PG[("PostgreSQL :5432")]
 
-    Auth --> Consumer["GroupChatConsumer\nconsumers.py"]
+    Auth --> Consumer["GroupChatConsumer<br>consumers.py"]
     Consumer -->|database_sync_to_async| ORM
-    Consumer -->|group_send| Redis[("Redis :6379\nchannel layer")]
+    Consumer -->|group_send| Redis[("Redis :6379<br>channel layer")]
     Redis -->|chat_message| Consumer
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class Browser,Nginx,Uvicorn,HTTP,Forms,Sel,Srv,ORM,Auth,Consumer step;
+    class Router decision;
+    class PG,Redis success;
+    class Views warning;
 ```
 
 ---
@@ -62,7 +72,7 @@ notes_chat_app/
 │   └── routing.py           ← WebSocket URL: /ws/groups/<pk>/chat/
 │
 ├── notes_app/               ← єдиний Django app
-│   ├── models.py            ← 9 моделей + constraints
+│   ├── models.py            ← 10 моделей + constraints
 │   ├── urls.py              ← 35+ URL маршрутів
 │   ├── views.py             ← FBV, @login_required, тонкий шар
 │   ├── forms.py             ← NoteForm, GroupCreateForm, ...
@@ -267,7 +277,7 @@ update_note(note, *, title=None, content=None, priority=None, notebook=None,
             is_pinned=None, group=..., tag_ids=None)
 delete_note(note)
 toggle_pin_note(note)   # flip is_pinned
-archive_note(note)      # flip is_archived
+archive_note(note)      # is_archived = True
 ```
 
 `group=...` (Ellipsis) у `update_note` — sentinel "не змінювати". `group=None` — прибрати групу.
@@ -393,14 +403,14 @@ Consumer перевіряє `user.is_authenticated` і `check_membership()` у `
 
 | Файл | Клас | Кількість | Що тестує |
 |------|------|-----------|-----------|
-| `test_models.py` | `TestCase` | ~30 | constraints, `__str__`, on_delete |
-| `test_services.py` | `TestCase` | ~40 | return value + persistence |
-| `test_forms.py` | `TestCase` | ~25 | valid/invalid data, `clean_*` |
-| `test_views.py` | `TestCase` | ~70 | status codes, redirects, IDOR |
-| `test_consumers.py` | **`TransactionTestCase`** | ~30 | WS connect, message, reject |
-| `test_tasks.py` | `TestCase` | ~13 | Celery task, email, repeat, JSON view |
-| `test_selenium.py` | `StaticLiveServerTestCase` | ~14 | E2E flow + Toast-нотифікації |
-| **Всього** | | **~218** | |
+| `test_models.py` | `TestCase` | ~25 | constraints, `__str__`, on_delete |
+| `test_services.py` | `TestCase` | ~65 | return value + persistence |
+| `test_forms.py` | `TestCase` | ~20 | valid/invalid data, `clean_*` |
+| `test_views.py` | `TestCase` | ~85 | status codes, redirects, IDOR |
+| `test_consumers.py` | **`TransactionTestCase`** | ~10 | WS connect, message, reject |
+| `test_tasks.py` | `TestCase` | ~18 | Celery task, email, repeat, JSON view |
+| `test_selenium.py` | `StaticLiveServerTestCase` / `ChannelsLiveServerTestCase` | ~23 | E2E flow + Toast-нотифікації |
+| **Всього** | | **200+** | |
 
 **Чому `TransactionTestCase` для consumers:**
 
@@ -432,12 +442,13 @@ docker compose exec web python manage.py test notes_app.tests.test_selenium -v 2
 
 ```yaml
 services:
-  db:             # postgres:16, volume pgdata
+  db:             # postgres:16-alpine, volume postgres_data
   redis:          # redis:7-alpine — DB 0: Channels, DB 1: Celery
-  web:            # Django Daphne :8001, залежить від db + redis
-  nginx:          # nginx:1.27, :80/:443, proxy_pass до web, роздає static
-  ngrok:          # публічний HTTPS-тунель (розробка)
-  selenium:       # Selenium Grid для E2E тестів
+  web:            # Django + Uvicorn :8001, залежить від db + redis
+  nginx:          # nginx:1.27-alpine, :80, proxy_pass до web, роздає static
+  ngrok:          # публічний HTTPS-тунель (розробка, profile tunnel)
+  selenium:       # Selenium standalone Chrome для E2E тестів (profile test)
+  selenium-tests: # запускає test_selenium проти selenium (profile test)
   celery-worker:  # виконує @shared_task, --concurrency=2
   celery-beat:    # планувальник (рівно 1 екземпляр), CELERY_BEAT_SCHEDULE
 ```
@@ -445,11 +456,11 @@ services:
 `entrypoint.sh` виконує при кожному старті:
 
 ```bash
-wait_for_postgres
+# db і redis уже healthy (depends_on: condition: service_healthy)
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
-[optional] python manage.py seed_demo_data
-daphne -b 0.0.0.0 -p 8001 notes_project.asgi:application
+[optional] python manage.py seed_demo_data --force
+exec python -m uvicorn notes_project.asgi:application --host 0.0.0.0 --port 8001 --proxy-headers [--reload]
 ```
 
 ---
@@ -476,25 +487,25 @@ Browser                    views.py           forms.py      services.py    Postg
 ## Наскрізний сценарій: WebSocket Chat
 
 ```
-Browser JS                 Nginx      Daphne    GroupChatConsumer    Redis
+Browser JS                 Nginx      Uvicorn   GroupChatConsumer    Redis
     |                        |           |              |               |
     |-- WS connect ---------->           |              |               |
     |  (Cookie: sessionid=...)            |              |               |
     |                        |-- upgrade ->             |               |
     |                        |           |-- connect() ->               |
     |                        |           |   check_membership()         |
-    |                        |           |   load_history()             |
     |                        |           |   group_add(channel_name) -->|
+    |                        |           |   accept() + load_history()  |
     |<-- history JSON --------|-----------|<- send() ----|               |
     |                        |           |              |               |
     |-- send message -------->           |              |               |
-    |  {"message": "Hello"}   |-- text -->              |               |
+    |  {"content": "Hello"}   |-- text -->              |               |
     |                        |           |-- receive() ->               |
     |                        |           |   save_message() → DB        |
     |                        |           |   group_send() ------------->|
     |                        |           |                              |
     |                        |           |<-- chat_message event -------|
-    |<-- {"type":"chat", ...}-|-----------|<- send() ----|               |
+    |<-{"type":"message",...}-|-----------|<- send() ----|               |
 ```
 
 ---

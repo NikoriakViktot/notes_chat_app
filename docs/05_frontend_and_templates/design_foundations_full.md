@@ -49,10 +49,10 @@
 
 | Принцип | Опис |
 |---------|------|
-| **C** — Proximity (Близькість) | Пов'язані елементи групуються разом. Більше простору *між* групами, менше *всередині* |
-| **R** — Alignment (Вирівнювання) | Кожен елемент пов'язаний з іншими. Уникай розміщення «на вічко» |
-| **A** — Repetition (Повторюваність) | Візуальні елементи повторюються по всьому дизайну — колір, шрифт, форма, кнопки |
-| **P** — Contrast (Контраст) | Якщо два елементи не однакові — зроби їх **зовсім різними**, щоб уникнути плутанини |
+| **C** — Contrast (Контраст) | Якщо два елементи не однакові — зроби їх **зовсім різними**, щоб уникнути плутанини |
+| **R** — Repetition (Повторюваність) | Візуальні елементи повторюються по всьому дизайну — колір, шрифт, форма, кнопки |
+| **A** — Alignment (Вирівнювання) | Кожен елемент пов'язаний з іншими. Уникай розміщення «на вічко» |
+| **P** — Proximity (Близькість) | Пов'язані елементи групуються разом. Більше простору *між* групами, менше *всередині* |
 
 ### Узгодженість та Конвенції
 
@@ -113,6 +113,13 @@ graph TD
     B --> E[Розділи: CRM, Звіти тощо]
     E --> F[Підрозділи / Деталі]
     F -.->|Хлібні крихти| E
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class B,C,D,E step;
+    class F success;
+    class A warning;
 ```
 
 ---
@@ -144,6 +151,11 @@ graph TD
         S --- C
         C --- F
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class H,S,F step;
+    class C success;
 ```
 
 ---
@@ -190,6 +202,13 @@ graph TD
     C -.-> F["components/pagination.html"]
     C -.-> G["components/confirm_modal.html"]
     D -.-> H["crispy_forms FormHelper + Layout"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class B,C,D step;
+    class E,F,G,H success;
+    class A warning;
 ```
 
 ### 3-Рівнева Ієрархія Шаблонів (Паттерн SaaS-Дашборду)
@@ -259,10 +278,19 @@ templates/
 ```mermaid
 graph LR
     A[Користувач відкриває застосунок] --> B{Є дані?}
-    B -->|Ні| C[Порожній Стан<br>+ Кнопка CTA]
-    B -->|Так| D[Дашборд з<br>KPI-картками + Таблицею]
+    B -->|ні| C[Порожній Стан<br>+ Кнопка CTA]
+    B -->|так| D[Дашборд з<br>KPI-картками + Таблицею]
     C -->|Натискає CTA| E[Створює перший елемент]
     E --> D
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,E step;
+    class B decision;
+    class D success;
+    class C warning;
 ```
 
 ---
@@ -397,6 +425,13 @@ graph TD
         F -->|передає форму до| I[forms.py FormHelper]
         I -->|рендерить через| J["{% crispy form %}"]
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,B,C,G,H,I step;
+    class D,E,J success;
+    class F warning;
 ```
 
 ---
@@ -531,7 +566,11 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
     ...
 ]
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Django 4.2+ (STATICFILES_STORAGE видалено в Django 5.1):
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+}
 ```
 
 ---
@@ -621,6 +660,11 @@ graph TD
     B -->|Context Dictionary| D[Template Engine]
     D -->|Компіляція та Рендеринг| E[Скомпільований HTML-рядок]
     E -->|HTTP Response| A
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class A,B,C,D step;
+    class E success;
 ```
 
 **Кроки конвеєра:**
@@ -649,6 +693,13 @@ graph TD
     D -->|"{% extends 'base_dashboard.html' %}"| B
     E -->|"{% extends 'base_dashboard.html' %}"| B
     F -->|"{% extends 'base_public.html' %}"| C
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class B,C step;
+    class D,E,F success;
+    class A warning;
 ```
 
 ### Композиція Шаблонів ({% include %})
@@ -660,6 +711,11 @@ graph LR
     A[article_list.html] -->|"{% include 'components/card.html' %}"| B[card.html]
     A -->|"{% include 'components/pagination.html' %}"| C[pagination.html]
     A -->|"{% include 'components/navbar.html' %}"| D[navbar.html]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class A step;
+    class B,C,D success;
 ```
 
 ### Розширені DTL-Теги
@@ -715,6 +771,13 @@ graph TD
     D -->|Перехоплення Crispy| E[Crispy FormHelper]
     E -->|Інжекція Template Pack| F[Стилізований HTML Output]
     F --> G[Браузер]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,B,C,D step;
+    class F,G success;
+    class E warning;
 ```
 
 **Без Crispy Forms** конвеєр зупиняється на Widgets — виходить сирий HTML без Bootstrap-класів.
@@ -732,6 +795,13 @@ graph TD
     B --> G[Submit Button]
     B --> H["Template: {% crispy form %}"]
     H --> I[Повністю Стилізована Bootstrap Form]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,B,C,D,E,F,G step;
+    class I success;
+    class H warning;
 ```
 
 ### Компоненти FormHelper
@@ -772,11 +842,22 @@ graph TD
 graph TD
     A[Браузер] -->|POST-запит| B[Django Form з request.POST]
     B --> C{is_valid?}
-    C -->|Так| D[form.cleaned_data → Save]
-    C -->|Ні| E[form.errors генеруються]
+    C -->|так| D[form.cleaned_data → Save]
+    C -->|ні| E[form.errors генеруються]
     E --> F[Crispy Template Pack]
     F -->|Інжектує .is-invalid CSS| G[Повторний рендеринг з Bootstrap-станами валідації]
     G --> A
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,B,F step;
+    class C decision;
+    class D success;
+    class E error;
+    class G warning;
 ```
 
 ### Розширена Система Layout
@@ -812,7 +893,7 @@ self.helper.layout = Layout(
 
 ### Порівняння: Before vs After
 
-**BEFORE — ручний Bootstrap (notes_chat_app):**
+**BEFORE — ручний Bootstrap (ранній варіант; його показує docstring `NoteForm` у `notes_app/forms.py`):**
 ```python
 class NoteFormManual(forms.ModelForm):
     class Meta:
@@ -825,7 +906,7 @@ class NoteFormManual(forms.ModelForm):
 # Шаблон: 60+ рядків Bootstrap HTML
 ```
 
-**AFTER — Crispy Forms (crispy_notes_chat_app):**
+**AFTER — Crispy Forms (поточний `notes_app/forms.py`, спрощено):**
 ```python
 class NoteForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
@@ -850,8 +931,8 @@ class NoteForm(forms.ModelForm):
 | [ADVANCED_TEMPLATES.md](advanced_templates_full.md) §3 | crispy-forms FormHelper + Layout — теорія |
 | [ADVANCED_TEMPLATES.md](advanced_templates_full.md) §5 | Архітектура SaaS-Дашборду — 3-рівнева ієрархія |
 | [CRISPY_FORMS.md](../04_forms_and_validation/crispy_forms_full.md) | Короткий довідник по django-crispy-forms |
-| [crispy_notes_chat_app/](../reference/legacy_source/legacy_missing_reference.md) | **Практична демонстрація** всіх концепцій вище |
+| `notes_app/forms.py` + `notes_app/templates/notes_app/note_form.html` | **Практична демонстрація** всіх концепцій вище у коді проєкту |
 
 ---
 
-> **Навчальний шлях:** Прочитай цей файл → вивчи `ADVANCED_TEMPLATES.md §3 + §5` → запусти `crispy_notes_chat_app` → порівняй `note_form_raw.html`, `note_form_manual.html`, `note_form.html`
+> **Навчальний шлях:** Прочитай цей файл → вивчи `ADVANCED_TEMPLATES.md §3 + §5` → відкрий `notes_app/forms.py` (docstring `NoteForm` порівнює BEFORE і AFTER) → подивись `notes_app/templates/notes_app/note_form.html`

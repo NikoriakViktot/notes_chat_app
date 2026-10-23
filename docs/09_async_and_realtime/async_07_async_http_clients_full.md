@@ -192,15 +192,19 @@ graph TD
     C -->|requests.get| D[Потік заблокований]
     D --> E[Сервер не обслуговує нікого]
 
-    C -->|await httpx.get| F[Yield до Event Loop]
+    C -->|await client.get| F[Yield до Event Loop]
     F --> G[Event Loop обслуговує інших]
     G --> H[Відповідь від API]
     H --> I[View відновлюється]
 
-    style D fill:#ffebee,stroke:#c62828
-    style E fill:#ffebee,stroke:#c62828
-    style F fill:#e8f5e9,stroke:#2e7d32
-    style G fill:#e8f5e9,stroke:#2e7d32
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A,B,H,I step;
+    class C decision;
+    class F,G success;
+    class D,E error;
 ```
 
 ---
@@ -307,7 +311,7 @@ async def view(request):
 - [ ] Я можу написати async view з `httpx.AsyncClient`
 - [ ] Я вмію запускати кілька HTTP-запитів паралельно через `gather`
 - [ ] Я знаю, що `return_exceptions=True` захищає від падіння при помилці одного з запитів
-- [ ] Я знаю, як безпечно обернути `requests` у sync view через `sync_to_async`
+- [ ] Я знаю, як безпечно викликати `requests` в async view через `sync_to_async`
 
 ---
 

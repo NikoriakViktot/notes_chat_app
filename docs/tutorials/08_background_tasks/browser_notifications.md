@@ -168,8 +168,9 @@ Celery Worker
     │  (пише у PostgreSQL)
     ▼
 PostgreSQL
-    │  Reminder.objects.filter(remind_at__lte=now, is_sent=False)
-    │  (читає selector)
+    │  Reminder.objects.filter(note__user=user,
+    │      remind_at__lte=now, remind_at__gte=now - 1 год)
+    │  (читає selector get_due_reminders_for_browser; is_sent не перевіряється)
     ▼
 GET /reminders/check/
     │  JsonResponse({'reminders': [...]})
@@ -197,14 +198,14 @@ urlpatterns = [
 ]
 ```
 
-`name='reminders_check'` дозволяє використовувати `{% url 'reminders_check' %}` у шаблонах замість хардкоду `/reminders/check/`.
+`name='reminders_check'` разом з `app_name = "notes_app"` дозволяє використовувати `{% url 'notes_app:reminders_check' %}` у шаблонах замість хардкоду `/reminders/check/`.
 
 У `reminders.js` URL хардкодований (`CHECK_URL = '/reminders/check/'`). Для production-застосунків краще передавати URL через data-атрибут у HTML і читати його з JS:
 
 ```html
 <!-- base.html -->
 <div id="reminder-toast-container"
-     data-check-url="{% url 'reminders_check' %}"
+     data-check-url="{% url 'notes_app:reminders_check' %}"
      ...>
 ```
 
@@ -257,7 +258,7 @@ from notes_app.selectors import get_due_reminders_for_browser
 user = User.objects.get(username='demo_alice')
 reminders = get_due_reminders_for_browser(user)
 print(reminders)
-# [] — немає нагадувань або всі вже надіслані (is_sent=True)
+# [] — немає нагадувань з remind_at за останню годину (вікно [now − 1 год, now])
 
 # Перевір чи є нагадування взагалі:
 from notes_app.models import Reminder

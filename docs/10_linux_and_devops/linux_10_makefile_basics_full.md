@@ -42,7 +42,7 @@ target: dependencies
 ## Базовий Makefile для Django-проєкту
 
 ```makefile
-.PHONY: install migrate run test lint shell collectstatic
+.PHONY: install migrate makemigrations run shell test pytest lint format collectstatic superuser clean setup
 
 install:
 	pip install -r requirements.txt
@@ -151,7 +151,7 @@ make gunicorn WORKERS=8    # більше воркерів
 ## Makefile з Docker
 
 ```makefile
-.PHONY: build up down logs shell-web migrate
+.PHONY: build up down logs shell-web migrate collectstatic restart
 
 build:
 	docker compose build
@@ -203,6 +203,11 @@ flowchart TD
     CMD4 --> CMD5["pip install -r requirements.txt"]
     CMD5 --> CMD6["python manage.py migrate"]
     CMD6 --> CMD7["systemctl restart myapp"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class Dev,CMD1,CMD2,CMD3,CMD4,CMD5,CMD6,CMD7 step;
+    class MakeRun,MakeTest,MakeLint,MakeDeploy success;
 ```
 
 ---

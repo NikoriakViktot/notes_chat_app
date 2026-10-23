@@ -246,12 +246,17 @@ DATABASES = {
 
 ```mermaid
 flowchart LR
-    Browser["Browser"] --> Nginx["nginx\nпорт 80"]
-    Nginx --> Web["web\n(Django+Gunicorn)\nпорт 8000"]
-    Web --> DB["db\n(PostgreSQL)\nпорт 5432"]
-    Web --> Redis["redis\nпорт 6379"]
-    Worker["worker\n(Celery)"] --> DB
+    Browser["Browser"] --> Nginx["nginx<br>порт 80"]
+    Nginx --> Web["web (Django+Gunicorn)<br>порт 8000"]
+    Web --> DB["db (PostgreSQL)<br>порт 5432"]
+    Web --> Redis["redis<br>порт 6379"]
+    Worker["worker<br>(Celery)"] --> DB
     Worker --> Redis
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class Browser,Nginx,DB,Redis,Worker step;
+    class Web success;
 ```
 
 ---

@@ -135,7 +135,7 @@ class FloodEventInputSerializer(serializers.Serializer):
         return data
 ```
 
-> **Важливо:** поля, що генеруються сервером, мають бути `read_only=True` в `Meta.read_only_fields`, інакше серіалайзер упаде на валідації ще до виклику `validate()`.
+> **Важливо:** поля, що генеруються сервером, мають бути оголошені з `read_only=True` (у звичайному `Serializer` немає `Meta`; `Meta.read_only_fields` — це опція `ModelSerializer`), інакше серіалайзер упаде на валідації ще до виклику `validate()`.
 
 ### Складна серіалізація — Pure Python функція
 
@@ -224,6 +224,7 @@ from apps.flood.models import FloodEvent
 from apps.flood.tasks import notify_emergency_services_task
 
 
+@transaction.atomic
 def flood_event_create(
     *,                              # keyword-only — захист від помилок порядку аргументів
     region_name: str,
@@ -243,6 +244,11 @@ def flood_event_create(
     )
     event.full_clean()   # Django-валідація на рівні домену
     event.save()
+
+    # Side effect — тільки після успішного commit
+    transaction.on_commit(
+        lambda: notify_emergency_services_task.delay(event.id)
+    )
 
     return event
 ```
@@ -356,7 +362,7 @@ def flood_events_get_list(*, user) -> QuerySet:
 # apps/flood/selectors.py
 
 def flood_event_get_by_id(*, event_id: int) -> FloodEvent:
-    """Базовий selector — повертає об'єкт або кидає 404."""
+    """Базовий selector — повертає об'єкт або кидає FloodEvent.DoesNotExist (View перетворює його на 404)."""
     try:
         return FloodEvent.objects.get(id=event_id)
     except FloodEvent.DoesNotExist:

@@ -14,15 +14,15 @@
 | Список нотаток | `/notes/` | `note_list` | ✅ |
 | Деталь нотатки | `/notes/<pk>/` | `note_detail` | ✅ |
 | Створення нотатки | `/notes/new/` | `note_create` | ✅ |
-| Редагування нотатки | `/notes/<pk>/edit/` | `note_update` | ✅ |
+| Редагування нотатки | `/notes/<pk>/edit/` | `note_edit` | ✅ |
 | Видалення нотатки | `/notes/<pk>/delete/` | `note_delete` | ✅ |
-| Пін/відпін нотатки | `/notes/<pk>/pin/` | `services.toggle_pin` | ✅ |
-| Архівування нотатки | `/notes/<pk>/archive/` | `services.toggle_archive` | ✅ |
+| Пін/відпін нотатки | `/notes/<pk>/edit/` (поле `is_pinned`) | `note_edit`; сервіс `services.toggle_pin_note` (окремого URL немає) | ✅ |
+| Архівування нотатки | — (окремого URL немає) | `services.archive_note` | ⚠️ лише сервіс |
 | Список записників | `/notebooks/` | `notebook_list` | ✅ |
-| Список тегів | `/tags/` | `tag_list` | ✅ |
+| Створення тегу | `/tags/new/` | `tag_create` | ✅ |
 | Нагадування | `/notes/<note_pk>/reminders/add/` | `reminder_create` | ✅ |
-| Todo lists | `/todo/` | `todo_list_view` | ✅ |
-| Shopping lists | `/shopping/` | `shopping_list_view` | ✅ |
+| Todo lists | `/todo/` | `todo_list_list` | ✅ |
+| Shopping lists | `/shopping/` | `shopping_list_list` | ✅ |
 | Групи | `/groups/` | `group_list` | ✅ |
 | Чат (сторінка) | `/groups/<pk>/chat/` | `group_chat` | ✅ |
 

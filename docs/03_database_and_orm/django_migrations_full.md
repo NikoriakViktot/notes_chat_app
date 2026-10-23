@@ -50,6 +50,11 @@ graph TD
     B -->|Створює таблицю Book| C(books/0002_book_isbn.py)
     A -->|Залежність ForeignKey| D(publishers/0001_initial.py)
 
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class A,B,D step;
+    class C success;
 ```
 
 ### Практичне застосування

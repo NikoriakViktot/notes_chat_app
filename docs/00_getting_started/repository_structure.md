@@ -36,25 +36,30 @@ notes_chat_app/
 │   ├── migrations/             ← файли міграцій (автогенеровані)
 │   ├── static/
 │   │   └── notes_app/
-│   │       ├── css/style.css
+│   │       ├── css/app.css
 │   │       └── js/
 │   │           ├── group_chat.js   ← WebSocket клієнт (JS)
-│   │           └── reminders.js    ← SSE для нагадувань
+│   │           └── reminders.js    ← polling (fetch) для нагадувань
+│   ├── templates/
+│   │   └── notes_app/          ← app-level шаблони
+│   │       ├── note_list.html
+│   │       ├── note_detail.html
+│   │       ├── note_form.html
+│   │       └── ...
 │   └── tests/
 │       ├── test_models.py      ← юніт тести моделей
 │       ├── test_services.py    ← юніт тести сервісів
 │       ├── test_forms.py       ← юніт тести форм
 │       ├── test_views.py       ← інтеграційні тести views
 │       ├── test_consumers.py   ← тести WebSocket Consumer
+│       ├── test_tasks.py       ← тести Celery tasks
 │       └── test_selenium.py    ← E2E Selenium тести
 │
 ├── templates/                  ← project-level шаблони
 │   ├── base.html               ← базовий layout (navbar, sidebar, messages)
-│   └── notes_app/              ← app-level шаблони
-│       ├── note_list.html
-│       ├── note_detail.html
-│       ├── note_form.html
-│       └── ...
+│   ├── components/             ← reusable компоненти (pagination, confirm_modal...)
+│   ├── layouts/                ← layouts (dashboard.html)
+│   └── registration/           ← шаблони auth (login, register, password reset...)
 │
 ├── nginx/
 │   └── nginx.conf              ← nginx конфігурація (static files, WebSocket proxy)
@@ -66,7 +71,7 @@ notes_chat_app/
 │   └── 12_final_project/       ← документація фінального проєкту
 │
 ├── Dockerfile                  ← образ Django контейнера
-├── docker-compose.yml          ← весь стек (db, redis, web, nginx, ngrok, selenium)
+├── docker-compose.yml          ← весь стек (db, redis, web, nginx, celery-worker, celery-beat, selenium, selenium-tests, ngrok)
 ├── entrypoint.sh               ← migrate → collectstatic → seed → uvicorn
 ├── requirements.txt            ← Python залежності
 ├── .env.example                ← шаблон змінних середовища
@@ -141,7 +146,7 @@ migrations/     ← не редагувати вручну, тільки чер�
 | Запит до БД | `notes_app/selectors.py` |
 | Операцію зміни даних | `notes_app/services.py` |
 | Структуру моделі | `notes_app/models.py` |
-| HTML сторінки | `templates/notes_app/` |
+| HTML сторінки | `notes_app/templates/notes_app/` |
 | WebSocket логіку | `notes_app/consumers.py` |
 | JavaScript WebSocket клієнт | `notes_app/static/notes_app/js/group_chat.js` |
 | Конфігурацію Docker | `docker-compose.yml` |

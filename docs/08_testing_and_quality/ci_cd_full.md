@@ -84,12 +84,12 @@
 flowchart LR
     subgraph CI["Continuous Integration"]
         direction LR
-        A[git push] --> B[Build\nInstall deps]
-        B --> C[Lint\nType check]
-        C --> D[Unit Tests\nIntegration Tests]
+        A[git push] --> B["Build<br>Install deps"]
+        B --> C["Lint<br>Type check"]
+        C --> D["Unit Tests<br>Integration Tests"]
         D --> E{Passed?}
-        E -- Так --> F[Notify: OK]
-        E -- Ні --> G[Block PR\nNotify: Failed]
+        E -- так --> F[Notify: OK]
+        E -- ні --> G["Block PR<br>Notify: Failed"]
     end
 
     subgraph DELIVERY["Continuous Delivery"]
@@ -97,9 +97,9 @@ flowchart LR
         H[Artifact ready] --> I[Deploy: Staging]
         I --> J[Smoke Tests]
         J --> K{OK?}
-        K -- Так --> L[Людина підтверджує]
+        K -- так --> L[Людина підтверджує]
         L --> M[Deploy: Production]
-        K -- Ні --> N[Rollback Staging]
+        K -- ні --> N[Rollback Staging]
     end
 
     subgraph DEPLOYMENT["Continuous Deployment"]
@@ -107,15 +107,26 @@ flowchart LR
         O[Artifact ready] --> P[Deploy: Staging]
         P --> Q[Automated Tests]
         Q --> R{OK?}
-        R -- Так --> S[Auto Deploy: Production]
-        R -- Ні --> T[Auto Rollback]
+        R -- так --> S[Auto Deploy: Production]
+        R -- ні --> T[Auto Rollback]
     end
 
     CI --> DELIVERY
     CI --> DEPLOYMENT
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,B,C,D,H,I,J,O,P,Q step;
+    class E,K,R decision;
+    class F,M,S success;
+    class G,N,T error;
+    class L warning;
 ```
 
-Де зараз наш `crispy_notes_chat_app`? На рівні **CI**: кожен push до `main` запускає тести. Деплой ще не автоматизований — але це перший і найважливіший крок.
+Де зараз наш `notes_chat_app`? На рівні **CI**: кожен push до `main` запускає тести. Деплой ще не автоматизований — але це перший і найважливіший крок.
 
 ---
 
@@ -134,12 +145,12 @@ GitHub Actions — це платформа CI/CD, вбудована прямо 
             ├── on: push         ← Event (тригер)
             │
             └── jobs:
-                ├── test:        ← Job 1
+                ├── unit-and-integration:  ← Job 1
                 │   ├── step 1   ← Step: checkout
                 │   ├── step 2   ← Step: setup-python
-                │   └── step 3   ← Step: pytest
+                │   └── step 3   ← Step: manage.py test
                 │
-                └── test-selenium:  ← Job 2 (needs: test)
+                └── selenium-e2e:  ← Job 2 (needs: unit-and-integration)
                     ├── step 1
                     └── step 2
 ```
@@ -193,10 +204,10 @@ jobs:                       # Що робити
 У нашому проєкті вже є workflow:
 
 ```
-crispy_notes_chat_app/.github/workflows/django-tests.yml
+.github/workflows/django-tests.yml
 ```
 
-Зверни увагу: цей файл знаходиться всередині `crispy_notes_chat_app/`, тому GitHub його **не запускає автоматично** — він лежить не в кореневій директорії репозиторію. Він служить зразком. Робочий файл для реального репозиторію треба покласти у:
+Зверни увагу: Django-проєкт (`manage.py`, `requirements.txt`) лежить прямо в корені репозиторію, тому й workflow лежить у кореневій `.github/workflows/`, і GitHub **запускає його автоматично**. Workflow, покладений у будь-яку іншу теку (наприклад, усередині `docs/`), GitHub ігнорує. Правильне місце завжди одне:
 
 ```
 <корінь-репо>/.github/workflows/django-tests.yml
@@ -215,22 +226,40 @@ on:
   workflow_dispatch:             # ручний запуск через кнопку в UI
 ```
 
+У реальному файлі `push` і `pull_request` мають ще фільтр `paths:` (`notes_app/**`, `notes_project/**`, `templates/**`, `static/**`, `requirements.txt` і сам workflow): зміни лише в документації тести не запускають.
+
 Що відбувається: якщо хтось відкриває Pull Request до `main` → GitHub побачить `on: pull_request` → запустить workflow → результат (зелений/червоний) з'явиться прямо у PR.
 
 ### Job 1: Unit + Integration тести
 
 ```yaml
 jobs:
-  test:
-    name: Unit & Integration Tests
+  unit-and-integration:
+    name: Unit, Integration & Consumer Tests
     runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: notes_db
+          POSTGRES_USER: notes_user
+          POSTGRES_PASSWORD: notes_pass
+        ports:
+          - 5432:5432
+        # ... опції health-check (pg_isready)
+
+    env:
+      DATABASE_URL: postgres://notes_user:notes_pass@localhost:5432/notes_db
 ```
 
 `ubuntu-latest` — це свіжа VM на Azure, яка знищується після кожного запуску. Немає стану між запусками.
 
+`services.db` — контейнер PostgreSQL поруч із runner: проєкт працює тільки з PostgreSQL, тому тести отримують базу через `DATABASE_URL`.
+
 ```yaml
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 ```
 
@@ -256,29 +285,34 @@ jobs:
 `manage.py check` — вбудована Django команда. Перевіряє конфігурацію, моделі, middleware без запуску сервера. Якщо у тебе помилка у `settings.py` — дізнаєшся ще до запуску тестів.
 
 ```yaml
-      - name: Run unit and integration tests
-        run: python manage.py test notes_app.tests.test_models \
-             notes_app.tests.test_services notes_app.tests.test_forms \
-             notes_app.tests.test_views -v 2
+      - name: Run unit, integration and consumer tests
+        run: |
+          python manage.py test \
+            notes_app.tests.test_models \
+            notes_app.tests.test_services \
+            notes_app.tests.test_forms \
+            notes_app.tests.test_views \
+            notes_app.tests.test_consumers \
+            -v 2
 ```
 
-Запускає всі тести крім Selenium (вони в окремому job). Параметр `-v 2` — verbose, показує назву кожного тесту.
+Запускає всі тести крім Selenium (вони в окремому job), зокрема WebSocket-тести `test_consumers`. Параметр `-v 2` — verbose, показує назву кожного тесту.
 
 ```yaml
       - name: Generate coverage report
         run: |
           coverage run manage.py test ...
-          coverage report
-          coverage xml
+          coverage report --show-missing
+          coverage xml -o coverage.xml
 ```
 
 Coverage: запускає тести через `coverage run`, щоб відстежити які рядки коду виконувались. `coverage xml` генерує файл для інтеграції з такими сервісами як Codecov.
 
 ```yaml
-      - name: Upload coverage artifact
+      - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
+          name: coverage-xml
           path: coverage.xml
 ```
 
@@ -287,29 +321,41 @@ Coverage: запускає тести через `coverage run`, щоб відс
 ### Job 2: Selenium E2E
 
 ```yaml
-  test-selenium:
-    needs: test           # Запускати ПІСЛЯ успіху job "test"
+  selenium-e2e:
+    name: Selenium E2E Tests
+    needs: unit-and-integration   # Запускати ПІСЛЯ успіху job "unit-and-integration"
     runs-on: ubuntu-latest
 
     services:
+      db:
+        image: postgres:16-alpine
+        # ... так само, як у Job 1
+
       selenium:
         image: selenium/standalone-chrome:latest
-        options: --shm-size=2gb
         ports:
           - 4444:4444
+        options: >-
+          --add-host=host.docker.internal:host-gateway
+          --shm-size=2gb
+        # ... опції health-check
+
+    env:
+      DATABASE_URL: postgres://notes_user:notes_pass@localhost:5432/notes_db
+      SELENIUM_REMOTE_URL: http://localhost:4444/wd/hub
+      WEB_HOST: host.docker.internal
 ```
 
-`services` — це Docker контейнери, які запускаються поруч із runner. Selenium/standalone-chrome запускає Chrome у безголовому режимі. Наш тест підключається до нього через `http://localhost:4444`.
+`services` — це Docker контейнери, які запускаються поруч із runner. Selenium/standalone-chrome запускає Chrome у безголовому режимі. Наш тест підключається до нього через `http://localhost:4444`. `--add-host=host.docker.internal:host-gateway` разом із `WEB_HOST=host.docker.internal` дає Chrome у контейнері змогу відкрити Django test server, що працює на runner.
 
 ```yaml
     steps:
+      # ... checkout, setup-python, cache, pip install
       - name: Run Selenium E2E tests
-        env:
-          SELENIUM_REMOTE_URL: http://localhost:4444/wd/hub
         run: python manage.py test notes_app.tests.test_selenium -v 2
 ```
 
-`SELENIUM_REMOTE_URL` — змінна середовища, яку читає `_make_driver()` у коді тестів. Якщо вона є — Selenium підключається до Remote WebDriver замість локального браузера.
+`SELENIUM_REMOTE_URL` — змінна середовища, яку читає `_make_headless_driver()` у `notes_app/tests/test_selenium.py`. `WEB_HOST` читає `_DockerLiveServerMixin`: прив'язує test server до `0.0.0.0` і підставляє `host.docker.internal` у `live_server_url`. Якщо вона є — Selenium підключається до Remote WebDriver замість локального браузера.
 
 ---
 
@@ -526,7 +572,7 @@ sequenceDiagram
 
 ## 12. CI/CD і піраміда тестування
 
-Пам'ятаєш піраміду з [INDEX.md](../reference/legacy_indexes/index_5.md)?
+Пам'ятаєш піраміду з розділу [«Піраміда тестування»](testing_foundations_full.md#8-піраміда-тестування)?
 
 ```
         E2E / Selenium
@@ -542,9 +588,9 @@ flowchart TD
 
     subgraph CI["CI Pipeline"]
         direction LR
-        L[Lint\nblack, flake8\n~30s] --> U[Unit Tests\ntest_models\ntest_services\n~60s]
-        U --> I[Integration Tests\ntest_forms\ntest_views\n~90s]
-        I --> E[E2E Selenium\ntest_selenium\n~120s]
+        L["Lint · ~30s<br>black, flake8"] --> U["Unit Tests · ~60s<br>test_models, test_services"]
+        U --> I["Integration Tests · ~90s<br>test_forms, test_views"]
+        I --> E["E2E Selenium · ~120s<br>test_selenium"]
     end
 
     CI --> STATUS{Status?}
@@ -553,6 +599,15 @@ flowchart TD
     STATUS -- ❌ Unit failed --> FIX_LOGIC[Fix business logic]
     STATUS -- ❌ Integration failed --> FIX_VIEWS[Fix views/forms]
     STATUS -- ❌ E2E failed --> FIX_E2E[Fix user flow]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class PUSH,L,U,I,E step;
+    class STATUS decision;
+    class MERGE success;
+    class FIX_LINT,FIX_LOGIC,FIX_VIEWS,FIX_E2E error;
 ```
 
 Чому важливий порядок? Lint падає за 30 секунд. Якщо є проблема з форматуванням — ти дізнаєшся ще до того як витратиш 5 хвилин на повний run. "Fail fast" — принцип хорошого CI.
@@ -638,7 +693,7 @@ jobs:
 Симптом:  push зроблено, але в Actions tab немає нового run
 
 Причини:
-  - YAML файл не в <repo-root>/.github/workflows/ (як наш зразок)
+  - YAML файл не в <repo-root>/.github/workflows/ (наприклад, лежить у docs/)
   - Синтаксична помилка у YAML (перевір відступи)
   - Гілка не відповідає фільтру у on.push.branches
 
@@ -650,7 +705,7 @@ jobs:
 
 ```
 Симптом:  Step "Run unit tests" червоний, у лозі:
-          FAILED notes_app/tests/test_views.py::NoteListViewTest::test_login_required
+          FAIL: test_login_required (notes_app.tests.test_views.NoteListViewTest.test_login_required)
 
 Причина:  Тест впав. Це нормально — для цього і є CI.
 
@@ -705,10 +760,10 @@ jobs:
 1. Чим CI відрізняється від Continuous Delivery і Continuous Deployment?
 2. Чому runner VM знищується після кожного run — це перевага чи обмеження?
 3. Навіщо `actions/checkout@v4` має бути першим кроком?
-4. Чому `needs: test` у `test-selenium` — це важливо?
+4. Чому `needs: unit-and-integration` у `selenium-e2e` — це важливо?
 5. Що відбудеться якщо `on: push` вказати без `branches: [main]`?
 6. Навіщо кешувати pip залежності, якщо можна просто встановлювати кожного разу?
-7. Де знаходиться наш `django-tests.yml` і чому GitHub його не запускає автоматично?
+7. Де знаходиться наш `django-tests.yml` і чому GitHub запускає його автоматично?
 8. Яку роль відіграє `SELENIUM_REMOTE_URL` у Job 2 і де цю змінну читає код тестів?
 9. Чому lint виконується першим у pipeline, а Selenium останнім?
 10. Якщо тест падає в CI але проходить локально — що варто перевірити першим?

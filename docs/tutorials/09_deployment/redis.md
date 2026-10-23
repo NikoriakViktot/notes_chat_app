@@ -177,6 +177,7 @@ MONITOR           # live stream всіх команд до Redis (Ctrl+C щоб 
 # Перевірити активні channel layer ключі:
 KEYS asgi.*
 # asgi.* — префікс channels_redis
+```
 
 ---
 
@@ -194,4 +195,3 @@ KEYS asgi.*
 - [Redis: Commands reference](https://redis.io/docs/latest/commands/) — KEYS, TYPE, TTL, MONITOR, LPUSH, BRPOP
 - [Redis: Pub/Sub](https://redis.io/docs/latest/develop/interact/pubsub/) — publish/subscribe механізм
 - [redis-py: Connection pools](https://redis-py.readthedocs.io/en/stable/connections.html) — socket_timeout, socket_connect_timeout
-```

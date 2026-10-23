@@ -296,7 +296,7 @@ pip install pytest-django
 
 ```ini
 [pytest]
-DJANGO_SETTINGS_MODULE = notes_chat_app.settings
+DJANGO_SETTINGS_MODULE = notes_project.settings
 python_files = tests.py test_*.py *_tests.py
 ```
 
@@ -305,12 +305,13 @@ python_files = tests.py test_*.py *_tests.py
 ```python
 import pytest
 
-from notes.models import Note
+from notes_app.models import Note
 
 
 @pytest.mark.django_db
-def test_note_str_returns_title():
-    note = Note.objects.create(title="Pytest note", content="Hello")
+def test_note_str_returns_title(django_user_model):
+    user = django_user_model.objects.create_user(username="student", password="pw")
+    note = Note.objects.create(user=user, title="Pytest note", content="Hello")
 
     assert str(note) == "Pytest note"
 ```
@@ -344,13 +345,22 @@ flowchart TD
     A["pytest"] --> B["Знаходить test_*.py"]
     B --> C["Знаходить test_* функції"]
     C --> D{"Тест має параметри?"}
-    D -->|Так| E["Шукає fixtures"]
-    D -->|Ні| F["Запускає тест"]
+    D -->|так| E["Шукає fixtures"]
+    D -->|ні| F["Запускає тест"]
     E --> F
     F --> G["Виконує assert"]
     G --> H{"Очікування збіглось?"}
-    H -->|Так| I["passed"]
-    H -->|Ні| J["failed з поясненням"]
+    H -->|так| I["passed"]
+    H -->|ні| J["failed з поясненням"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A,B,C,E,F,G step;
+    class D,H decision;
+    class I success;
+    class J error;
 ```
 
 ---

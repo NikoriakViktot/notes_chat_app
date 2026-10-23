@@ -105,9 +105,18 @@ graph TD
     A[Браузер: запит з cookie] --> B[SessionMiddleware]
     B -->|Завантажує дані сесії| C[AuthenticationMiddleware]
     C -->|Додає request.user| D{Перевірка доступу у View}
-    D -- Не авторизований --> E[302 Редирект на логін]
-    D -- Авторизований --> F[Виконати логіку View]
+    D -- Не автентифікований --> E[302 Редирект на логін]
+    D -- Автентифікований --> F[Виконати логіку View]
     F --> G[HTTP Відповідь]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A,B,C step;
+    class D decision;
+    class F,G success;
+    class E error;
 ```
 
 ---
@@ -119,7 +128,7 @@ graph TD
 ```python
 from django.contrib.auth.decorators import login_required
 
-@login_required  # Якщо не авторизований → redirect на /accounts/login/
+@login_required  # Якщо не автентифікований (не увійшов) → redirect на /accounts/login/
 def note_list(request):
     # Тут гарантовано request.user.is_authenticated == True
     notes = Note.objects.filter(user=request.user)  # ← ОБОВ'ЯЗКОВО фільтруй!
@@ -136,11 +145,20 @@ def note_list(request):
 graph TD
     A[Браузер] --> B[SessionMiddleware]
     B --> C[AuthenticationMiddleware]
-    C -->|Додає request.user| D{Чи авторизований?}
-    D -- Ні --> E[Редирект на логін]
-    D -- Так --> F{Чи має право? <br> note.user == request.user}
-    F -- Ні --> G[403 Forbidden]
-    F -- Так --> H[Виконати View]
+    C -->|Додає request.user| D{Чи автентифікований?}
+    D -- ні --> E[Редирект на логін]
+    D -- так --> F{Чи має право? <br> note.user == request.user}
+    F -- ні --> G[403 Forbidden]
+    F -- так --> H[Виконати View]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A,B,C step;
+    class D,F decision;
+    class H success;
+    class E,G error;
 ```
 
 ---

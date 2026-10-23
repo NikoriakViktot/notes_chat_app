@@ -764,6 +764,7 @@ class SeleniumReminderToastTest(_DockerLiveServerMixin, StaticLiveServerTestCase
         toasts = self.driver.find_elements(By.CSS_SELECTOR, '.toast.show')
         self.assertEqual(len(toasts), 0)
 
+
     def test_toast_not_shown_for_old_reminder(self):
         """Нагадування старіше 1 години → Toast не з'являється."""
         Reminder.objects.create(
@@ -778,3 +779,65 @@ class SeleniumReminderToastTest(_DockerLiveServerMixin, StaticLiveServerTestCase
 
         toasts = self.driver.find_elements(By.CSS_SELECTOR, '.toast.show')
         self.assertEqual(len(toasts), 0)
+
+
+_EXTERNAL_BASE_URL = os.environ.get("SELENIUM_EXTERNAL_BASE_URL", "").rstrip("/")
+_EXTERNAL_USERNAME = os.environ.get("SELENIUM_EXTERNAL_USERNAME", "demo_alice")
+_EXTERNAL_PASSWORD = os.environ.get("SELENIUM_EXTERNAL_PASSWORD", "demo1234")
+
+
+@unittest.skipUnless(
+    SELENIUM_AVAILABLE and _EXTERNAL_BASE_URL,
+    "external Docker Selenium smoke tests require SELENIUM_EXTERNAL_BASE_URL",
+)
+class SeleniumDockerStackSmokeTest(unittest.TestCase):
+    """
+    Smoke-тести проти вже запущеного Docker stack.
+
+    Ці тести не стартують Django LiveServer. Вони відкривають реальний nginx/web
+    з docker-compose і перевіряють, що контейнерний запуск справді працює.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.driver = _make_headless_driver()
+        cls.driver.implicitly_wait(5)
+        cls.driver.set_window_size(1366, 900)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.driver.quit()
+
+    def test_login_page_is_served_by_docker_stack(self):
+        self.driver.get(f"{_EXTERNAL_BASE_URL}/accounts/login/")
+
+        self.assertIn("/accounts/login/", self.driver.current_url)
+        self.assertTrue(self.driver.find_elements(By.NAME, "username"))
+        self.assertTrue(self.driver.find_elements(By.NAME, "password"))
+        self.assertTrue(self.driver.find_elements(By.CSS_SELECTOR, "[type='submit']"))
+
+    def test_seeded_demo_user_can_login_through_nginx(self):
+        login_url = f"{_EXTERNAL_BASE_URL}/accounts/login/"
+        self.driver.get(login_url)
+
+        self.driver.find_element(By.NAME, "username").send_keys(_EXTERNAL_USERNAME)
+        self.driver.find_element(By.NAME, "password").send_keys(_EXTERNAL_PASSWORD)
+        self.driver.find_element(By.CSS_SELECTOR, "[type='submit']").click()
+
+        WebDriverWait(self.driver, 10).until(
+            lambda driver: "/notes/" in driver.current_url
+        )
+        self.assertIn("/notes/", self.driver.current_url)
+
+    def test_notes_page_static_assets_render_after_login(self):
+        login_url = f"{_EXTERNAL_BASE_URL}/accounts/login/"
+        self.driver.get(login_url)
+        self.driver.find_element(By.NAME, "username").send_keys(_EXTERNAL_USERNAME)
+        self.driver.find_element(By.NAME, "password").send_keys(_EXTERNAL_PASSWORD)
+        self.driver.find_element(By.CSS_SELECTOR, "[type='submit']").click()
+
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
+        )
+        body_text = self.driver.find_element(By.TAG_NAME, "body").text
+        self.assertTrue(body_text.strip())

@@ -182,8 +182,11 @@ def note_delete(request, pk):
 # Отримати логи від Django (через /dev/log)
 local7.*    /var/log/django-security.log
 
-# Пересилати на SIEM-сервер (порт 514 UDP)
+# Пересилати на SIEM-сервер (`@` = UDP, порт 514, без шифрування)
 local7.*    @log.mycompany.com:514
+
+# Варіант для stunnel із кроку 4: `@@` = TCP, на локальний вхід тунелю
+# local7.*    @@127.0.0.1:514
 ```
 
 ```bash
@@ -206,7 +209,7 @@ sudo apt install stunnel4
 # /etc/stunnel/siem.conf:
 [siem-forward]
 client = yes
-accept = 127.0.0.1:514    # локальний порт (rsyslog пише сюди)
+accept = 127.0.0.1:514    # локальний TCP-порт (rsyslog пише сюди через @@)
 connect = siem.company.com:6514  # SIEM-сервер (TLS порт)
 cert = /etc/ssl/certs/client.pem
 ```

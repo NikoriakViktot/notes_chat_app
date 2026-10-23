@@ -54,9 +54,12 @@ chat_message() — channel layer доставив broadcast від будь-як
 ```python
 # notes_app/consumers.py
 import json
-from channels.generic.websocket import AsyncWebsocketConsumer
+
 from channels.db import database_sync_to_async
+from channels.generic.websocket import AsyncWebsocketConsumer
 from django.contrib.auth.models import Group
+
+from .models import ChatMessage
 
 
 class GroupChatConsumer(AsyncWebsocketConsumer):
@@ -69,27 +72,27 @@ class GroupChatConsumer(AsyncWebsocketConsumer):
         {"content": "Текст повідомлення"}
 
     Server → Client (history):
-        {"type": "history", "author": "...", "content": "...", "timestamp": "..."}
+        {"type": "history", "message_id": 1, "author": "...", "content": "...", "timestamp": "..."}
 
     Server → Client (live):
-        {"type": "message", "author": "...", "content": "...", "timestamp": "..."}
+        {"type": "message", "message_id": 2, "author": "...", "content": "...", "timestamp": "..."}
     """
 
     async def connect(self):
         self.user = self.scope['user']
 
-        # 1. Авторизація
+        # 1. Авторизація: незалогінений → close() до accept() → handshake відхилено
         if not self.user.is_authenticated:
-            await self.close(code=4001)
+            await self.close()
             return
 
-        # 2. group_pk з URL kwargs
+        # 2. group_pk з URL kwargs (regex \d+ у routing.py гарантує цифри)
         self.group_pk = int(self.scope['url_route']['kwargs']['group_pk'])
 
         # 3. Membership check (ORM у worker thread)
         is_member = await self.check_membership(self.group_pk, self.user)
         if not is_member:
-            await self.close(code=4003)
+            await self.close()
             return
 
         # 4. Channel group name
@@ -104,31 +107,34 @@ class GroupChatConsumer(AsyncWebsocketConsumer):
         # 6. Приймаємо з'єднання
         await self.accept()
 
-        # 7. Надсилаємо history
+        # 7. Надсилаємо history (останні 50 повідомлень)
         history = await self.load_history(self.group_pk)
         for msg in history:
             await self.send(text_data=json.dumps({
                 'type': 'history',
+                'message_id': msg['id'],
                 'author': msg['author__username'],
                 'content': msg['content'],
                 'timestamp': msg['timestamp'].isoformat(),
             }))
 
+    async def disconnect(self, close_code):
+        # hasattr check: якщо connect() завершився до group_add
+        if hasattr(self, 'room_group_name'):
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name,
+            )
+
     async def receive(self, text_data):
         try:
             data = json.loads(text_data)
-        except json.JSONDecodeError:
+            content = data.get('content', '').strip()
+        except (json.JSONDecodeError, AttributeError):
             return
 
-        content = data.get('content', '').strip()
-
-        if not content:
-            return
-        if len(content) > 2000:
-            await self.send(text_data=json.dumps({
-                'type': 'error',
-                'message': 'Повідомлення занадто довге (максимум 2000 символів)',
-            }))
+        # Базова валідація: порожнє або задовге повідомлення мовчки ігнорується
+        if not content or len(content) > 2000:
             return
 
         msg = await self.save_message(self.group_pk, self.user, content)
@@ -137,6 +143,7 @@ class GroupChatConsumer(AsyncWebsocketConsumer):
             self.room_group_name,
             {
                 'type': 'chat_message',
+                'message_id': msg.id,
                 'author': self.user.username,
                 'content': content,
                 'timestamp': msg.timestamp.isoformat(),
@@ -146,18 +153,11 @@ class GroupChatConsumer(AsyncWebsocketConsumer):
     async def chat_message(self, event):
         await self.send(text_data=json.dumps({
             'type': 'message',
+            'message_id': event['message_id'],
             'author': event['author'],
             'content': event['content'],
             'timestamp': event['timestamp'],
         }))
-
-    async def disconnect(self, close_code):
-        # hasattr check: якщо connect() завершився до group_add
-        if hasattr(self, 'room_group_name'):
-            await self.channel_layer.group_discard(
-                self.room_group_name,
-                self.channel_name,
-            )
 
     # ─── ORM helpers ─────────────────────────────────────────────────
 
@@ -171,7 +171,6 @@ class GroupChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def load_history(self, group_pk):
-        from notes_app.models import ChatMessage
         qs = (
             ChatMessage.objects
             .filter(group_id=group_pk)
@@ -184,13 +183,20 @@ class GroupChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def save_message(self, group_pk, user, content):
-        from notes_app.models import ChatMessage
         return ChatMessage.objects.create(
             group_id=group_pk,
             author=user,
             content=content,
         )
 ```
+
+Порівняно з «ідеальним» consumer тут свідомо прості рішення:
+
+- відмова (`not is_authenticated`, не член групи) — звичайний `await self.close()` без власного коду. Оскільки `accept()` ще не викликано, сервер відхиляє handshake (HTTP 403), а браузер бачить `onclose` з кодом `1006`;
+- порожнє або задовге (> 2000 символів) повідомлення просто ігнорується — помилка клієнту не надсилається; обмеження на клієнті дає `maxlength="2000"` у `<input>`;
+- кожен frame містить `message_id` (id запису `ChatMessage`), який JS-клієнт записує у `data-message-id`.
+
+Повні docstrings з поясненнями — у самому файлі `notes_app/consumers.py`.
 
 ---
 
@@ -315,6 +321,7 @@ group_send() → доставляє до ВСІХ підписників гру�
 1. Consumer Віктора: receive("Привіт")
 2. Consumer Віктора: group_send("chat_group_7", {
        'type': 'chat_message',
+       'message_id': 42,
        'author': 'Viktor',
        'content': 'Привіт',
        'timestamp': '2025-01-01T12:00:00',
@@ -367,24 +374,28 @@ group_send(room, {'type': 'typing.indicator', ...}) → Consumer.typing_indicato
 ```
 
 `InMemoryChannelLayer` — in-process, для одного сервера. Для production
-з кількома серверами використовують `channels-redis` (channel layer через Redis),
-але для навчального проєкту InMemory достатній.
+з кількома серверами використовують `channels-redis` (channel layer через Redis).
+У цьому проєкті `settings.py` обирає `RedisChannelLayer`, коли задано `REDIS_URL`
+(так працює Docker-стек), і `InMemoryChannelLayer` — лише локально без Redis.
+Логіка pub/sub однакова для обох.
 
 ---
 
 ## Що перевіряти у connect()
 
-Повний список перевірок для безпечного Consumer:
+Повний список перевірок для безпечного Consumer (як вони реалізовані у `notes_app/consumers.py`):
 
-| Перевірка | Код | Close code |
+| Перевірка | Код | Реакція у проєкті |
 |-----------|-----|-----------|
-| Авторизація | `if not self.user.is_authenticated` | `4001` |
-| Членство в групі | `check_membership(group_pk, user)` | `4003` |
-| Валідний group_pk | Перехопити `ValueError` при `int(...)` | `4004` |
-| Група існує | `except Group.DoesNotExist` у `check_membership` | `4003` |
-| JSON валідність | `except json.JSONDecodeError` у `receive()` | _(ігнорувати)_ |
+| Авторизація | `if not self.user.is_authenticated` | `close()` до `accept()` |
+| Членство в групі | `check_membership(group_pk, user)` | `close()` до `accept()` |
+| Валідний group_pk | regex `(?P<group_pk>\d+)` у `routing.py` | нецифровий URL не знаходить маршрут |
+| Група існує | `except Group.DoesNotExist` у `check_membership` | `close()` до `accept()` |
+| JSON валідність | `except (json.JSONDecodeError, AttributeError)` у `receive()` | _(ігнорувати)_ |
 | Порожній контент | `if not content` | _(ігнорувати)_ |
-| Довжина контенту | `if len(content) > 2000` | _(надіслати error)_ |
+| Довжина контенту | `len(content) > 2000` | _(ігнорувати)_ |
+
+`close()` без аргументу не передає власного коду: handshake відхиляється, і браузер отримує `onclose` з кодом `1006`. Власні коди (наприклад, `4001` — не авторизований, `4003` — немає доступу) можна додати як покращення: `await self.close(code=4003)`. Тоді клієнт зможе відрізнити відмову в доступі від обриву мережі.
 
 ### disconnect() cleanup
 
@@ -408,7 +419,7 @@ async def disconnect(self, close_code):
 sequenceDiagram
     participant Viktor_JS as Браузер Віктора (JS)
     participant Viktor_WS as Consumer Віктора
-    participant ChannelLayer as InMemoryChannelLayer
+    participant ChannelLayer as Channel layer
     participant Olya_WS as Consumer Олі
     participant Olya_JS as Браузер Олі (JS)
     participant DB as PostgreSQL

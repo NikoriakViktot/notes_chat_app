@@ -30,7 +30,7 @@ TransactionTestCase:
 ```
 
 !!! warning "`asyncSetUp()` і Django"
-    `asyncSetUp()` не підтримується в `TransactionTestCase` до Django 5.1.
+    `asyncSetUp()` — це метод `unittest.IsolatedAsyncioTestCase`. Django `TestCase` і `TransactionTestCase` його не викликають у жодній версії (вони лише запускають `async def test_*` методи через `async_to_sync`).
     Використовуй синхронний `setUp()` — він виконується у звичайному потоці, що правильно для `TransactionTestCase`.
 
 ---

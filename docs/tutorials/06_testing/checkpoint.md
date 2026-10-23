@@ -55,15 +55,15 @@ $ docker compose run --rm web python manage.py test \
 
 Creating test database for alias 'default' ...
 System check identified no issues.
-Found 129 test(s).
+Found 206 test(s).
 test_str_returns_hash_name ... ok
-test_unique_constraint_same_user_same_name_raises ... ok
+test_unique_together_same_user_same_name_raises ... ok
 ...
-test_authenticated_member_can_connect ... ok
-test_non_member_cannot_connect ... ok
+test_member_can_connect ... ok
+test_non_member_rejected ... ok
 ...
 ----------------------------------------------------------------------
-Ran 129 tests in 45.3s
+Ran 206 tests in 45.3s
 
 OK
 ```
@@ -72,11 +72,12 @@ OK
 # Selenium (через exec, не run!)
 $ docker compose exec web python manage.py test notes_app.tests.test_selenium -v 2
 
-test_login_form_and_redirect ... ok
-test_dashboard_shows_username ... ok
+test_login_page_renders ... ok
+test_valid_login_redirects_to_notes ... ok
 test_invalid_login_shows_error ... ok
+...
 ----------------------------------------------------------------------
-Ran 3 tests in 28.5s
+Ran 23 tests in 98.5s
 OK
 ```
 
@@ -243,4 +244,4 @@ async def test_nonexistent_group_rejects_connection(self):
 
 **Попередній:** [Крок 5. Auth і Безпека](../05_auth_and_security/index.md) — AuthN vs AuthZ, Sessions, IDOR, Group Sharing
 
-**Наступний:** [Крок 7. Async Django](../07_async/index.md) — ASGI, Django Channels, GroupChatConsumer, channel layer
+**Наступний:** [Крок 7. Async Django](../07_async_django/index.md) — ASGI, Django Channels, GroupChatConsumer, channel layer

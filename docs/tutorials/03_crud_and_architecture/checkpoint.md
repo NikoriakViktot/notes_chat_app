@@ -113,7 +113,7 @@ for note in notes:
 ```python
 # ❌ НЕПРАВИЛЬНО:
 notebook = models.ForeignKey(Notebook, on_delete=models.SET_NULL)
-# Django: ValueError — SET_NULL вимагає null=True на полі!
+# Django system check: fields.E320 — SET_NULL вимагає null=True на полі!
 
 # ✅ ПРАВИЛЬНО:
 notebook = models.ForeignKey(
@@ -142,7 +142,7 @@ def form_valid(self, form):
 class NoteDeleteView(DeleteView):
     success_url = reverse('hello_app:note_list')  # NoReverseMatch!
 
-# ✅ ПРАВИЛЬНО: виконується лінивo при запиті
+# ✅ ПРАВИЛЬНО: виконується ліниво при запиті
 class NoteDeleteView(DeleteView):
     success_url = reverse_lazy('hello_app:note_list')
 ```

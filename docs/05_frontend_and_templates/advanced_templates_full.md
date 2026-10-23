@@ -10,12 +10,12 @@
 ## Зміст
 
 - [1. Context Processors — глобальний контекст](#1-context-processors--глобальний-контекст)
-- [2. Custom Template Tags — simple_tag, inclusion_tag, filter](#2-custom-template-tags--simple_tag-inclusion_tag-filter)
+- [2. Custom Template Tags — simple_tag, inclusion_tag, filter](#2-custom-template-tags)
 - [3. crispy-forms — Python-лейаут форм](#3-crispy-forms--python-лейаут-форм)
 - [4. Vite + ManifestStaticFilesStorage — сучасний asset pipeline](#4-vite--manifeststaticfilesstorage--сучасний-asset-pipeline)
-- [5. SaaS Dashboard Architecture — sidebar, CRUD, reusable components](#5-saas-dashboard-architecture--sidebar-crud-reusable-components)
-- [6. Jinja2 Deep Dive — macros, Environment, bytecode cache](#6-jinja2-deep-dive--macros-environment-bytecode-cache)
-- [7. HTMX Architecture — повний lifecycle, Server-Driven UI](#7-htmx-architecture--повний-lifecycle-server-driven-ui)
+- [5. SaaS Dashboard Architecture — sidebar, CRUD, reusable components](#5-saas-dashboard-architecture)
+- [6. Jinja2 Deep Dive — macros, Environment, bytecode cache](#6-jinja2-deep-dive)
+- [7. HTMX Architecture — повний lifecycle, Server-Driven UI](#7-htmx-architecture--повний-lifecycle)
 - [8. Питання для самоперевірки](#8-питання-для-самоперевірки)
 ---
 
@@ -721,7 +721,11 @@ STATICFILES_DIRS = [
 ]
 
 # Production: файли з hash (main.abc123.js)
-STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+# Django 4.2+: налаштування STORAGES (STATICFILES_STORAGE видалено в Django 5.1)
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'},
+}
 # → генерує staticfiles.json з маппінгом main.js → main.abc123.js
 # → {% static 'main.js' %} → /static/main.abc123.js
 ```
@@ -1159,13 +1163,8 @@ templates/
 
 {% else %}
 {# Empty State #}
-{% include 'components/empty_state.html' with
-    icon='bi-journal-x'
-    title='Ще немає нотаток'
-    message='Створіть першу нотатку і вона з\'явиться тут.'
-    action_url='notes_app:note_create'
-    action_text='Створити нотатку'
-%}
+{# Тег DTL має бути в ОДНОМУ рядку: багаторядковий {% include %} не розпізнається #}
+{% include 'components/empty_state.html' with icon='bi-journal-x' title='Ще немає нотаток' message='Створіть першу нотатку і вона з\'явиться тут.' action_url='notes_app:note_create' action_text='Створити нотатку' %}
 {% endif %}
 
 {# Delete Confirmation Modal #}
@@ -1190,7 +1189,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ### components/pagination.html
 
-Цей компонент — реюзабельний Bootstrap pagination, який приймає `page_obj` (Django Paginator об'єкт) через `{% include ... with page_obj=notes %}`. Логіка "показувати лише ±3 сторінки від поточної" робить pagination чистим навіть при сотнях сторінок:
+Цей компонент — реюзабельний Bootstrap pagination, який приймає `page_obj` (Django Paginator об'єкт) через `{% include ... with page_obj=notes %}`. Логіка "показувати лише ±2 сторінки від поточної" робить pagination чистим навіть при сотнях сторінок:
 
 ```html
 {# templates/components/pagination.html #}
@@ -1198,14 +1197,18 @@ document.addEventListener('DOMContentLoaded', function() {
 <nav aria-label="Навігація по сторінках" class="mt-4">
     <ul class="pagination justify-content-center">
 
-        {# Previous #}
-        <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
-            <a class="page-link"
-               href="?page={{ page_obj.previous_page_number }}"
-               {% if not page_obj.has_previous %}aria-disabled="true"{% endif %}>
+        {# Previous: previous_page_number на першій сторінці кидає EmptyPage — тому {% if %} #}
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
                 <i class="bi bi-chevron-left"></i>
             </a>
         </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link" aria-disabled="true"><i class="bi bi-chevron-left"></i></span>
+        </li>
+        {% endif %}
 
         {# Page numbers #}
         {% for num in page_obj.paginator.page_range %}
@@ -1220,14 +1223,18 @@ document.addEventListener('DOMContentLoaded', function() {
             {% endif %}
         {% endfor %}
 
-        {# Next #}
-        <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
-            <a class="page-link"
-               href="?page={{ page_obj.next_page_number }}"
-               {% if not page_obj.has_next %}aria-disabled="true"{% endif %}>
+        {# Next: next_page_number на останній сторінці кидає EmptyPage — тому {% if %} #}
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
                 <i class="bi bi-chevron-right"></i>
             </a>
         </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link" aria-disabled="true"><i class="bi bi-chevron-right"></i></span>
+        </li>
+        {% endif %}
 
     </ul>
     <p class="text-center text-muted small">
@@ -1407,7 +1414,7 @@ Macro у Jinja2 — це як `inclusion_tag`, але визначений пр�
 ```jinja2
 {# templates/jinja2/notes/create.html #}
 {% from 'macros/forms.html' import input_field, submit_btn %}
-{% extends 'jinja2/layouts/dashboard.html' %}
+{% extends 'layouts/dashboard.html' %}   {# шлях відносно DIRS = templates/jinja2 #}
 
 {% block content %}
 <div class="card shadow-sm">
@@ -1686,7 +1693,7 @@ Partial шаблон `note_cards.html` рендерить ТІЛЬКИ карт�
 ```html
 {# Останній елемент списку — тригер підвантаження #}
 {% if page_obj.has_next %}
-<div hx-get="{% url 'note_list' %}?page={{ page_obj.next_page_number }}"
+<div hx-get="{% url 'notes_app:note_list' %}?page={{ page_obj.next_page_number }}"
      hx-trigger="revealed"        {# ← спрацьовує коли елемент з'являється у viewport #}
      hx-target="this"
      hx-swap="outerHTML"          {# ← замінює сам себе наступними картками #}
@@ -1760,12 +1767,13 @@ def note_edit_modal(request, pk):
 
 ### HTMX Response Headers
 
-HTMX Response Headers дозволяють серверу керувати HTMX поведінкою після відповіді. `HX-Redirect` — перенаправлення без повного page reload. `HX-Trigger` — надсилання custom JS events з сервера для синхронізації інших частин UI. Різниця між `HX-Redirect` і звичайним `redirect()`: HTMX перехоплює перенаправлення і виконує його як HTMX navigation, а не як повне перезавантаження сторінки:
+HTMX Response Headers дозволяють серверу керувати HTMX поведінкою після відповіді. `HX-Redirect` — клієнтський редирект: браузер переходить на новий URL з повним перезавантаженням сторінки (як `window.location`). `HX-Location` — перехід без повного page reload: HTMX завантажує нову сторінку AJAX-запитом і оновлює історію. `HX-Trigger` — надсилання custom JS events з сервера для синхронізації інших частин UI. Різниця між `HX-Redirect` і звичайним `redirect()`: на звичайний 302 браузер прозоро виконує fetch/XHR-перехід, і HTMX вставляє HTML цільової сторінки у `hx-target` (сторінка всередині сторінки), а `HX-Redirect` змушує браузер реально перейти на нову сторінку:
 
 ```python
 # views.py — управління HTMX поведінкою через заголовки відповіді
 
 from django.http import HttpResponse
+from django.urls import reverse
 
 def note_create(request):
     if request.method == 'POST':
@@ -1776,7 +1784,8 @@ def note_create(request):
             note.save()
 
             response = HttpResponse(status=204)  # No Content
-            # Перенаправити HTMX на список нотаток
+            # Перенаправити браузер на список нотаток (повне перезавантаження сторінки).
+            # Без повного reload: response['HX-Location'] = reverse('notes_app:note_list')
             response['HX-Redirect'] = reverse('notes_app:note_list')
             # Або оновити тільки певний елемент
             response['HX-Trigger'] = 'noteCreated'  # JS event

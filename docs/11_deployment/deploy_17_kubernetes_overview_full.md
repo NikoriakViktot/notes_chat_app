@@ -51,7 +51,7 @@ Docker Compose — пульт від одного TV. Kubernetes — систе�
 
 ```mermaid
 flowchart TD
-    Internet["Інтернет"] --> Ingress["Ingress Controller\n(аналог Nginx)"]
+    Internet["Інтернет"] --> Ingress["Ingress Controller<br>(аналог Nginx)"]
 
     subgraph Cluster["Kubernetes Cluster"]
         Ingress --> Service1["Service: django-web"]
@@ -75,6 +75,14 @@ flowchart TD
             Pod3
         end
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class Internet,Service1,ServiceDB step;
+    class Pod1,Pod2,Pod3,PodDB success;
+    class Ingress warning;
 ```
 
 Kubernetes автоматично:
@@ -172,6 +180,7 @@ spec:
       resource:
         name: cpu
         target:
+          type: Utilization
           averageUtilization: 70
 ```
 
@@ -183,15 +192,21 @@ spec:
 
 ```mermaid
 flowchart LR
-    subgraph Simple ["Малий проєкт\n(1 сервер)"]
-        DC["Docker Compose\n✓ Простий\n✓ Швидкий старт\n✓ Достатній"]
+    subgraph Simple ["Малий проєкт<br>(1 сервер)"]
+        DC["Docker Compose"] --> DCF["✓ Простий, швидкий старт<br>✓ Достатній"]
     end
 
-    subgraph Complex ["Складний проєкт\n(10+ серверів)"]
-        K8s["Kubernetes\n✓ Auto-scaling\n✓ Self-healing\n✓ Zero-downtime updates\n✓ Multi-node"]
+    subgraph Complex ["Складний проєкт<br>(10+ серверів)"]
+        K8s["Kubernetes"] --> K8sF["✓ Auto-scaling, Self-healing<br>✓ Zero-downtime updates, Multi-node"]
     end
 
     Simple -->|"зростає"| Complex
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class DC,K8s step;
+    class DCF,K8sF success;
 ```
 
 ---

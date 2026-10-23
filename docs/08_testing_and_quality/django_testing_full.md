@@ -64,13 +64,16 @@ Note.objects.create(...)
 
 ```mermaid
 graph TD
-    A["End-to-End Tests\nБраузер / Selenium / Повільно"] --> B
-    B["Integration Tests\nDjango Client / API / Середня швидкість"] --> C
-    C["Unit Tests\nІзольована логіка / Швидко / Великий обсяг"]
+    A["End-to-End Tests<br>Браузер / Selenium / Повільно"] --> B
+    B["Integration Tests<br>Django Client / API / Середня швидкість"] --> C
+    C["Unit Tests<br>Ізольована логіка / Швидко / Великий обсяг"]
 
-    style A fill:#ffcdd2,stroke:#c62828
-    style B fill:#fff9c4,stroke:#fbc02d
-    style C fill:#c8e6c9,stroke:#2e7d32
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A warning;
+    class B step;
+    class C success;
 ```
 
 | Тип | Що перевіряє | Швидкість | Обсяг |
@@ -102,7 +105,10 @@ flowchart TD
 
     Q -->|"Selenium + CSS/JS"| SLS["StaticLiveServerTestCase"]
 
-    style Q fill:#8B5E3C,color:#fff
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    class Q decision;
+    class S,T,TT,LS,SLS step;
 ```
 
 | Клас | База даних | Для чого |
@@ -313,11 +319,16 @@ Django `self.client` — це не реальний браузер. Це шви�
 
 ```mermaid
 graph LR
-    A["Test Code\nself.client.get()"] --> B["Django Middleware"]
+    A["Test Code<br>self.client.get()"] --> B["Django Middleware"]
     B --> C["View Logic"]
     C --> D[("Test Database")]
     C --> E["Response Object"]
     E --> F["Test Assertions"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class A,B,C,D,E step;
+    class F success;
 ```
 
 Він може:
@@ -455,10 +466,21 @@ class NoteCreateViewTest(TestCase):
 ```mermaid
 graph TD
     A["Test: Access Private Note"] --> B{"Залогінений?"}
-    B -->|Ні| C["Assert 302 → login"]
-    B -->|Так| D{"Власник note?"}
-    D -->|Ні| E["Assert 403 Forbidden або 404"]
-    D -->|Так| F["Assert 200 OK + дані"]
+    B -->|ні| C["Assert 302 → login"]
+    B -->|так| D{"Власник note?"}
+    D -->|ні| E["Assert 403 Forbidden або 404"]
+    D -->|так| F["Assert 200 OK + дані"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A step;
+    class B,D decision;
+    class C warning;
+    class E error;
+    class F success;
 ```
 
 ```python
@@ -583,8 +605,10 @@ graph LR
 
     C -.-x|"Network Call Prevented"| D
 
-    style C fill:#fff3e0,stroke:#e65100
-    style D fill:#eceff1,stroke:#607d8b,stroke-dasharray: 5 5
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,B,D step;
+    class C warning;
 ```
 
 `notes/services.py`:
@@ -796,10 +820,15 @@ E2E тести відкривають реальний браузер, клік�
 
 ```mermaid
 graph LR
-    A["Python TestCase"] -->|"Commands"| B["WebDriver\nchromedriver / geckodriver"]
-    B -->|"Controls"| C["Real Browser\nChrome / Firefox"]
+    A["Python TestCase"] -->|"Commands"| B["WebDriver<br>chromedriver / geckodriver"]
+    B -->|"Controls"| C["Real Browser<br>Chrome / Firefox"]
     C -->|"HTTP Requests"| D["Django LiveServerTestCase"]
     D -->|"Queries"| E[("Test Database")]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class A,B,C,E step;
+    class D success;
 ```
 
 Selenium vs Django Test Client:
@@ -1076,6 +1105,13 @@ flowchart TD
     F --> G["Assertions перевіряють поведінку"]
     G --> H["Rollback: Django очищає дані"]
     H --> I["Наступний тест"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,B,C,D,E,F,G step;
+    class H warning;
+    class I success;
 ```
 
 ---
@@ -1100,7 +1136,7 @@ flowchart TD
 2. Чим Django `Client` відрізняється від Selenium?
 3. Навіщо тестувати User A vs User B?
 4. Коли потрібен `SimpleTestCase`?
-5. Чому `patch("notes.views.send_mail")` — неправильно, а `patch("notes.views.send_note_created_email")` — правильно?
+5. Чому `patch("notes.services.send_note_created_email")` — неправильно, а `patch("notes.views.send_note_created_email")` — правильно?
 6. Що таке `force_login` і чим він відрізняється від `login()`?
 7. Навіщо `WebDriverWait` у Selenium і чому `time.sleep()` погано?
 8. Що coverage може показати, а що ні?

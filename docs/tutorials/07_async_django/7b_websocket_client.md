@@ -36,8 +36,10 @@ ws.close()                                        // закрити з'єдна�
 | `1000` | Нормальне закриття — НЕ перепідключатись |
 | `1001` | Сторінка закривається — НЕ перепідключатись |
 | `1006` | Аварійне (інтернет обірвався) — перепідключитись |
-| `4001` | Custom: не авторизований |
-| `4003` | Custom: не є членом групи — НЕ перепідключатись |
+| `4001` | Custom (приклад): не авторизований — у notes_chat_app не використовується |
+| `4003` | Custom (приклад): не є членом групи — у notes_chat_app не використовується |
+
+Коди `4000–4999` застосунок може обрати сам. `GroupChatConsumer` у цьому проєкті відхиляє з'єднання звичайним `close()` до `accept()`, тому браузер бачить `1006`.
 
 ---
 
@@ -45,153 +47,230 @@ ws.close()                                        // закрити з'єдна�
 
 ```javascript
 // notes_app/static/notes_app/js/group_chat.js
+// WebSocket чат клієнт (vanilla JavaScript). Великий коментар-пояснення на початку файлу тут пропущено.
 
-document.addEventListener('DOMContentLoaded', function () {
-    const container = document.getElementById('chat-container');
-    const groupPk = container.dataset.groupPk;
-    const messagesDiv = document.getElementById('chat-messages');
-    const messageInput = document.getElementById('message-input');
-    const sendButton = document.getElementById('send-button');
+// IIFE: весь код у функції, щоб не створювати глобальних змінних.
+(function () {
+    'use strict';
 
-    // ws:// для HTTP, wss:// для HTTPS (ngrok)
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/ws/groups/${groupPk}/chat/`;
+    // ── Config (data-атрибути прихованого div#chat-config) ──
+    const config    = document.getElementById('chat-config');
+    const GROUP_PK  = config.dataset.groupPk;
+    const USERNAME  = config.dataset.username;
 
-    let ws = null;
-    let reconnectAttempts = 0;
-    const MAX_RECONNECT = 5;
+    // ── DOM refs ──
+    const messagesEl  = document.getElementById('chat-messages');
+    const placeholderEl = document.getElementById('chat-placeholder');
+    const inputEl     = document.getElementById('chat-input');
+    const formEl      = document.getElementById('chat-form');
+    const sendBtnEl   = document.getElementById('chat-send-btn');
+    const statusDotEl = document.getElementById('status-dot');
+    const statusTextEl = document.getElementById('status-text');
+
+    // ws:// для HTTP, wss:// для HTTPS (ngrok); location.host включає порт
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const WS_URL   = `${protocol}://${window.location.host}/ws/groups/${GROUP_PK}/chat/`;
+
+    let socket = null;
+    // Exponential backoff: 1с → 2с → 4с ... → максимум 30с
+    let reconnectDelay = 1000;
 
     function connect() {
-        ws = new WebSocket(wsUrl);
+        setStatus('connecting');
+        socket = new WebSocket(WS_URL);
 
-        ws.onopen = function () {
-            reconnectAttempts = 0;
-            sendButton.disabled = false;
-            updateStatus('connected', 'Підключено');
+        socket.onopen = function () {
+            setStatus('connected');
+            reconnectDelay = 1000; // скидаємо backoff після успішного підключення
+            inputEl.disabled = false;
+            sendBtnEl.disabled = false;
+            inputEl.focus();
+            placeholderEl.style.display = 'none';
         };
 
-        ws.onmessage = function (event) {
-            const data = JSON.parse(event.data);
-            if (data.type === 'history' || data.type === 'message') {
-                addMessage(data);
-            } else if (data.type === 'error') {
-                showError(data.message);
-            }
-        };
-
-        ws.onclose = function (event) {
-            sendButton.disabled = true;
-
-            // Custom close codes — не перепідключатись
-            if (event.code === 4001 || event.code === 4003) {
-                updateStatus('error', 'Доступ заборонено');
+        socket.onmessage = function (event) {
+            let data;
+            try {
+                data = JSON.parse(event.data);
+            } catch (e) {
+                console.error('[chat] Невалідний JSON від сервера:', event.data);
                 return;
             }
+            // history — з load_history() при connect(); message — real-time з chat_message()
+            if (data.type === 'history' || data.type === 'message') {
+                appendMessage(data);
+            }
+        };
 
-            if (reconnectAttempts < MAX_RECONNECT) {
-                reconnectAttempts++;
-                const delay = Math.min(1000 * reconnectAttempts, 5000);
-                updateStatus('reconnecting', `Перепідключення (${reconnectAttempts}/${MAX_RECONNECT})...`);
-                setTimeout(connect, delay);
-            } else {
-                updateStatus('error', 'Помилка підключення. Перезавантажте сторінку.');
+        socket.onerror = function (event) {
+            console.error('[chat] WebSocket помилка:', event);
+            setStatus('error');
+        };
+
+        socket.onclose = function (event) {
+            setStatus('disconnected');
+            inputEl.disabled = true;
+            sendBtnEl.disabled = true;
+
+            // Не перепідключаємось при 1000/1001 (навмисне закриття); інакше backoff + jitter 0–1с
+            if (event.code !== 1000 && event.code !== 1001) {
+                const jitter = Math.random() * 1000;
+                setTimeout(connect, reconnectDelay + jitter);
+                reconnectDelay = Math.min(reconnectDelay * 2, 30000);
             }
         };
     }
 
-    function sendMessage() {
-        const content = messageInput.value.trim();
-        if (!content || !ws || ws.readyState !== WebSocket.OPEN) return;
-        ws.send(JSON.stringify({ content: content }));
-        messageInput.value = '';
-        messageInput.focus();
-    }
+    // ── SEND ──
+    formEl.addEventListener('submit', function (event) {
+        event.preventDefault(); // НЕ надсилати HTTP POST форму
 
-    sendButton.addEventListener('click', sendMessage);
+        const content = inputEl.value.trim();
+        if (!content) return;
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
-    messageInput.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
+        socket.send(JSON.stringify({ content: content }));
+
+        inputEl.value = '';
+        inputEl.focus();
+    });
+
+    // Enter → submit (Shift+Enter → без надсилання)
+    inputEl.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            formEl.dispatchEvent(new Event('submit'));
         }
     });
 
-    function addMessage(data) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'chat-message';
-        // escapeHtml() — ОБОВ'ЯЗКОВО для XSS захисту
-        wrapper.innerHTML = `
-            <span class="chat-author">${escapeHtml(data.author)}</span>
-            <span class="chat-time">${formatTime(data.timestamp)}</span>
-            <div class="chat-content">${escapeHtml(data.content)}</div>
-        `;
-        messagesDiv.appendChild(wrapper);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
+    // ── RENDER MESSAGE ──
+    function appendMessage(data) {
+        const isMine = data.author === USERNAME;   // свої праворуч, чужі ліворуч
 
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.appendChild(document.createTextNode(text));
-        return div.innerHTML;
-    }
-
-    function formatTime(isoString) {
-        return new Date(isoString).toLocaleTimeString('uk-UA', {
-            hour: '2-digit', minute: '2-digit',
+        const time = new Date(data.timestamp).toLocaleTimeString('uk-UA', {
+            hour: '2-digit',
+            minute: '2-digit',
         });
+
+        const wrapper = document.createElement('div');
+        wrapper.className = `d-flex mb-2 ${isMine ? 'justify-content-end' : 'justify-content-start'}`;
+        if (data.message_id) {
+            wrapper.dataset.messageId = data.message_id;
+        }
+
+        // escapeHtml() — ОБОВ'ЯЗКОВО перед будь-яким user content в innerHTML
+        wrapper.innerHTML = `
+          <div class="chat-bubble ${isMine ? 'chat-mine' : 'chat-other'}">
+            ${!isMine ? `<div class="chat-author">${escapeHtml(data.author)}</div>` : ''}
+            <div class="chat-content">${escapeHtml(data.content)}</div>
+            <div class="chat-time">${time}</div>
+          </div>`;
+
+        messagesEl.appendChild(wrapper);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
-    function updateStatus(type, message) {
-        const el = document.getElementById('connection-status');
-        if (el) { el.textContent = message; el.className = `status-${type}`; }
+    // ── STATUS INDICATOR ──
+    const STATUS_CONFIG = {
+        connecting:   { color: '#ffc107', text: 'Підключення...' },
+        connected:    { color: '#198754', text: 'Підключено' },
+        disconnected: { color: '#6c757d', text: 'Відключено. Перепідключення...' },
+        error:        { color: '#dc3545', text: 'Помилка з\'єднання' },
+    };
+
+    function setStatus(key) {
+        const cfg = STATUS_CONFIG[key] || STATUS_CONFIG.error;
+        statusDotEl.style.background = cfg.color;
+        statusTextEl.textContent = cfg.text;
     }
 
-    function showError(message) {
-        const el = document.createElement('div');
-        el.className = 'alert alert-warning';
-        el.textContent = message;
-        messagesDiv.appendChild(el);
-        setTimeout(() => el.remove(), 5000);
+    // ── XSS PREVENTION ──
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
+    // ── START ──
+    inputEl.disabled = true;     // input вимкнений до встановлення з'єднання
+    sendBtnEl.disabled = true;
     connect();
-});
+
+}());
 ```
+
+Ключові деталі реального клієнта:
+
+- код загорнуто в **IIFE** `(function () { ... }())` — скрипт підключається в кінці сторінки, тому `DOMContentLoaded` не потрібен;
+- `GROUP_PK` і `USERNAME` читаються з прихованого `div#chat-config`; `USERNAME` потрібен, щоб показувати свої повідомлення праворуч;
+- статус з'єднання показують два елементи: кольорова крапка `#status-dot` і текст `#status-text`;
+- перепідключення: при будь-якому коді, крім `1000`/`1001`, затримка подвоюється від 1 с до максимуму 30 с, плюс випадковий jitter 0–1 с; ліміту спроб немає;
+- фрейми з `type: 'error'` клієнт не обробляє — consumer їх і не надсилає.
 
 ---
 
 ## Шаблон чату
 
 ```html
-{# notes_app/templates/notes_app/group_chat.html #}
-{% extends "layouts/dashboard.html" %}
+{# notes_app/templates/notes_app/group_chat.html (скорочено) #}
+{% extends 'layouts/dashboard.html' %}
 {% load static %}
 
+{% block topbar_title %}
+  <i class="bi bi-chat-dots me-2 text-primary"></i>Чат групи: {{ group.name }}
+{% endblock %}
+
 {% block content %}
-<div id="chat-container"
-     data-group-pk="{{ group.pk }}"
-     class="d-flex flex-column"
-     style="height: 80vh;">
+<div class="d-flex flex-column" style="height: calc(100vh - 130px);">
 
-  <h2>{{ group.name }} — Чат</h2>
-
-  <div id="connection-status" class="mb-2 text-muted small">Підключення...</div>
-
-  <div id="chat-messages"
-       class="flex-grow-1 overflow-auto border rounded p-3 mb-2 bg-light">
+  {# Status bar: крапка #status-dot + текст #status-text #}
+  <div id="chat-status"
+       class="d-flex align-items-center gap-2 px-3 py-2 mb-2 rounded small"
+       style="background: var(--card-bg); border: 1px solid var(--card-border);">
+    <span id="status-dot"
+          style="width:8px; height:8px; border-radius:50%; background:#6c757d;
+                 display:inline-block; transition: background .3s;"></span>
+    <span id="status-text" class="text-muted">Підключення...</span>
+    <span class="ms-auto text-muted">
+      <i class="bi bi-people me-1"></i>{{ group.name }}
+    </span>
   </div>
 
-  <div class="input-group">
-    <input id="message-input"
+  {# Стрічка повідомлень; JS вставляє сюди history і нові повідомлення #}
+  <div id="chat-messages"
+       class="flex-grow-1 overflow-y-auto p-3 mb-2"
+       style="background: var(--card-bg); border-radius: 10px;
+              border: 1px solid var(--card-border);">
+    <div id="chat-placeholder" class="text-center text-muted py-5">
+      <i class="bi bi-chat-dots fs-1 opacity-25 d-block mb-2"></i>
+      <small>Завантаження повідомлень...</small>
+    </div>
+  </div>
+
+  {# form#chat-form: JS перехоплює submit, повідомлення йде через WebSocket, не HTTP POST #}
+  <form id="chat-form" class="d-flex gap-2" autocomplete="off">
+    <input id="chat-input"
            type="text"
            class="form-control"
-           placeholder="Введіть повідомлення... (Enter — надіслати)"
-           maxlength="2000">
-    <button id="send-button" class="btn btn-primary" disabled>
-      Надіслати
+           placeholder="Напишіть повідомлення..."
+           maxlength="2000"
+           autocomplete="off">
+    <button type="submit" class="btn btn-primary px-4" id="chat-send-btn">
+      <i class="bi bi-send"></i>
     </button>
-  </div>
+  </form>
+
 </div>
+
+{# #chat-config: дані для JavaScript через data-атрибути (без inline <script>) #}
+<div id="chat-config"
+     data-group-pk="{{ group.pk }}"
+     data-username="{{ request.user.username }}"
+     style="display:none;"></div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -201,11 +280,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
 **Як `group_pk` потрапляє до JS:**
 ```html
-<div id="chat-container" data-group-pk="{{ group.pk }}">
+<div id="chat-config" data-group-pk="{{ group.pk }}" data-username="{{ request.user.username }}" style="display:none;"></div>
 ```
 ```javascript
-const groupPk = container.dataset.groupPk;
-// ↑ dataset.groupPk читає data-group-pk атрибут
+const config   = document.getElementById('chat-config');
+const GROUP_PK = config.dataset.groupPk;
+// ↑ dataset.groupPk читає data-group-pk атрибут (camelCase автоконверсія)
 ```
 
 ---
@@ -215,20 +295,21 @@ const groupPk = container.dataset.groupPk;
 ```
 connecting → connected → (якщо аварія) disconnected → (авторепідключення) connecting → ...
 
-Логіка авторепідключення:
-  1000 = нормальне закриття  → НЕ перепідключатись
+Логіка авторепідключення (socket.onclose):
+  1000 = нормальне закриття    → НЕ перепідключатись
   1001 = сторінка закривається → НЕ перепідключатись
-  4001 = не авторизований → НЕ перепідключатись (покажи "Доступ заборонено")
-  4003 = не є членом → НЕ перепідключатись (покажи "Доступ заборонено")
-  1006 = аварія (інтернет, сервер впав) → перепідключитись через N сек
+  будь-який інший код (зокрема 1006: інтернет, сервер впав,
+  або сервер відхилив handshake) → перепідключитись
 
-Exponential backoff:
-  Спроба 1: через 1000ms
-  Спроба 2: через 2000ms
-  Спроба 3: через 3000ms
+Exponential backoff з jitter:
+  Спроба 1: через ~1000ms (+ 0–1000ms jitter)
+  Спроба 2: через ~2000ms
+  Спроба 3: через ~4000ms
   ...
-  Максимум: через 5000ms (Math.min(1000 * attempts, 5000))
-  Після 5 спроб: "Помилка підключення. Перезавантажте сторінку."
+  Максимум: 30000ms (Math.min(reconnectDelay * 2, 30000))
+  Ліміту спроб немає; після успішного onopen затримка скидається до 1000ms.
+  Відмова в доступі (не член групи) теж приходить як 1006,
+  тому клієнт продовжує спроби з backoff до 30 с.
 ```
 
 ### Два типи повідомлень від сервера
@@ -272,7 +353,7 @@ function escapeHtml(text) {
     const div = document.createElement('div')
     div.appendChild(document.createTextNode(text))
     return div.innerHTML
-    // & → &amp;  < → &lt;  > → &gt;  " → &quot;
+    // & → &amp;  < → &lt;  > → &gt;  (лапки НЕ екрануються — не підходить для атрибутів)
 }
 wrapper.innerHTML = `<strong>${escapeHtml(data.author)}</strong>: ${escapeHtml(data.content)}`
 ```
@@ -288,7 +369,7 @@ wrapper.innerHTML = `<div class="chat-content">${escapeHtml(data.content)}</div>
 // escapeHtml замінює: & → &amp;  < → &lt;  > → &gt;  " → &quot;  ' → &#039;
 ```
 
-**У notes_chat_app** використовуємо метод 3 (`escapeHtml`) — нам потрібна HTML верстка повідомлення (автор, час, контент у різних елементах), тому `textContent` не підійде.
+**У notes_chat_app** використовуємо метод 3 (`escapeHtml`) — нам потрібна HTML верстка повідомлення (автор, час, контент у різних елементах), тому `textContent` не підійде. Реальний `group_chat.js` реалізує `escapeHtml()` ланцюжком `.replace()`, який екранує також `"` і `'` (див. повний код вище).
 
 ---
 
@@ -298,7 +379,7 @@ wrapper.innerHTML = `<div class="chat-content">${escapeHtml(data.content)}</div>
 sequenceDiagram
     participant Viktor_JS as Браузер Віктора (JS)
     participant Viktor_WS as Consumer Віктора
-    participant ChannelLayer as InMemoryChannelLayer
+    participant ChannelLayer as Channel layer
     participant Olya_WS as Consumer Олі
     participant Olya_JS as Браузер Олі (JS)
     participant DB as PostgreSQL

@@ -62,9 +62,10 @@ logout(request)   # ← видаляє запис сесії з БД + прим�
 ```
 Кожен запит проходить через ВЕСЬ ланцюг middleware (settings.py → MIDDLEWARE):
 
-1. DebugExceptionMiddleware  — логування/показ помилок у dev
-2. DebugToolbarMiddleware    — Django Debug Toolbar
-3. SecurityMiddleware        — HTTPS редирект, HTTP заголовки безпеки
+1. DebugExceptionMiddleware  — власний middleware проєкту (notes_project/middleware.py),
+                               додається лише при DEBUG=True: показ traceback у dev
+2. SecurityMiddleware        — HTTPS редирект, HTTP заголовки безпеки
+3. DebugToolbarMiddleware    — Django Debug Toolbar
 4. SessionMiddleware         — читає Cookie: sessionid=... → завантажує сесію з БД
 5. CommonMiddleware          — trailing slash, Content-Type
 6. CsrfViewMiddleware        — перевіряє csrfmiddlewaretoken у POST запитах
@@ -82,7 +83,7 @@ View функція (request.user вже встановлено!)
 
 - `SessionMiddleware` має бути перед `AuthenticationMiddleware` — Auth читає session
 - `CsrfViewMiddleware` перед View — перевіряє CSRF до виклику будь-якого view
-- `SessionMiddleware` перед `CsrfViewMiddleware` — CSRF використовує session
+- `CsrfViewMiddleware` за замовчуванням зберігає секрет у cookie `csrftoken`, а не в сесії; `SessionMiddleware` обов'язково має стояти перед ним лише при `CSRF_USE_SESSIONS = True`
 
 У `crispy_notes_project` middleware ланцюг коротший (без DebugExceptionMiddleware і DebugToolbarMiddleware), але принцип той самий.
 

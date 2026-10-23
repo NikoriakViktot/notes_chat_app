@@ -257,14 +257,21 @@ def test_note_str_returns_title():
 ```mermaid
 flowchart TD
     A["Тест потребує дані"] --> B{"Дані потрібні один раз?"}
-    B -->|Так| C["Створити прямо в тесті"]
-    B -->|Ні| D{"Це unittest/Django TestCase?"}
-    D -->|Так| E["setUp або setUpTestData"]
-    D -->|Ні| F["pytest fixture"]
+    B -->|так| C["Створити прямо в тесті"]
+    B -->|ні| D{"Це unittest/Django TestCase?"}
+    D -->|так| E["setUp або setUpTestData"]
+    D -->|ні| F["pytest fixture"]
     E --> G{"Багато моделей і зв’язків?"}
     F --> G
-    G -->|Так| H["Helper factory або factory_boy"]
-    G -->|Ні| I["Залиш простий підхід"]
+    G -->|так| H["Helper factory або factory_boy"]
+    G -->|ні| I["Залиш простий підхід"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class A,C,E,F,I step;
+    class B,D,G decision;
+    class H success;
 ```
 
 ---

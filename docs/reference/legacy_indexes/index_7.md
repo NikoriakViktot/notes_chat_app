@@ -21,14 +21,20 @@
 
 ```mermaid
 flowchart TD
-    A["01 — Sync vs Async\nЧому існує асинхронність?"] --> B["02 — asyncio\nЯк Python виконує async-код?"]
-    B --> C["03 — ASGI\nЯк Django отримує async-підтримку?"]
-    C --> D["04 — Django Async Views\nЯк писати async views?"]
-    D --> E["05 — Async ORM\nЧому ORM не стає async автоматично?"]
-    E --> F["06 — sync_to_async\nЯк з'єднати sync і async світи?"]
-    F --> G["07 — Async HTTP Clients\nЯк правильно робити зовнішні запити?"]
-    G --> H["08 — Benchmarking\nЯк об'єктивно порівняти sync і async?"]
-    H --> I["09 — Use Cases\nКоли async справді потрібен?"]
+    A["01 — Sync vs Async<br>Чому існує асинхронність?"] --> B["02 — asyncio<br>Як Python виконує async-код?"]
+    B --> C["03 — ASGI<br>Як Django отримує async-підтримку?"]
+    C --> D["04 — Django Async Views<br>Як писати async views?"]
+    D --> E["05 — Async ORM<br>Чому ORM не стає async автоматично?"]
+    E --> F["06 — sync_to_async<br>Як з'єднати sync і async світи?"]
+    F --> G["07 — Async HTTP Clients<br>Як правильно робити зовнішні запити?"]
+    G --> H["08 — Benchmarking<br>Як об'єктивно порівняти sync і async?"]
+    H --> I["09 — Use Cases<br>Коли async справді потрібен?"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class A,B,C,D,E,F,G,H step;
+    class I success;
 ```
 
 ---

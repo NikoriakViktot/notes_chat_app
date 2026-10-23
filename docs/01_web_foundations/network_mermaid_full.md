@@ -1,6 +1,6 @@
 # Мережевий фундамент — Mermaid-схеми
 
-> Усі схеми цього файлу — візуалізація концепцій із `network_foundation.md`.
+> Усі схеми цього файлу — візуалізація концепцій із [`network_foundation_full.md`](network_foundation_full.md).
 > Рендеруються в будь-якому Markdown-переглядачі з підтримкою Mermaid (GitHub, Obsidian, VSCode).
 
 ---
@@ -17,6 +17,14 @@ graph LR
     E -->|пакети| F[🖧 Веб-сервер]
     F -->|HTTP відповідь| C
     C -->|відповідь| A
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class A,C,D,E step;
+    class B decision;
+    class F success;
 ```
 
 ---
@@ -25,14 +33,22 @@ graph LR
 
 ```mermaid
 graph TD
-    Browser[Браузер\n192.168.1.10] -->|HTTP GET /| HomeRouter[Домашній роутер\nNAT: замінює IP]
-    HomeRouter -->|Публічний IP клієнта| ISP[ISP\nInternet Provider]
-    ISP -->|BGP маршрутизація| InternetCore[Магістральні вузли\nInternet backbone]
+    Browser["Браузер<br>192.168.1.10"] -->|HTTP GET /| HomeRouter["Домашній роутер<br>NAT: замінює IP"]
+    HomeRouter -->|Публічний IP клієнта| ISP["ISP<br>Internet Provider"]
+    ISP -->|BGP маршрутизація| InternetCore["Магістральні вузли<br>Internet backbone"]
     InternetCore -->|До цільової AS| DatacenterRouter[Маршрутизатор датацентру]
-    DatacenterRouter -->|До сервера| LB[Load Balancer\nнеобов'язково]
-    LB -->|Round-robin| Server[🖧 Цільовий сервер\n203.0.113.10:443]
+    DatacenterRouter -->|До сервера| LB["Load Balancer<br>необов'язково"]
+    LB -->|Round-robin| Server["🖧 Цільовий сервер<br>203.0.113.10:443"]
     Server -->|HTTP Response| DatacenterRouter
     DatacenterRouter -->|Зворотній маршрут| Browser
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class Browser,ISP,InternetCore,DatacenterRouter,LB step;
+    class HomeRouter warning;
+    class Server success;
 ```
 
 ---
@@ -43,10 +59,10 @@ graph TD
 sequenceDiagram
     participant Browser as Браузер
     participant Cache as Локальний кеш ОС
-    participant Resolver as DNS Resolver\n(провайдер / 8.8.8.8)
+    participant Resolver as DNS Resolver<br>(провайдер / 8.8.8.8)
     participant Root as Root DNS Server
     participant TLD as TLD Server (.com)
-    participant Auth as Authoritative DNS\n(github.com)
+    participant Auth as Authoritative DNS<br>(github.com)
 
     Browser->>Cache: github.com → IP?
     Cache-->>Browser: Немає (кеш порожній)
@@ -106,9 +122,9 @@ sequenceDiagram
     DNS-->>B: 93.184.216.34
     B->>S: TCP + TLS Handshake
     Note over B,S: Шифрований канал встановлено
-    B->>S: GET /cart/ HTTP/1.1\nHost: shop.com\nCookie: sessionid=abc
-    Note over S: Серверна логіка:\n1. Читає sessionid\n2. Знаходить юзера\n3. Запитує БД\n4. Рендерить HTML
-    S-->>B: HTTP/1.1 200 OK\nContent-Type: text/html\n\n<html>...</html>
+    B->>S: GET /cart/ HTTP/1.1<br>Host: shop.com · Cookie: sessionid=abc
+    Note over S: Серверна логіка: читає sessionid, знаходить юзера,<br>запитує БД, рендерить HTML
+    S-->>B: HTTP/1.1 200 OK · Content-Type: text/html<br>#lt;html#gt;...#lt;/html#gt;
     B->>U: Відображає сторінку кошика
 ```
 
@@ -120,12 +136,12 @@ sequenceDiagram
 sequenceDiagram
     participant C as Клієнт (Браузер)
     participant S as Сервер (Nginx + SSL cert)
-    participant CA as Certificate Authority\n(Let's Encrypt)
+    participant CA as Локальне сховище<br>довірених CA (ОС/браузер)
 
-    Note over C,S: TCP з'єднання вже встановлено
+    Note over C,S: TCP з'єднання вже встановлено (схема TLS 1.2 з RSA key exchange)
     C->>S: ClientHello (TLS версія, cipher suites, random_C)
     S-->>C: ServerHello + SSL Certificate (підписаний CA)
-    C->>CA: Перевірка підпису сертифікату
+    C->>CA: Перевірка ланцюжка сертифікатів (локально, без запиту до CA)
     CA-->>C: Сертифікат валідний ✓
     C->>S: Pre-master secret (зашифрований публічним ключем сервера)
     Note over C,S: Обидві сторони генерують session key
@@ -142,22 +158,24 @@ sequenceDiagram
 
 ```mermaid
 graph TD
-    Browser[🖥️ Браузер] -->|HTTPS запит| Nginx[Nginx\nReverse Proxy :443]
-    Nginx -->|Статичний файл?| Static[(📁 Файлова система\n/static/ /media/)]
+    Browser[🖥️ Браузер] -->|HTTPS запит| Nginx["Nginx<br>Reverse Proxy :443"]
+    Nginx -->|Статичний файл?| Static[("📁 Файлова система<br>/static/ /media/")]
     Static -->|PNG CSS JS| Nginx
-    Nginx -->|Динамічний запит\nUnix Socket| WSGI[uWSGI / Gunicorn\nПроцес-менеджер]
+    Nginx -->|"Динамічний запит<br>Unix Socket"| WSGI["uWSGI / Gunicorn<br>Процес-менеджер"]
     WSGI -->|WSGI environ dict| Django[🐍 Django Application]
-    Django -->|SQL запит\nORM| PG[(PostgreSQL)]
+    Django -->|"SQL запит<br>ORM"| PG[(PostgreSQL)]
     PG -->|Рядки даних| Django
     Django -->|HttpResponse HTML/JSON| WSGI
     WSGI -->|HTTP байти| Nginx
     Nginx -->|HTTPS відповідь| Browser
 
-    style Browser fill:#4A90D9,color:#fff
-    style Nginx fill:#2C7A2C,color:#fff
-    style WSGI fill:#8B5E3C,color:#fff
-    style Django fill:#0C4B33,color:#fff
-    style PG fill:#336791,color:#fff
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class Browser,Static,WSGI,PG step;
+    class Nginx decision;
+    class Django success;
 ```
 
 ---
@@ -167,18 +185,26 @@ graph TD
 ```mermaid
 graph LR
     subgraph Сервер
-        S_App[Програма\nDjango/FastAPI] -->|socket.bind\nport 8000| S_Socket[Server Socket\n0.0.0.0:8000]
+        S_App["Програма<br>Django/FastAPI"] -->|"socket.bind<br>port 8000"| S_Socket["Server Socket<br>0.0.0.0:8000"]
         S_Socket -->|socket.listen| Queue[Черга з'єднань]
-        Queue -->|socket.accept| Conn[Активне з'єднання\nConn Socket]
+        Queue -->|socket.accept| Conn["Активне з'єднання<br>Conn Socket"]
         Conn -->|recv / send| S_App
     end
 
     subgraph Клієнт
-        C_App[Браузер /\nHTTP клієнт] -->|socket.connect\n93.184.1.1:8000| C_Socket[Client Socket\nephemeral port]
+        C_App["Браузер /<br>HTTP клієнт"] -->|"socket.connect<br>93.184.1.1:8000"| C_Socket["Client Socket<br>ephemeral port"]
         C_Socket -->|send / recv| C_App
     end
 
     Conn <-->|TCP байти| C_Socket
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class S_App,Queue,C_App step;
+    class S_Socket,C_Socket warning;
+    class Conn success;
 ```
 
 ---
@@ -233,7 +259,7 @@ graph TB
 
     subgraph Server[Серверна інфраструктура]
         Nginx_S[Nginx :80/:443]
-        App[Python Backend\nDjango / FastAPI]
+        App["Python Backend<br>Django / FastAPI"]
         DB_S[(PostgreSQL)]
         Cache_S[(Redis Cache)]
         Worker[Celery Workers]
@@ -250,6 +276,14 @@ graph TB
     App <--> Cache_S
     App -->|Task queue| Worker
     Worker <--> DB_S
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class Browser,Mobile,CLI,DNS_S,Router_I,DB_S,Cache_S,Worker step;
+    class Nginx_S warning;
+    class App success;
 ```
 
 ---
@@ -259,33 +293,29 @@ graph TB
 ```mermaid
 flowchart LR
 
-    classDef layer fill:#E3F2FD,stroke:#1E88E5,color:#000
-    classDef router fill:#FFF3E0,stroke:#FB8C00,color:#000
-    classDef endpoint fill:#E8F5E9,stroke:#43A047,color:#000
-
     subgraph PACKET["TCP/IP Packet"]
         direction TB
 
-        ETH["Ethernet Header\nMAC addresses"]:::layer
+        ETH["Ethernet Header<br>MAC addresses"]
 
-        IP["IP Header\nsrc/dst IP"]:::layer
+        IP["IP Header<br>src/dst IP"]
 
-        TCP["TCP Header\nports + sequence"]:::layer
+        TCP["TCP Header<br>ports + sequence"]
 
-        DATA["Payload\nHTTP data"]:::layer
+        DATA["Payload<br>HTTP data"]
     end
 
-    Browser["🌍 Browser"]:::endpoint
+    Browser["🌍 Browser"]
 
-    R1["Home Router"]:::router
+    R1["Home Router"]
 
-    ISP["ISP Router"]:::router
+    ISP["ISP Router"]
 
-    Core["Core Router"]:::router
+    Core["Core Router"]
 
-    Alt["Alternative Route"]:::router
+    Alt["Alternative Route"]
 
-    Server["🖥️ Server"]:::endpoint
+    Server["🖥️ Server"]
 
     Browser --> R1
 
@@ -298,6 +328,14 @@ flowchart LR
     Core --> Server
 
     Alt --> Server
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class ETH,IP,TCP,DATA step;
+    class R1,ISP,Core,Alt warning;
+    class Browser,Server success;
 ```
 
 ---
@@ -307,17 +345,19 @@ flowchart LR
 ```mermaid
 graph TD
     subgraph OSI [Рівні мережі спрощено]
-        L7[L7 Прикладний\nHTTP HTTPS DNS FTP SMTP]
-        L4[L4 Транспортний\nTCP UDP]
-        L3[L3 Мережевий\nIP ICMP]
-        L2[L2 Канальний\nEthernet WiFi MAC]
-        L1[L1 Фізичний\nДроти Оптика Радіо]
+        L7["L7 Прикладний<br>HTTP HTTPS DNS FTP SMTP"]
+        L4["L4 Транспортний<br>TCP UDP"]
+        L3["L3 Мережевий<br>IP ICMP"]
+        L2["L2 Канальний<br>Ethernet WiFi MAC"]
+        L1["L1 Фізичний<br>Дроти Оптика Радіо"]
     end
     L7 --> L4 --> L3 --> L2 --> L1
-    
-    style L7 fill:#4A90D9,color:#fff
-    style L4 fill:#2C7A2C,color:#fff
-    style L3 fill:#8B5E3C,color:#fff
-    style L2 fill:#6B4C9A,color:#fff
-    style L1 fill:#555,color:#fff
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class L7 success;
+    class L4 warning;
+    class L3,L2,L1 step;
 ```

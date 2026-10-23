@@ -137,7 +137,7 @@ pip install uvicorn
 ```bash
 uvicorn myapp.asgi:application \
     --workers 4 \
-    --bind 0.0.0.0:8000 \
+    --host 0.0.0.0 --port 8000 \
     --log-level info
 ```
 
