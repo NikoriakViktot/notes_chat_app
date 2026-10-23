@@ -713,6 +713,20 @@ class SeleniumReminderToastTest(_DockerLiveServerMixin, StaticLiveServerTestCase
             'path': '/',
         })
 
+    def _wait_for_visible_toast(self):
+        """
+        Чекає, поки toast стане видимим.
+
+        Bootstrap 5.3 додає `.show` разом із `.showing` (opacity: 0) і знімає
+        `.showing` лише після fade-анімації. Поки триває анімація, Selenium
+        повертає порожній `.text`, тому чекаємо `:not(.showing)` і видимість.
+        """
+        return WebDriverWait(self.driver, 10).until(
+            EC.visibility_of_element_located(
+                (By.CSS_SELECTOR, '.toast.show:not(.showing)')
+            )
+        )
+
     def test_toast_appears_for_due_reminder(self):
         """
         Нагадування що настало 30 хвилин тому → Toast з'являється на сторінці нотаток.
@@ -729,9 +743,7 @@ class SeleniumReminderToastTest(_DockerLiveServerMixin, StaticLiveServerTestCase
         self._login_via_cookie()
         self.driver.get(f'{self.live_server_url}/notes/')
 
-        toast = WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, '.toast.show'))
-        )
+        toast = self._wait_for_visible_toast()
         self.assertIn('Selenium Reminder Note', toast.text)
 
     def test_toast_contains_reminder_message(self):
@@ -744,9 +756,7 @@ class SeleniumReminderToastTest(_DockerLiveServerMixin, StaticLiveServerTestCase
         self._login_via_cookie()
         self.driver.get(f'{self.live_server_url}/notes/')
 
-        toast = WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, '.toast.show'))
-        )
+        toast = self._wait_for_visible_toast()
         self.assertIn('Унікальний текст нагадування XYZ', toast.text)
 
     def test_toast_not_shown_for_future_reminder(self):
