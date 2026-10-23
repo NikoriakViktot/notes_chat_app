@@ -6,7 +6,7 @@
 
 | | WSGI | ASGI |
 |--|------|------|
-| **Стандарт** | PEP 3333 (2010) | PEP 517 + channels spec |
+| **Стандарт** | PEP 3333 (2010) | ASGI specification (asgi.readthedocs.io, не PEP) |
 | **Протоколи** | Тільки HTTP | HTTP + WebSocket + інші |
 | **Модель** | Синхронна (один запит = один потік) | Асинхронна (coroutines) |
 | **Сервери** | Gunicorn, uWSGI | Uvicorn, Daphne, Hypercorn |
@@ -61,8 +61,7 @@
 # notes_project/asgi.py
 import os
 from django.core.asgi import get_asgi_application
-from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.auth import AuthMiddlewareStack
+from django.contrib.staticfiles.handlers import ASGIStaticFilesHandler
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'notes_project.settings')
 
@@ -73,11 +72,15 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'notes_project.settings')
 django_asgi_app = get_asgi_application()
 
 # Тільки після get_asgi_application() — безпечно імпортувати з notes_app
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.auth import AuthMiddlewareStack
 from notes_project.routing import websocket_urlpatterns
 
 application = ProtocolTypeRouter({
-    # HTTP → звичайний Django (views.py, templates, static)
-    "http": django_asgi_app,
+    # HTTP → звичайний Django (views.py, templates);
+    # ASGIStaticFilesHandler віддає /static/ прямо з Django (зручно для розробки;
+    # у Docker-стеку /static/ віддає nginx)
+    "http": ASGIStaticFilesHandler(django_asgi_app),
 
     # WebSocket → Auth middleware → URL router → Consumer
     "websocket": AuthMiddlewareStack(

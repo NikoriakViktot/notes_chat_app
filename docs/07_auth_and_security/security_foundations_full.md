@@ -38,6 +38,13 @@ flowchart TB
 
     A --> A1["Rate limiting"]
     A --> A2["Захист від brute force"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class CIA warning;
+    class C,I,A step;
+    class C1,C2,I1,I2,A1,A2 success;
 ```
 
 ---
@@ -49,11 +56,9 @@ flowchart LR
 
     User["👤 Користувач"]
 
-    Auth["Authentication
-Хто ти?"]
+    Auth["Authentication<br>Хто ти?"]
 
-    Perm["Authorization
-Що тобі дозволено?"]
+    Perm["Authorization<br>Що тобі дозволено?"]
 
     Resource["Дані системи"]
 
@@ -62,6 +67,13 @@ flowchart LR
     Auth --> Perm
 
     Perm --> Resource
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class User step;
+    class Auth,Perm warning;
+    class Resource success;
 ```
 
 ---
@@ -115,7 +127,6 @@ flowchart TD
     end
 
     subgraph YELLOW["🟡 Security Layer"]
-        SpacerY[" "]
         Nginx["Nginx"]
         Middleware["Middleware"]
         Auth["Authentication"]
@@ -124,31 +135,30 @@ flowchart TD
     end
 
     subgraph GREEN["🟢 Trusted Zone"]
-        SpacerX[" "]
         View["Django View"]
         ORM["Django ORM"]
         DB["PostgreSQL"]
     end
 
-    Browser --> SpacerY
-    Attacker --> SpacerY
-    SpacerY --> Nginx
+    Browser --> Nginx
+    Attacker --> Nginx
 
     Nginx --> Middleware
     Middleware --> Auth
     Auth --> Validation
     Validation --> Permissions
-    Permissions --> SpacerX
-    SpacerX --> View
+    Permissions --> View
     View --> ORM
     ORM --> DB
 
-    style RED fill:#4a2b2b,stroke:#ff5c5c,color:#ffffff
-    style YELLOW fill:#4a432b,stroke:#f0c542,color:#ffffff
-    style GREEN fill:#2b4a35,stroke:#4caf50,color:#ffffff
-
-    style SpacerY fill:transparent,stroke:transparent,color:transparent
-    style SpacerX fill:transparent,stroke:transparent,color:transparent
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class Browser,Nginx,Middleware,Auth,Validation,Permissions step;
+    class Attacker,RED error;
+    class YELLOW warning;
+    class View,ORM,DB,GREEN success;
 ```
 
 **Червона зона (ненадійна):** Будь-який запит з Інтернету. Будь-хто може підробити:
@@ -215,13 +225,10 @@ flowchart LR
     A --> Q
     A --> D
 
-    classDef attacker fill:#ffcdd2,stroke:#c62828,color:#000000;
-    classDef surface fill:#263238,stroke:#90a4ae,color:#ffffff;
-
-    class A attacker;
-    class U,F,C,H,FI,Q,D surface;
-
-    style SURFACE fill:#3b2f2f,stroke:#ef5350,color:#ffffff
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A error;
+    class U,F,C,H,FI,Q,D warning;
 ```
 
 ### Як зменшити Attack Surface в Django
@@ -278,17 +285,17 @@ flowchart TD
     Attack["🦹 Атакер"]
 
     subgraph DEFENSE["🛡️ Defense-in-Depth: 6 рівнів захисту"]
-        L1["🌐 Рівень 1: Мережа<br/>Firewall<br/>DDoS protection<br/>HTTPS<br/>Cloudflare / AWS Shield"]
+        L1["🌐 Рівень 1: Мережа<br/>Firewall · DDoS protection · HTTPS · Cloudflare / AWS Shield"]
 
-        L2["🧱 Рівень 2: Web Server<br/>Nginx<br/>Rate limiting<br/>HTTP Security Headers"]
+        L2["🧱 Рівень 2: Web Server<br/>Nginx · Rate limiting · HTTP Security Headers"]
 
-        L3["⚙️ Рівень 3: Django Middleware<br/>SecurityMiddleware<br/>CSRF Middleware<br/>SessionMiddleware"]
+        L3["⚙️ Рівень 3: Django Middleware<br/>SecurityMiddleware · CSRF Middleware · SessionMiddleware"]
 
-        L4["🔐 Рівень 4: Application Layer<br/>@login_required<br/>Permissions<br/>get_object_or_404(..., user=request.user)"]
+        L4["🔐 Рівень 4: Application Layer<br/>@login_required · Permissions · get_object_or_404(..., user=request.user)"]
 
-        L5["🗄️ Рівень 5: База даних<br/>Django ORM<br/>Параметризовані запити<br/>DB-user без DROP прав"]
+        L5["🗄️ Рівень 5: База даних<br/>Django ORM · параметризовані запити · DB-user без DROP прав"]
 
-        L6["📡 Рівень 6: Моніторинг<br/>Logging<br/>Sentry<br/>Grafana<br/>SIEM / Alerts"]
+        L6["📡 Рівень 6: Моніторинг<br/>Logging · Sentry · Grafana · SIEM / Alerts"]
     end
 
     Data["✅ Дані захищені"]
@@ -301,17 +308,12 @@ flowchart TD
     L5 --> L6
     L6 --> Data
 
-    style Attack fill:#ffcdd2,stroke:#c62828,color:#000000
-    style DEFENSE fill:#263238,stroke:#90a4ae,color:#ffffff
-
-    style L1 fill:#fce4ec,stroke:#c62828,color:#000000
-    style L2 fill:#fff3e0,stroke:#e65100,color:#000000
-    style L3 fill:#fff9c4,stroke:#f9a825,color:#000000
-    style L4 fill:#e8f5e9,stroke:#2e7d32,color:#000000
-    style L5 fill:#e3f2fd,stroke:#1565c0,color:#000000
-    style L6 fill:#f3e5f5,stroke:#6a1b9a,color:#000000
-    style Data fill:#c8e6c9,stroke:#2e7d32,color:#000000
-    
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class Attack error;
+    class L1,L2,L3,L4,L5,L6 step;
+    class Data success;
 ```
 
 ### Що відбувається якщо один рівень пробито
@@ -321,7 +323,7 @@ flowchart TD
 flowchart TD
 
     Attack["🦹 Атакер"]
-    Bypass["⚠️ Рівень 2 пробито<br/>Nginx rate limiting обійдено<br/>через VPN-ротацію"]
+    Bypass["⚠️ Рівень 2 пробито<br/>Nginx rate limiting обійдено через VPN-ротацію"]
 
     subgraph BAD["❌ Без Defense-in-Depth"]
         Bad1["Nginx пропустив"]
@@ -347,20 +349,14 @@ flowchart TD
     Good2 --> Good3
     Good3 --> Good4
 
-    style Attack fill:#ffcdd2,stroke:#c62828,color:#000000
-    style Bypass fill:#ffecb3,stroke:#ff6f00,color:#000000
-
-    style BAD fill:#3b1f1f,stroke:#c62828,color:#ffffff
-    style GOOD fill:#1b3b2a,stroke:#2e7d32,color:#ffffff
-
-    style Bad1 fill:#ffcdd2,stroke:#c62828,color:#000000
-    style Bad2 fill:#ef9a9a,stroke:#c62828,color:#000000
-    style Bad3 fill:#b71c1c,stroke:#ffffff,color:#ffffff
-
-    style Good1 fill:#fff9c4,stroke:#f9a825,color:#000000
-    style Good2 fill:#e8f5e9,stroke:#2e7d32,color:#000000
-    style Good3 fill:#c8e6c9,stroke:#2e7d32,color:#000000
-    style Good4 fill:#a5d6a7,stroke:#1b5e20,color:#000000
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class Attack,Bad2,Bad3,BAD error;
+    class Bypass warning;
+    class Bad1,Good1,Good2,Good3 step;
+    class Good4,GOOD success;
 ```
 
 ```
@@ -434,30 +430,32 @@ flowchart TD
 
     Q3{"user є членом<br/>note.group?"}
 
-    A2["👁️ Груповий доступ<br/>дозволити перегляд<br/>редагування заборонено"]
+    A2["👁️ Груповий доступ<br/>дозволити перегляд, редагування заборонено"]
 
     A3["⛔ 403 Forbidden<br/>PermissionDenied"]
 
     R --> Q1
 
-    Q1 -->|НІ| R1
-    Q1 -->|ТАК| Q2
+    Q1 -->|ні| R1
+    Q1 -->|так| Q2
 
-    Q2 -->|ТАК| A1
-    Q2 -->|НІ| Q3
+    Q2 -->|так| A1
+    Q2 -->|ні| Q3
 
-    Q3 -->|ТАК| A2
-    Q3 -->|НІ| A3
+    Q3 -->|так| A2
+    Q3 -->|ні| A3
 
-    style R fill:#e3f2fd,stroke:#1565c0,color:#000000
-    style Q1 fill:#fff9c4,stroke:#f9a825,color:#000000
-    style Q2 fill:#fff9c4,stroke:#f9a825,color:#000000
-    style Q3 fill:#fff9c4,stroke:#f9a825,color:#000000
-
-    style R1 fill:#fff3e0,stroke:#e65100,color:#000000
-    style A1 fill:#c8e6c9,stroke:#2e7d32,color:#000000
-    style A2 fill:#e3f2fd,stroke:#1565c0,color:#000000
-    style A3 fill:#ffcdd2,stroke:#c62828,color:#000000
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class R step;
+    class Q1,Q2,Q3 decision;
+    class R1 warning;
+    class A1 success;
+    class A2 step;
+    class A3 error;
 ```
 
 ### Django реалізація
@@ -532,11 +530,11 @@ Brute-force паролю "Password1" (8 символів, A-z + 0-9):
 ```
 Поле User.password у базі даних:
 
-pbkdf2_sha256$720000$randomsalt$VQaFwT...longhash...==
-│             │       │           │
-│             │       │           └─ власне хеш (base64)
-│             │       └─ сіль (random, 22 символи)
-│             └─ кількість ітерацій (720000 у Django 5.x)
+pbkdf2_sha256$1000000$randomsalt$VQaFwT...longhash...==
+│             │        │           │
+│             │        │           └─ власне хеш (base64)
+│             │        └─ сіль (random, 22 символи)
+│             └─ кількість ітерацій (1000000 у Django 5.2+)
 └─ назва алгоритму
 ```
 
@@ -544,11 +542,11 @@ pbkdf2_sha256$720000$randomsalt$VQaFwT...longhash...==
 # Django автоматично хешує при set_password():
 user = User.objects.create_user(username='alice', password='secret123')
 print(user.password)
-# → 'pbkdf2_sha256$720000$xK9mPq3rT8aL2v...=$VQaFwT+abc...=='
+# → 'pbkdf2_sha256$1000000$xK9mPq3rT8aL2v...=$VQaFwT+abc...=='
 
 # Django автоматично перевіряє при authenticate():
 user = authenticate(request, username='alice', password='secret123')
-# → Django: PBKDF2('secret123', salt='xK9mPq3rT8aL2v...', iterations=720000)
+# → Django: PBKDF2('secret123', salt='xK9mPq3rT8aL2v...', iterations=1000000)
 # → Порівнює з хешем у БД
 # → Повертає User якщо збігається, None якщо ні
 ```

@@ -198,7 +198,7 @@ CHANNEL_LAYERS = {
 ```
 
 **Оціни:**
-- Уяви що production-сервер запускає 3 Daphne workers. Що трапиться з чатом при Варіанті A?
+- Уяви що production-сервер запускає 3 Uvicorn workers. Що трапиться з чатом при Варіанті A?
 - При Варіанті B — якщо Redis недоступний, що трапиться з чатом?
 - Знайди у `settings.py` який варіант активний при наявності `REDIS_URL` і без нього.
 - Зроби висновок: «Варіант A доречний коли..., Варіант B обов'язковий коли...»
@@ -217,7 +217,10 @@ def note_list(request):
 
 # Async view
 async def note_list(request):
-    notes = await database_sync_to_async(selectors.get_user_notes)(user=request.user)
+    # list() виконує SQL у worker thread; lazy QuerySet у render() → SynchronousOnlyOperation
+    notes = await database_sync_to_async(
+        lambda: list(selectors.get_user_notes(user=request.user))
+    )()
     return render(request, 'note_list.html', {'notes': notes})
 ```
 

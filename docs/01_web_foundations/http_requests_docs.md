@@ -67,13 +67,13 @@ X-RateLimit-Remaining: 59\r\n
 
 ```mermaid
 flowchart TD
-    A["🐍 Твій Python код\nrequests.get(url)"]
-    B["📦 requests library\nSession · PreparedRequest · HTTPAdapter"]
-    C["🔗 urllib3\nConnectionPool · HTTPConnection · Retry"]
-    D["⚙️ OS Kernel\nTCP/IP Stack · DNS · TLS · Socket Buffers"]
-    E["🔌 NIC Hardware\nДрайвер мережевої карти"]
-    F["🌐 Internet\nRouters · Switches · Optical Fiber"]
-    G["🖥️ Remote Server\nNginx · FastAPI · Django · Database"]
+    A["🐍 Твій Python код<br>requests.get(url)"]
+    B["📦 requests library<br>Session · PreparedRequest · HTTPAdapter"]
+    C["🔗 urllib3<br>ConnectionPool · HTTPConnection · Retry"]
+    D["⚙️ OS Kernel<br>TCP/IP Stack · DNS · TLS · Socket Buffers"]
+    E["🔌 NIC Hardware<br>Драйвер мережевої карти"]
+    F["🌐 Internet<br>Routers · Switches · Optical Fiber"]
+    G["🖥️ Remote Server<br>Nginx · FastAPI · Django · Database"]
 
     A -->|"high-level wrapper"| B
     B -->|"connection pooling"| C
@@ -82,13 +82,13 @@ flowchart TD
     E -->|"електричні / оптичні сигнали"| F
     F -->|"TCP segments"| G
 
-    style A fill:#e3f2fd,stroke:#1565c0,color:#000
-    style B fill:#e8f5e9,stroke:#2e7d32,color:#000
-    style C fill:#fff8e1,stroke:#f57f17,color:#000
-    style D fill:#fce4ec,stroke:#880e4f,color:#000
-    style E fill:#f3e5f5,stroke:#4a148c,color:#000
-    style F fill:#e0f7fa,stroke:#006064,color:#000
-    style G fill:#efebe9,stroke:#3e2723,color:#000
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class A,B,C,F step;
+    class D,E warning;
+    class G success;
 ```
 
 **Ключовий принцип:** Python працює лише на рівні A і частково B.
@@ -237,19 +237,19 @@ classDiagram
 
 ```mermaid
 flowchart LR
-    A["requests.get(url,\nparams=...,\nheaders=...,\njson=...,\ntimeout=...)"]
+    A["requests.get(url,<br>params=..., headers=..., json=..., timeout=...)"]
 
-    B["Request об'єкт\n(непідготовлений)"]
+    B["Request об'єкт<br>(непідготовлений)"]
 
-    C["PreparedRequest\nmethod='GET'\nurl='https://...?q=python'\nheaders={...}\nbody=b'{...}'"]
+    C["PreparedRequest: method='GET'<br>url='https://...?q=python', headers={...}, body=b'{...}'"]
 
-    D["HTTPAdapter.send()\nurllib3\nConnectionPool"]
+    D["HTTPAdapter.send()<br>urllib3 ConnectionPool"]
 
-    E["OS Socket\nsendall() + recv()"]
+    E["OS Socket<br>sendall() + recv()"]
 
-    F["HTTP Response bytes\nHTTP/1.1 200 OK\n..."]
+    F["HTTP Response bytes<br>HTTP/1.1 200 OK ..."]
 
-    G["Response об'єкт\n.status_code=200\n.headers={...}\n.text='...'"]
+    G["Response об'єкт<br>.status_code=200, .headers={...}, .text='...'"]
 
     A -->|"Session.request()"| B
     B -->|"prepare_request()"| C
@@ -258,8 +258,13 @@ flowchart LR
     E -->|"raw bytes"| F
     F -->|"build_response()"| G
 
-    style C fill:#fff3e0,stroke:#e65100
-    style E fill:#fce4ec,stroke:#880e4f
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class A,B,D,F step;
+    class C,E warning;
+    class G success;
 ```
 
 ---
@@ -270,25 +275,25 @@ flowchart LR
 flowchart TD
     START["requests.get(url, timeout=5)"]
 
-    DNS{"DNS\nResolution\nуспішно?"}
-    TCP{"TCP\nHandshake\nуспішно?"}
-    SEND{"sendall()\nуспішно?"}
-    WAIT{"recv()\nотримав\nбайти?"}
-    STATUS{"HTTP Status\nCode?"}
-    JSON{"response.json()\nуспішно?"}
+    DNS{"DNS Resolution<br>успішно?"}
+    TCP{"TCP Handshake<br>успішно?"}
+    SEND{"sendall()<br>успішно?"}
+    WAIT{"recv()<br>отримав байти?"}
+    STATUS{"HTTP Status<br>Code?"}
+    JSON{"response.json()<br>успішно?"}
 
-    ERR1["❌ ConnectionError\n(DNSError)\nDNS не відповідає\nабо домен не існує"]
-    ERR2["❌ ConnectionError\n(Connection Refused)\nSервер закрив TCP\nабо порт не слухається"]
-    ERR3["❌ ConnectTimeout\nTCP handshake\nзайняв занадто довго"]
-    ERR4["❌ ReadTimeout\nСервер не відповів\nза read_timeout секунд"]
-    ERR5["⚠️ HTTPError 4xx\nТвій запит неправильний\n401 · 403 · 404 · 429"]
-    ERR6["⚠️ HTTPError 5xx\nСервер зламано\n500 · 502 · 503 · 504"]
-    ERR7["❌ JSONDecodeError\nСервер повернув HTML\nзамість JSON"]
-    SUCCESS["✅ Python dict\nДані отримано"]
+    ERR1["❌ ConnectionError (DNSError)<br>DNS не відповідає або домен не існує"]
+    ERR2["❌ ConnectionError (Connection Refused)<br>Сервер закрив TCP або порт не слухається"]
+    ERR3["❌ ConnectTimeout<br>TCP handshake зайняв занадто довго"]
+    ERR4["❌ ReadTimeout<br>Сервер не відповів за read_timeout секунд"]
+    ERR5["⚠️ HTTPError 4xx: твій запит неправильний<br>401 · 403 · 404 · 429"]
+    ERR6["⚠️ HTTPError 5xx: сервер зламано<br>500 · 502 · 503 · 504"]
+    ERR7["❌ JSONDecodeError<br>Сервер повернув HTML замість JSON"]
+    SUCCESS["✅ Python dict<br>Дані отримано"]
 
     START --> DNS
-    DNS -->|"Ні"| ERR1
-    DNS -->|"Так"| TCP
+    DNS -->|"ні"| ERR1
+    DNS -->|"так"| TCP
     TCP -->|"RST packet"| ERR2
     TCP -->|"Timeout"| ERR3
     TCP -->|"OK"| SEND
@@ -301,14 +306,17 @@ flowchart TD
     JSON -->|"HTML/XML"| ERR7
     JSON -->|"valid JSON"| SUCCESS
 
-    style ERR1 fill:#ffebee,stroke:#c62828
-    style ERR2 fill:#ffebee,stroke:#c62828
-    style ERR3 fill:#fff3e0,stroke:#e65100
-    style ERR4 fill:#fff3e0,stroke:#e65100
-    style ERR5 fill:#fffde7,stroke:#f9a825
-    style ERR6 fill:#fff3e0,stroke:#e65100
-    style ERR7 fill:#ffebee,stroke:#c62828
-    style SUCCESS fill:#e8f5e9,stroke:#2e7d32
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class START step;
+    class DNS,TCP,SEND,WAIT,STATUS,JSON decision;
+    class ERR1,ERR2,ERR3,ERR4,ERR7 error;
+    class ERR5,ERR6 warning;
+    class SUCCESS success;
 ```
 
 ### Таблиця Exception → Причина → Дія
@@ -336,38 +344,48 @@ flowchart TD
 flowchart LR
     subgraph GET["GET — Отримати ресурс"]
         direction TB
-        G1["params= → URL query string\n?search=python&page=1"]
+        G1["params= → URL query string<br>?search=python&page=1"]
         G2["Body: порожнє"]
-        G3["Idempotent: Так\nSafe: Так (не змінює стан)"]
+        G3["Idempotent: Так<br>Safe: Так (не змінює стан)"]
     end
 
     subgraph POST["POST — Створити ресурс"]
         direction TB
-        P1["json= → JSON body\ndata= → form-encoded body"]
+        P1["json= → JSON body<br>data= → form-encoded body"]
         P2["Body: payload"]
-        P3["Idempotent: Ні\nSafe: Ні"]
+        P3["Idempotent: Ні<br>Safe: Ні"]
     end
 
     subgraph PUT["PUT — Замінити ресурс"]
         direction TB
         U1["json= → повна заміна об'єкта"]
         U2["Body: повний об'єкт"]
-        U3["Idempotent: Так\nSafe: Ні"]
+        U3["Idempotent: Так<br>Safe: Ні"]
     end
 
     subgraph PATCH["PATCH — Частково оновити"]
         direction TB
         PA1["json= → лише змінені поля"]
         PA2["Body: часткові зміни"]
-        PA3["Idempotent: Залежить\nSafe: Ні"]
+        PA3["Idempotent: Залежить<br>Safe: Ні"]
     end
 
     subgraph DELETE["DELETE — Видалити ресурс"]
         direction TB
         D1["params= → ID у URL"]
         D2["Body: зазвичай порожнє"]
-        D3["Idempotent: Так\nSafe: Ні"]
+        D3["Idempotent: Так<br>Safe: Ні"]
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class G1,G2,P1,P2,U1,U2,PA1,PA2,D1,D2 step;
+    class G3,U3,D3 success;
+    class P3 warning;
+    class PA3 decision;
 ```
 
 ### Де йдуть дані — чіткий порівняльник
@@ -483,7 +501,6 @@ from urllib3.util.retry import Retry
 def build_session(
     retries: int = 3,
     backoff_factor: float = 1.0,
-    base_url: str = '',
     token: str = '',
 ) -> requests.Session:
     """
@@ -502,9 +519,6 @@ def build_session(
     session = requests.Session()
     session.mount('https://', adapter)
     session.mount('http://', adapter)
-
-    if base_url:
-        session.headers['X-Base-URL'] = base_url
 
     if token:
         session.headers['Authorization'] = f'Bearer {token}'
@@ -566,41 +580,55 @@ def inspect_request(response: requests.Response) -> None:
 flowchart TD
     START["API відповідає неправильно або падає exception"]
 
-    Q1{"Який тип\nexception?"}
+    Q1{"Який тип<br>exception?"}
 
-    Q2{"ConnectionError:\nDNS чи Refused?"}
-    Q3{"Timeout:\nconnect чи read?"}
-    Q4{"HTTPError:\nякий статус?"}
+    Q2{"ConnectionError:<br>DNS чи Refused?"}
+    Q3{"Timeout:<br>connect чи read?"}
+    Q4{"HTTPError:<br>який статус?"}
     Q5{"JSONDecodeError?"}
 
-    A1["ping домен у терміналі\ncurl -v URL\nперевір Wi-Fi/VPN"]
-    A2["nc -zv host port\nперевір чи сервер запущений\nперевір firewall правила"]
-    A3["збільш connect_timeout\nперевір firewall/NAT\ncurl --connect-timeout 10"]
-    A4["збільш read_timeout\nперевір навантаження сервера"]
+    A1["ping домен у терміналі, curl -v URL<br>перевір Wi-Fi/VPN"]
+    A2["nc -zv host port<br>перевір, чи сервер запущений, і правила firewall"]
+    A3["збільш connect_timeout, перевір firewall/NAT<br>curl --connect-timeout 10"]
+    A4["збільш read_timeout<br>перевір навантаження сервера"]
 
-    A5["401: перевір Authorization header\n403: перевір User-Agent, IP ban\n404: перевір URL, не retry\n429: чекай Retry-After\n5xx: retry з backoff"]
+    A5A["перевір Authorization header"]
+    A5B["перевір User-Agent, IP ban"]
+    A5C["перевір URL, не retry"]
+    A5D["чекай Retry-After"]
+    A5E["retry з backoff"]
 
-    A6["перевір Content-Type header\nprint(response.text[:300])\nperevir raise_for_status() спершу"]
+    A6["перевір Content-Type header, print(response.text[:300])<br>перевір raise_for_status() спершу"]
 
     START --> Q1
     Q1 -->|"ConnectionError"| Q2
     Q1 -->|"Timeout"| Q3
     Q1 -->|"HTTPError"| Q4
     Q1 -->|"JSONDecodeError"| Q5
-    Q1 -->|"Немає exception\nале результат неправильний"| INSPECT
+    Q1 -->|"Немає exception,<br>але результат неправильний"| INSPECT
 
     Q2 -->|"DNS fail"| A1
     Q2 -->|"Connection Refused"| A2
     Q3 -->|"connect timeout"| A3
     Q3 -->|"read timeout"| A4
-    Q4 --> A5
+    Q4 -->|"401"| A5A
+    Q4 -->|"403"| A5B
+    Q4 -->|"404"| A5C
+    Q4 -->|"429"| A5D
+    Q4 -->|"5xx"| A5E
     Q5 --> A6
 
-    INSPECT["Інспектуй PreparedRequest:\nprint(response.request.url)\nprint(response.request.headers)\nprint(response.request.body)"]
+    INSPECT["Інспектуй PreparedRequest:<br>print(response.request.url / .headers / .body)"]
 
-    style START fill:#ffebee,stroke:#c62828
-    style INSPECT fill:#e8eaf6,stroke:#3949ab
-    style A5 fill:#fff9c4,stroke:#f9a825
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class START error;
+    class Q1,Q2,Q3,Q4,Q5 decision;
+    class A1,A2,A3,A4,A6,INSPECT step;
+    class A5A,A5B,A5C,A5D,A5E warning;
 ```
 
 ### Загальний Debug Checklist

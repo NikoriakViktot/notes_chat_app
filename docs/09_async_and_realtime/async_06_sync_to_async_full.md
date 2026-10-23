@@ -74,7 +74,7 @@ sequenceDiagram
     participant DB as Database
 
     EL->>Adapter: await get_user_from_db(1)
-    Note over EL: Event loop призупиняє view\nОБСЛУГОВУЄ ІНШІ ЗАПИТИ
+    Note over EL: Event loop призупиняє view<br>ОБСЛУГОВУЄ ІНШІ ЗАПИТИ
     Adapter->>Thread: Передає sync-функцію в потік
     Thread->>DB: User.objects.get(id=1) — blocking SQL
     DB-->>Thread: Рядок даних
@@ -171,15 +171,17 @@ graph TD
     end
 
     subgraph Sync ["Sync Context (OS Threads)"]
-        ORM[Django ORM\nLegacy Code]
+        ORM["Django ORM<br>Legacy Code"]
         SM[Sync Middleware]
     end
 
     AV -->|sync_to_async| ORM
     SM -->|async_to_sync| AC
 
-    style Async fill:#e8f5e9,stroke:#2e7d32
-    style Sync fill:#ffebee,stroke:#c62828
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class AV,AC success;
+    class ORM,SM warning;
 ```
 
 ---
@@ -197,8 +199,10 @@ graph LR
     C -->|Context switch ⚠️| B
     B --> A
 
-    style C fill:#ffcdd2,stroke:#c62828
-    style E fill:#ffcdd2,stroke:#c62828
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A,B,D step;
+    class C,E error;
 ```
 
 Кожен ⚠️ — це ~1мс штрафу. При великому навантаженні — це відчутно.

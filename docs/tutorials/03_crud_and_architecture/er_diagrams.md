@@ -195,10 +195,11 @@ class Note(models.Model):
     # Логіка: нотатка має бути збережена! Тільки записник видаляється.
 
 # PROTECT — забороняє видалення якщо є дочірні записи
+# (гіпотетичний приклад: у нашому проєкті Note.tags — це M:N, а для M:N on_delete не задається)
 class Note(models.Model):
-    tag = models.ForeignKey(Tag, on_delete=models.PROTECT)
-    # Видалення Tag → ProtectedError (виняток)
-    # Логіка: не дай видалити тег поки він використовується
+    category = models.ForeignKey(Category, on_delete=models.PROTECT)
+    # Видалення Category → ProtectedError (виняток)
+    # Логіка: не дай видалити категорію поки вона використовується
 
 # RESTRICT — схоже на PROTECT але дозволяє каскад з вищого рівня
 # Складні ієрархії, рідко використовується
@@ -221,7 +222,7 @@ class Note(models.Model):
 | `CASCADE` | Видалити дочірні автоматично | `Reminder → Note`: нагадування без нотатки не має сенсу |
 | `SET_NULL` | FK → NULL, дочірні живуть далі | `Note → Notebook`: нотатка існує без записника. Поле має бути `null=True` |
 | `SET_DEFAULT` | FK → значення `default` | `Note → Notebook`: перенести в «Default» записник |
-| `PROTECT` | `ProtectedError`, видалення заборонене | `Tag`: не дозволити видаляти тег поки він використовується |
+| `PROTECT` | `ProtectedError`, видалення заборонене | `Category` (гіпотетично): не дозволити видаляти категорію поки вона використовується |
 | `RESTRICT` | Заборонити, але дозволити каскад з вищого рівня | Складні домени з кількома рівнями власності |
 | `DO_NOTHING` | БД сама вирішує (часто = orphan) | Майже ніколи. Тільки якщо керуєш consistency вручну (triggers) |
 
@@ -232,7 +233,7 @@ class Note(models.Model):
 | Note | Видалити Reminder (не мають сенсу без Note) | CASCADE |
 | Notebook | Зберегти Note (нотатка важливіша за записник) | SET_NULL |
 | User | Видалити всі Note (контент belongs to user) | CASCADE |
-| Tag | Заборонити видалення (тег використовується) | PROTECT |
+| Tag | Note.tags — M:N: видаляються лише рядки в `note_tags`, нотатки залишаються | — (для M:N `on_delete` не задається) |
 
 ---
 
@@ -268,14 +269,14 @@ NOTEBOOK                      NOTE (центральна)     TAG
                               └───────────────┴──────────────────┘
                                      │ reminds 1:N
                                      ▼
-                              REMINDER                         NOTE_TAGS (junction)
-                              ┌───────────┬──────────────┐     ┌──────────┬────────────┐
-                              │ id        │ bigint PK    │     │ note_id  │ bigint FK  │
-                              │ note_id   │ bigint FK    │     │ tag_id   │ bigint FK  │
-                              │ remind_at │ timestamp    │     └──────────┴────────────┘
-                              │ is_sent   │ boolean      │     UNIQUE(note_id, tag_id)
-                              │ repeat    │ varchar(20)  │     Django створює авто
-                              └───────────┴──────────────┘
+                              REMINDER                              NOTE_TAGS (junction)
+                              ┌────────────────┬──────────────┐     ┌──────────┬────────────┐
+                              │ id             │ bigint PK    │     │ note_id  │ bigint FK  │
+                              │ note_id        │ bigint FK    │     │ tag_id   │ bigint FK  │
+                              │ remind_at      │ timestamp    │     └──────────┴────────────┘
+                              │ is_sent        │ boolean      │     UNIQUE(note_id, tag_id)
+                              │ repeat_pattern │ varchar(20)  │     Django створює авто
+                              └────────────────┴──────────────┘
 
 TODO_LIST                     TODO_ITEM
 ┌─────────────┬──────────┐    ┌────────────────┬──────────────┐
@@ -293,7 +294,7 @@ SHOPPING_LIST                 SHOP_ITEM
 │ user_id     │ bigint FK│───►│ shopping_list_id │ bigint FK        │
 │ title       │ varchar  │    │ name             │ varchar(120)     │
 │ store_name  │ varchar  │    │ quantity         │ decimal(8,2)     │
-└─────────────┴──────────┘    │ unit             │ varchar(20)      │
+└─────────────┴──────────┘    │ unit             │ varchar(5)       │
                               │ is_purchased     │ boolean          │
                               │ estimated_price  │ decimal(10,2)    │
                               └──────────────────┴──────────────────┘
@@ -385,17 +386,27 @@ erDiagram
 
 ```mermaid
 flowchart TD
-    A[Описати домен словами] --> B[Знайти сутності\nіменники у тексті]
-    B --> C[Визначити атрибути\nкожної сутності]
-    C --> D{Зв'язок між\nсутностями?}
-    D -->|"1:1"| E[OneToOneField\nFK + UNIQUE]
-    D -->|"1:N"| F[ForeignKey\nна стороні Many]
-    D -->|"M:N"| G[ManyToManyField\nDjango junction table]
+    A[Описати домен словами] --> B["Знайти сутності<br>іменники у тексті"]
+    B --> C["Визначити атрибути<br>кожної сутності"]
+    C --> D{"Зв'язок між<br>сутностями?"}
+    D -->|"1:1"| E["OneToOneField<br>FK + UNIQUE"]
+    D -->|"1:N"| F["ForeignKey<br>на стороні Many"]
+    D -->|"M:N"| G["ManyToManyField<br>Django junction table"]
     E --> H[Вибрати on_delete]
     F --> H
-    G --> I[Django створить\njunction table]
-    H --> J[Нормалізація:\nприбрати дублювання]
+    G --> I["Django створить<br>junction table"]
+    H --> J["Нормалізація:<br>прибрати дублювання"]
     J --> K[Написати Django модель]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class A,B,C,E,F,G,H,I step;
+    class D decision;
+    class K success;
+    class J warning;
 ```
 
 ---

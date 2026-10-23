@@ -23,13 +23,11 @@
 
 ```html
 {% if not notes %}
-  {% include 'components/empty_state.html' with
-     icon="bi-journal"
-     message="Ще немає нотаток"
-     action_url=note_create_url
-     action_label="Створити першу" %}
+  {% include 'components/empty_state.html' with icon="bi-journal" message="Ще немає нотаток" action_url=note_create_url action_label="Створити першу" %}
 {% endif %}
 ```
+
+> Тег шаблону Django (`{% ... %}`) має бути записаний в одному рядку — багаторядковий `{% include ... with %}` не розпізнається.
 
 ---
 

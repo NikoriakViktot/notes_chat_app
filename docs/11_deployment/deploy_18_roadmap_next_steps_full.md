@@ -12,12 +12,18 @@
 
 ```mermaid
 flowchart TD
-    Start["Цей урок ✓"] --> L1["Рівень 1\nВпевнений у Linux"]
-    L1 --> L2["Рівень 2\nЗапускаю backend"]
-    L2 --> L3["Рівень 3\nАвтоматизація"]
-    L3 --> L4["Рівень 4\nКонтейнеризація"]
-    L4 --> L5["Рівень 5\nDevOps basics"]
-    L5 --> L6["Рівень 6\nCloud і далі"]
+    Start["Цей урок ✓"] --> L1["Рівень 1<br>Впевнений у Linux"]
+    L1 --> L2["Рівень 2<br>Запускаю backend"]
+    L2 --> L3["Рівень 3<br>Автоматизація"]
+    L3 --> L4["Рівень 4<br>Контейнеризація"]
+    L4 --> L5["Рівень 5<br>DevOps basics"]
+    L5 --> L6["Рівень 6<br>Cloud і далі"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class L1,L2,L3,L4,L5 step;
+    class Start,L6 success;
 ```
 
 ---
@@ -197,13 +203,19 @@ OWASP топ-10 для web
 
 ```mermaid
 flowchart LR
-    Start["Боявся\nтерміналу"] --> Now["Розумієш\nLinus і сервер"]
-    Now --> Next1["Деплоїш\nДжанго"]
-    Now --> Next2["Пишеш\nDocker Compose"]
-    Now --> Next3["Маєш CI/CD\npipeline"]
-    Next1 --> Future["Готовий до\nCloud та DevOps"]
+    Start["Боявся<br>терміналу"] --> Now["Розумієш<br>Linux і сервер"]
+    Now --> Next1["Деплоїш<br>Джанго"]
+    Now --> Next2["Пишеш<br>Docker Compose"]
+    Now --> Next3["Маєш CI/CD<br>pipeline"]
+    Next1 --> Future["Готовий до<br>Cloud та DevOps"]
     Next2 --> Future
     Next3 --> Future
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class Start,Now,Next1,Next2,Next3 step;
+    class Future success;
 ```
 
 ---

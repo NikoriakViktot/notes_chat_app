@@ -137,7 +137,7 @@ python manage.py runserver 0.0.0.0:8001  # доступний у мережі
 ```
 
 !!! danger "Тільки для розробки"
-    `runserver` — однопотоковий, без SSL, без буферизації. У production — тільки Uvicorn або Gunicorn + nginx.
+    `runserver` — dev-сервер: багатопотоковий за замовчуванням (`--nothreading` вимикає), але без SSL, без буферизації і без оптимізацій безпеки та продуктивності. У production — тільки Uvicorn або Gunicorn + nginx.
 
 ### `shell` — Інтерактивний ORM
 

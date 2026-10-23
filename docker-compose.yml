@@ -1,66 +1,116 @@
+name: notes-chat-app
+
+x-app-build: &app-build
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: notes-chat-app:dev
+
+x-app-environment: &app-environment
+  DJANGO_SETTINGS_MODULE: notes_project.settings
+  SECRET_KEY: ${SECRET_KEY:-django-insecure-notes-chat-dev-key-change-me}
+  DJANGO_DEBUG: ${DJANGO_DEBUG:-0}
+  DATABASE_URL: postgres://${POSTGRES_USER:-notes_user}:${POSTGRES_PASSWORD:-notes_pass}@db:5432/${POSTGRES_DB:-notes_db}
+  REDIS_URL: redis://redis:6379/0
+  EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
+  DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-noreply@notes.local}
+  EMAIL_HOST: ${EMAIL_HOST:-localhost}
+  EMAIL_PORT: ${EMAIL_PORT:-25}
+  EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+  EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+  EMAIL_USE_TLS: ${EMAIL_USE_TLS:-0}
+  EMAIL_USE_SSL: ${EMAIL_USE_SSL:-0}
+  CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost,http://127.0.0.1}
+  CELERY_TASK_ALWAYS_EAGER: ${CELERY_TASK_ALWAYS_EAGER:-0}
+  NGROK_DOMAIN: ${NGROK_DOMAIN:-}
+
+x-app-volumes: &app-volumes
+  - .:/app
+  # Named volume shadows ./staticfiles from the bind mount.
+  # Web runs collectstatic here, nginx serves the same volume read-only.
+  - staticfiles:/app/staticfiles
+
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: notes_db
-      POSTGRES_USER: notes_user
-      POSTGRES_PASSWORD: notes_pass
+      POSTGRES_DB: ${POSTGRES_DB:-notes_db}
+      POSTGRES_USER: ${POSTGRES_USER:-notes_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-notes_pass}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U notes_user -d notes_db"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}",
+        ]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 12
+      start_period: 10s
     networks:
       - app-net
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 12
     networks:
       - app-net
 
   web:
-    build: .
-    # Port 8001 exposed directly for dev access and Selenium tests.
-    # In production, remove this and access only through nginx on port 80.
+    <<: *app-build
+    restart: unless-stopped
+    command: ["sh", "./entrypoint.sh"]
     ports:
-      - "8001:8001"
-    volumes:
-      - .:/app
-      # Named volume at /app/staticfiles shadows the bind-mount subdirectory
-      # so collectstatic writes here and nginx can read the same volume.
-      - staticfiles:/app/staticfiles
+      # Direct development access and local Selenium debugging.
+      # Production traffic should normally go through nginx on port 80.
+      - "${WEB_PORT:-8001}:8001"
+    volumes: *app-volumes
     environment:
-      DATABASE_URL: postgres://notes_user:notes_pass@db:5432/notes_db
-      REDIS_URL: redis://redis:6379/0
-      SELENIUM_REMOTE_URL: http://selenium:4444/wd/hub
-      WEB_HOST: web
-      SEED_DEMO_DATA: "1"
-      NGROK_DOMAIN: ${NGROK_DOMAIN}
+      <<: *app-environment
+      PORT: 8001
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-1}
+      RUN_COLLECTSTATIC: ${RUN_COLLECTSTATIC:-1}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-1}
+      SEED_DEMO_RESET: ${SEED_DEMO_RESET:-0}
+      CREATE_SUPERUSER: ${CREATE_SUPERUSER:-0}
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-admin}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-admin@example.com}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-admin12345}
+      UVICORN_RELOAD: ${UVICORN_RELOAD:-1}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/accounts/login/')\" || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/accounts/login/', timeout=5)\" || exit 1",
+        ]
       interval: 5s
       timeout: 5s
-      retries: 12
-      start_period: 15s
+      retries: 20
+      start_period: 20s
     networks:
       - app-net
 
   nginx:
     image: nginx:1.27-alpine
+    restart: unless-stopped
     ports:
-      - "80:80"
+      - "${NGINX_PORT:-80}:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - staticfiles:/staticfiles:ro
@@ -68,78 +118,123 @@ services:
       web:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost/accounts/login/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/accounts/login/ || exit 1"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 12
     networks:
       - app-net
 
-  ngrok:
-    image: ngrok/ngrok:latest
-    command: http --url=${NGROK_DOMAIN} nginx:80
+  celery-worker:
+    <<: *app-build
+    restart: unless-stopped
+    command: ["celery", "-A", "notes_project", "worker", "--loglevel=info", "--concurrency=${CELERY_CONCURRENCY:-2}"]
+    volumes: *app-volumes
     environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
-    ports:
-      - "4040:4040"
+      <<: *app-environment
     depends_on:
-      nginx:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A notes_project inspect ping -d celery@$${HOSTNAME} >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
+    networks:
+      - app-net
+
+  celery-beat:
+    <<: *app-build
+    restart: unless-stopped
+    command:
+      [
+        "celery",
+        "-A",
+        "notes_project",
+        "beat",
+        "--loglevel=info",
+        "--schedule=/app/celerybeat/celerybeat-schedule",
+      ]
+    volumes:
+      - .:/app
+      - celerybeat_data:/app/celerybeat
+    environment:
+      <<: *app-environment
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - app-net
 
   selenium:
     image: selenium/standalone-chrome:latest
-    ports:
-      - "4444:4444"
+    profiles: ["test"]
+    restart: unless-stopped
     shm_size: "2gb"
+    ports:
+      - "${SELENIUM_PORT:-4444}:4444"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:4444/wd/hub/status || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:4444/wd/hub/status || exit 1"]
       interval: 5s
       timeout: 10s
-      retries: 5
+      retries: 12
+      start_period: 10s
     networks:
       - app-net
 
-  # ── Celery Worker — виконує задачі з черги ─────────────────────────────────
-  celery-worker:
-    build: .
-    command: celery -A notes_project worker -l info --concurrency=2
-    volumes:
-      - .:/app
+  selenium-tests:
+    <<: *app-build
+    profiles: ["test"]
+    command: ["python", "manage.py", "test", "notes_app.tests.test_selenium", "-v", "2"]
+    volumes: *app-volumes
     environment:
-      DATABASE_URL: postgres://notes_user:notes_pass@db:5432/notes_db
-      REDIS_URL: redis://redis:6379/0
-      DJANGO_SETTINGS_MODULE: notes_project.settings
+      <<: *app-environment
+      SELENIUM_REMOTE_URL: http://selenium:4444/wd/hub
+      # LiveServer tests run inside this container, so Selenium must call this service name.
+      WEB_HOST: selenium-tests
+      # External smoke tests call the already running Docker stack through nginx.
+      SELENIUM_EXTERNAL_BASE_URL: http://nginx
+      SELENIUM_EXTERNAL_USERNAME: ${SELENIUM_EXTERNAL_USERNAME:-demo_alice}
+      SELENIUM_EXTERNAL_PASSWORD: ${SELENIUM_EXTERNAL_PASSWORD:-demo1234}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      web:
+        condition: service_healthy
+      nginx:
+        condition: service_healthy
+      selenium:
+        condition: service_healthy
     networks:
       - app-net
 
-  # ── Celery Beat — scheduler, кожну хвилину запускає send_reminder_notifications
-  celery-beat:
-    build: .
-    command: celery -A notes_project beat -l info
-    volumes:
-      - .:/app
+  ngrok:
+    image: ngrok/ngrok:latest
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: http --url=${NGROK_DOMAIN:-} nginx:80
     environment:
-      DATABASE_URL: postgres://notes_user:notes_pass@db:5432/notes_db
-      REDIS_URL: redis://redis:6379/0
-      DJANGO_SETTINGS_MODULE: notes_project.settings
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    ports:
+      - "${NGROK_UI_PORT:-4040}:4040"
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
+      nginx:
         condition: service_healthy
     networks:
       - app-net
 
 volumes:
   postgres_data:
+  redis_data:
   staticfiles:
+  celerybeat_data:
 
 networks:
   app-net:

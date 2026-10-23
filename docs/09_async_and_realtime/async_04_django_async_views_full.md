@@ -63,19 +63,25 @@ async def my_async_view(request):
 ```mermaid
 graph TD
     A[Запит до URL Router] --> B{View є async def?}
-    B -->|Ні| C[Виконати синхронно\nв OS-потоці]
-    B -->|Так| D{Який сервер?}
+    B -->|ні| C["Виконати синхронно<br>в OS-потоці"]
+    B -->|так| D{Який сервер?}
 
-    D -->|WSGI| E[Створити тимчасовий\nevent loop в потоці]
+    D -->|WSGI| E["Створити тимчасовий<br>event loop в потоці"]
     D -->|ASGI| F{Є sync middleware?}
 
-    F -->|Так| G[Context switch:\nAsync ↔ Sync ↔ Async\nПенальті ~1ms кожен раз]
-    F -->|Ні| H[Нативне виконання\nна main Event Loop ✅]
+    F -->|так| G["Context switch: Async ↔ Sync ↔ Async<br>Пенальті ~1ms кожен раз"]
+    F -->|ні| H["Нативне виконання<br>на main Event Loop ✅"]
 
-    style C fill:#e3f2fd,stroke:#1565c0
-    style E fill:#ffebee,stroke:#c62828
-    style G fill:#fff3e0,stroke:#e65100
-    style H fill:#e8f5e9,stroke:#2e7d32
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,C step;
+    class B,D,F decision;
+    class H success;
+    class E error;
+    class G warning;
 ```
 
 ---
@@ -92,7 +98,7 @@ sequenceDiagram
     B->>ASGI: HTTP Request
     ASGI->>AM: Передає запит (Event Loop)
     AM->>AV: await view(request)
-    Note over AV: View awaits БД або API\n(Передає управління event loop'у)
+    Note over AV: View awaits БД або API<br>(Передає управління event loop'у)
     AV-->>AM: HttpResponse
     AM-->>ASGI: HttpResponse
     ASGI-->>B: HTTP Response
@@ -106,14 +112,17 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-    A[ASGI Server\nEvent Loop] -->|switch| B[Sync Middleware\nOS Thread]
-    B -->|switch| C[Async View\nasync def]
-    C -->|switch| D[Sync Middleware\nResponse Phase]
-    D -->|switch| E[ASGI Server\nResponse]
+    A["ASGI Server<br>Event Loop"] -->|switch| B["Sync Middleware<br>OS Thread"]
+    B -->|switch| C["Async View<br>async def"]
+    C -->|switch| D["Sync Middleware<br>Response Phase"]
+    D -->|switch| E["ASGI Server<br>Response"]
 
-    style B fill:#ffcdd2,stroke:#c62828
-    style D fill:#ffcdd2,stroke:#c62828
-    style C fill:#e8f5e9,stroke:#2e7d32
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A,E step;
+    class C success;
+    class B,D error;
 ```
 
 Кожен `switch` — близько **1 мілісекунди** штрафу. Якщо middleware синхронний — Django мусить перемикатись між event loop і OS-потоком туди-назад на кожному запиті.

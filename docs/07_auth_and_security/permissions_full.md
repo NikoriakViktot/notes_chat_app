@@ -101,9 +101,15 @@ graph TD
     B --> D[Дозвіл: delete_note]
     C --> E[Дозвіл: add_note]
     C --> F[Дозвіл: change_note]
-    
-    style B fill:#fff3e0,stroke:#e65100
-    style C fill:#e8f5e9,stroke:#2e7d32
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A step;
+    class D,E,F decision;
+    class C success;
+    class B warning;
 ```
 
 ---

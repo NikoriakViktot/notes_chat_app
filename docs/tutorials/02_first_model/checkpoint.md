@@ -61,7 +61,7 @@ python manage.py migrate
 |------|-------------|
 | `hello_project/settings.py` | `django_bootstrap5` у INSTALLED_APPS, `MESSAGE_TAGS` |
 | `hello_app/forms.py` | `NoteForm(ModelForm)` — НОВИЙ |
-| `hello_app/views.py` | 5 CRUD views: `index`, `note_list`, `note_detail`, `note_create`, `note_edit`, `note_delete` |
+| `hello_app/views.py` | 6 views (index + 5 CRUD): `index`, `note_list`, `note_detail`, `note_create`, `note_edit`, `note_delete` |
 | `hello_app/urls.py` | 6 URL маршрутів |
 | `hello_app/admin.py` | `NoteAdmin` з `list_display`, `search_fields`, `@admin.display` |
 | `hello_app/templates/base.html` | Bootstrap CDN, Navbar, Messages, Footer — НОВИЙ |
@@ -112,7 +112,7 @@ python manage.py migrate
 - [ ] `get_object_or_404` замість `objects.get()` — 404 а не 500
 - [ ] Sticky Footer: `body.d-flex.flex-column.min-vh-100` + `main.flex-grow-1`
 - [ ] Card Grid адаптивний: 1/2/3 колонки залежно від ширини
-- [ ] `note_create` — `form.save()` → INSERT; `note_edit` — `form.save(instance=note)` → UPDATE
+- [ ] `note_create` — `form.save()` → INSERT; `note_edit` — `NoteForm(request.POST, instance=note)` + `form.save()` → UPDATE
 - [ ] Я розумію що таке PRG і чому F5 після PRG безпечний
 
 ---

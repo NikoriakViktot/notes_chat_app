@@ -220,7 +220,13 @@ flowchart TD
     F --> G["7. Замокати email/API"]
     G --> H["8. Додати Selenium smoke test"]
     H --> I["9. Перевірити coverage"]
-    I --> J["10. Автоматизувати через CI/CD\n(GitHub Actions)"]
+    I --> J["10. Автоматизувати через CI/CD<br>(GitHub Actions)"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class A,B,C,D,E,F,G,H,I step;
+    class J success;
 ```
 
 ---

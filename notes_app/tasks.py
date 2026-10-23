@@ -5,6 +5,41 @@ from django.utils import timezone
 from datetime import timedelta
 
 
+@shared_task(
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3},
+)
+def send_email_message(self, *, subject, message, recipient_list, from_email=None):
+    """
+    Надсилає email-повідомлення через Celery.
+
+    Використання:
+        send_email_message.delay(
+            subject="Нове повідомлення",
+            message="Текст повідомлення",
+            recipient_list=["user@example.com"],
+        )
+    """
+    recipients = [
+        email.strip()
+        for email in recipient_list
+        if isinstance(email, str) and email.strip()
+    ]
+    if not recipients:
+        return {"sent": 0, "recipients": []}
+
+    sent_count = send_mail(
+        subject=subject,
+        message=message,
+        from_email=from_email or settings.DEFAULT_FROM_EMAIL,
+        recipient_list=recipients,
+        fail_silently=False,
+    )
+    return {"sent": sent_count, "recipients": recipients}
+
+
 @shared_task
 def send_reminder_notifications():
     """

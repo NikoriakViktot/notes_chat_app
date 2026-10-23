@@ -130,7 +130,7 @@ erDiagram
 Django надає готові views для login/logout — їх не треба писати самостійно:
 
 ```python
-# notes_chat_app/urls.py
+# notes_project/urls.py
 from django.contrib.auth import views as auth_views
 
 urlpatterns = [
@@ -163,7 +163,7 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'  # куди після виходу
    → Форма введення email (password_reset_form.html)
    
 2. POST email → Django шукає юзера з цим email
-   → Генерує унікальний токен (одноразовий, діє 24 год)
+   → Генерує унікальний токен (одноразовий, за замовчуванням діє 3 дні — PASSWORD_RESET_TIMEOUT)
    → Надсилає email з посиланням
    
    [DEV: email виводиться в консоль — EMAIL_BACKEND = console]
@@ -184,9 +184,9 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'  # куди після виходу
 
 | Концепція | Файл | Рядок |
 |-----------|------|--------|
-| login/logout URLs | `notes_chat_app/urls.py` | `include('django.contrib.auth.urls')` |
+| login/logout URLs | `notes_project/urls.py` | `include('django.contrib.auth.urls')` |
 | Password reset templates | `templates/registration/password_reset_*.html` | всі 5 файлів |
 | Password change templates | `templates/registration/password_change_*.html` | 2 файли |
 | Посилання "Забули пароль?" | `templates/registration/login.html` | `{% url 'password_reset' %}` |
 | Посилання "Змінити пароль" | `templates/layouts/dashboard.html` | dropdown menu |
-| EMAIL_BACKEND | `notes_chat_app/settings.py` | `console.EmailBackend` |
+| EMAIL_BACKEND | `notes_project/settings.py` | `console.EmailBackend` |

@@ -86,7 +86,7 @@ SERIALIZABLE      | ✅ Захист   | ✅ Захист       | ✅ Захис
 >
 > **🌐 Вкладені atomic():** Django реалізує їх через **Savepoints**. Зовнішній `atomic()` = `BEGIN`. Внутрішній `atomic()` = `SAVEPOINT sp_1`. Якщо внутрішній кидає exception → `ROLLBACK TO SAVEPOINT sp_1` (тільки внутрішній скасовується). Зовнішній продовжує.
 >
-> **❌ КРИТИЧНА помилка:** `try/except` всередині `atomic()`. Якщо перехопити exception всередині транзакції — Django не знає що транзакція зламана. Транзакція в "aborted" стані. Наступний `Note.objects.create()` кине `TransactionManagementError: You can't execute queries until the end of the 'atomic' block.` Catch ЗОВНІ atomic, ніколи всередині!
+> **❌ КРИТИЧНА помилка:** `try/except` всередині `atomic()`. Якщо перехопити всередині транзакції помилку БД (наприклад, `IntegrityError`) — транзакція в "aborted" стані, а код продовжує працювати, ніби все гаразд. (Звичайний Python-виняток на кшталт `ValueError` транзакцію не ламає.) Наступний `Note.objects.create()` кине `TransactionManagementError: You can't execute queries until the end of the 'atomic' block.` Catch ЗОВНІ atomic або у вкладеному `atomic()` (savepoint), ніколи просто всередині!
 ---
 
 ```python
@@ -122,14 +122,14 @@ def wrong_create_note(title, user):
     with transaction.atomic():
         note = Note.objects.create(title=title, user=user)
         try:
-            # Якщо це кине exception — транзакція "зламана"!
-            send_notification(user)  # припустимо, тут exception
+            # Якщо тут впаде запит до БД — транзакція "зламана"!
+            send_notification(user)  # припустимо, пише в БД і кидає IntegrityError
         except Exception:
-            pass  # ← КАТАСТРОФА!
-            # Django тепер не знає: транзакція в aborted стані
-            # Наступна операція: TransactionManagementError!
-    # Якщо дійшли сюди — тільки якщо exception НЕ відбувся
-    # (але тоді pass спрацював і ми таки дійшли → TransactionManagementError!)
+            pass  # ← КАТАСТРОФА (для помилок БД)!
+            # PostgreSQL тепер в aborted стані, а код іде далі, ніби все гаразд
+            # Наступний запит у цьому atomic(): TransactionManagementError!
+            # (звичайний Python-виняток, напр. ValueError, транзакцію НЕ ламає)
+    # На виході з atomic() Django зробить ROLLBACK — note мовчки не збережеться
 
 
 # ✅ ПРАВИЛЬНО: catch ЗОВНІ atomic()
@@ -379,7 +379,7 @@ def create_order_idempotent(user, cart, idempotency_key):
 ## 7. Deadlock — взаємне блокування
 
 ---
-> **🧠 Ментальна модель:** Deadlock = дві транзакції чекають одна одну. T1 заблокувала рядок A і чекає B. T2 заблокувала рядок B і чекає A. Обидві чекають вічно. PostgreSQL виявляє deadlock і автоматично вбиває одну (кидає `DeadlockDetected` exception).
+> **🧠 Ментальна модель:** Deadlock = дві транзакції чекають одна одну. T1 заблокувала рядок A і чекає B. T2 заблокувала рядок B і чекає A. Обидві чекають вічно. PostgreSQL виявляє deadlock і автоматично вбиває одну (psycopg кидає `DeadlockDetected`, а в Django він доходить як `OperationalError`).
 >
 > **📚 Коли виникає:** При різному порядку блокування. T1: `lock(note_1) → lock(note_2)`. T2: `lock(note_2) → lock(note_1)`. Якщо T1 заблокувала note_1 і T2 заблокувала note_2 одночасно → deadlock.
 >
@@ -586,7 +586,7 @@ with transaction.atomic():
 
 **Питання:** Скільки нотаток буде створено?
 
-> **Відповідь:** `TransactionManagementError` при спробі `create(title='Test2')`. Транзакція в "aborted" стані після `except ValueError: pass` (Python перехопив exception, але Django не знає — він думає транзакція зламана). **Жодна** нотатка не буде збережена. Потрібно catch ЗОВНІ atomic.
+> **Відповідь:** **Обидві** нотатки буде збережено. `ValueError` — звичайний Python-виняток, який не стосується БД: PostgreSQL про нього не знає, і транзакція лишається робочою. `TransactionManagementError` з'явився б лише тоді, якби всередині `try` впала **операція з БД** (наприклад, `IntegrityError`) і її перехопили без вкладеного `atomic()`: тоді транзакція переходить в aborted стан, наступний `create()` кидає `TransactionManagementError`, а на виході з блоку відбувається ROLLBACK (жодна нотатка не збережеться). Правило: помилки БД ловимо ЗОВНІ `atomic()` або обгортаємо ризиковану операцію у вкладений `atomic()` (savepoint).
 
 ---
 

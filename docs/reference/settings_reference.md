@@ -11,7 +11,7 @@
 | `SECRET_KEY` | `django-insecure-...` | Унікальний 50+ символів | `.env` → `os.environ` |
 | `DEBUG` | `True` | `False` | `.env` → `os.environ` |
 | `ALLOWED_HOSTS` | `['*']` або `['localhost']` | Конкретні домени | `.env` → `os.environ` |
-| `DATABASE_URL` | SQLite (локально) | PostgreSQL URL | `.env` → `os.environ` |
+| `DATABASE_URL` | PostgreSQL URL (обов'язково, з `docker-compose.yml`) | PostgreSQL URL | `.env` → `os.environ` |
 | `REDIS_URL` | Не встановлено | `redis://redis:6379/0` | `.env` → `os.environ` |
 
 ---

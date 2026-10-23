@@ -34,7 +34,7 @@ ps aux
 USER   PID  %CPU %MEM   COMMAND
 root     1   0.0  0.1   /sbin/init
 student 1234  2.1  1.5   python manage.py runserver
-nginx  5678  0.1  0.3   nginx: worker process
+www-data 5678  0.1  0.3   nginx: worker process
 ```
 
 ```bash
@@ -122,11 +122,18 @@ tcp    LISTEN 127.0.0.1:5432       postgres
 
 ```mermaid
 flowchart LR
-    Boot["Сервер стартує"] --> Systemd["systemd запускається першим\n(PID 1)"]
+    Boot["Сервер стартує"] --> Systemd["systemd запускається першим<br>(PID 1)"]
     Systemd --> Nginx["nginx.service"]
     Systemd --> Postgres["postgresql.service"]
-    Systemd --> Myapp["myapp.service\n(твій Django)"]
+    Systemd --> Myapp["myapp.service<br>(твій Django)"]
     Systemd --> Redis["redis.service"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class Boot,Nginx,Postgres,Redis step;
+    class Myapp success;
+    class Systemd warning;
 ```
 
 `systemd` — це перший процес, який запускається після старту системи (PID 1). Він відповідає за запуск і управління всіма сервісами.
@@ -167,12 +174,19 @@ journalctl -u myapp -n 50          # останні 50 рядків
 
 ```mermaid
 flowchart LR
-    User["Користувач\nвідкриває сайт"] --> Port80["Порт 80/443\nHTTPS"]
-    Port80 --> Nginx["Nginx process\n(nginx.service)"]
-    Nginx --> Port8000["Порт 8000\nPROXY PASS"]
-    Port8000 --> Gunicorn["Gunicorn process\n(myapp.service)"]
+    User["Користувач<br>відкриває сайт"] --> Port80["Порт 80/443<br>HTTPS"]
+    Port80 --> Nginx["Nginx process<br>(nginx.service)"]
+    Nginx --> Port8000["Порт 8000<br>PROXY PASS"]
+    Port8000 --> Gunicorn["Gunicorn process<br>(myapp.service)"]
     Gunicorn --> Django["Django Application"]
-    Django --> DB["PostgreSQL\nПорт 5432"]
+    Django --> DB["PostgreSQL<br>Порт 5432"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class User,Nginx,Gunicorn,DB step;
+    class Django success;
+    class Port80,Port8000 warning;
 ```
 
 ---

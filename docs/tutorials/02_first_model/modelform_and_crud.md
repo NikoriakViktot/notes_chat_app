@@ -710,8 +710,10 @@ urlpatterns = [
 'notes/new/' → не співпадає з <int:pk> бо 'new' не є int → OK
 'notes/42/'  → <int:pk> → pk=42 → OK
 
-Якщо б порядок був зворотним:
-'notes/<int:pk>/' → 'new' → int('new') → ValueError → помилка!
+Конвертер <int:pk> приймає лише цифри ([0-9]+), тому 'new' йому
+не підходить навіть при зворотному порядку — ValueError не буде.
+Але з ширшим патерном порядок критичний:
+'notes/<slug:slug>/' стоїть вище → 'new' → slug='new' → не той view!
 Django перевіряє urlpatterns ЗВЕРХУ ДОНИЗУ → перший match виграє.
 Конкретніші патерни — вгору!
 ```
@@ -1004,7 +1006,7 @@ READ:    GET  /notes/            → note_list view → QuerySet → шабло�
          GET  /notes/42/         → note_detail view → get_object_or_404 → шаблон
 
 UPDATE:  GET  /notes/42/edit/    → note_edit view → форма з instance=note
-         POST /notes/42/edit/    → form.save(instance) → UPDATE → redirect
+         POST /notes/42/edit/    → NoteForm(POST, instance=note).save() → UPDATE → redirect
 
 DELETE:  GET  /notes/42/delete/  → note_delete view → підтвердження
          POST /notes/42/delete/  → note.delete() → redirect → flash message
@@ -1018,7 +1020,7 @@ DELETE:  GET  /notes/42/delete/  → note_delete view → підтверджен
 |------|-------------|
 | `hello_project/settings.py` | `django_bootstrap5` у INSTALLED_APPS, `MESSAGE_TAGS` |
 | `hello_app/forms.py` | `NoteForm(ModelForm)` з widgets і `clean_title()` — **НОВИЙ** |
-| `hello_app/views.py` | 5 CRUD views: `index`, `note_list`, `note_detail`, `note_create`, `note_edit`, `note_delete` |
+| `hello_app/views.py` | 6 views (index + 5 CRUD): `index`, `note_list`, `note_detail`, `note_create`, `note_edit`, `note_delete` |
 | `hello_app/urls.py` | 6 URL маршрутів для CRUD |
 | `hello_app/templates/base.html` | Bootstrap CDN, Navbar, Messages, Footer — **НОВИЙ** |
 | `hello_app/templates/hello_app/note_list.html` | Bootstrap Card Grid — **ПЕРЕПИСАНИЙ** |

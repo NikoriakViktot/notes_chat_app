@@ -16,11 +16,11 @@
 
 ## Поточний статус
 
-`docker-compose.yml` описує PostgreSQL, Redis, web і Selenium. Але build config зараз згадує директорію `notes`, якої немає. Перед використанням Docker треба виправити context і `COPY`.
+`docker-compose.yml` описує сервіси db (PostgreSQL), redis, web (Uvicorn, порт 8001), nginx, celery-worker, celery-beat, а також selenium/selenium-tests (profile `test`) і ngrok (profile `tunnel`). `Dockerfile` збирає один image з кореня проєкту (`context: .`, `COPY . .`), і цей image використовують web, celery-worker, celery-beat та selenium-tests.
 
 ## Environment
 
-`DATABASE_URL` перемикає Django на PostgreSQL. `REDIS_URL` перемикає Channels на Redis.
+`DATABASE_URL` обов'язковий: Django підключається до PostgreSQL, а без цієї змінної `settings.py` кидає Exception. `REDIS_URL` перемикає Channels на Redis.
 
 ## Де це знайти у фінальному проєкті
 

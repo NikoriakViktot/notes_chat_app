@@ -13,9 +13,12 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "django-insecure-crispy-notes-dev-key-change-in-production"
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY",
+    "django-insecure-crispy-notes-dev-key-change-in-production",
+)
 
-DEBUG = False
+DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
 
 ALLOWED_HOSTS = ['*']
 
@@ -24,7 +27,14 @@ ALLOWED_HOSTS = ['*']
 # Origin header містить https://your-domain.ngrok-free.app, Django перевіряє
 # чи є він у цьому списку. Без цього → 403 CSRF помилка.
 _ngrok_domain = os.environ.get('NGROK_DOMAIN', '')
-CSRF_TRUSTED_ORIGINS = [f'https://{_ngrok_domain}'] if _ngrok_domain else []
+_extra_csrf_origins = [
+    origin.strip()
+    for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+CSRF_TRUSTED_ORIGINS = _extra_csrf_origins
+if _ngrok_domain:
+    CSRF_TRUSTED_ORIGINS.append(f'https://{_ngrok_domain}')
 
 INSTALLED_APPS = [
     # ── daphne ПЕРШИМ — перевизначає runserver щоб він запускався через ASGI.
@@ -252,7 +262,17 @@ LOGOUT_REDIRECT_URL = "/accounts/login/"
 # ── Email (password reset) ────────────────────────────────────────────────────
 # console → лист виводиться в термінал, не надсилається реально.
 # В production: django.core.mail.backends.smtp.EmailBackend + SMTP config.
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@notes.local")
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "25"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "0") == "1"
+EMAIL_USE_SSL = os.environ.get("EMAIL_USE_SSL", "0") == "1"
 
 # ── Web Security ──────────────────────────────────────────────────────────────
 # AuthenticationMiddleware: JS не може прочитати session cookie через document.cookie
@@ -265,6 +285,9 @@ CSRF_COOKIE_HTTPONLY = False
 # SameSite=Lax: cookie надсилається тільки з того самого сайту.
 # Захищає від CSRF-атак через cross-site форми.
 SESSION_COOKIE_SAMESITE = "Lax"
+
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # X-Frame-Options: браузер блокує вставку сторінки в <iframe>.
 # Захищає від clickjacking-атак.
@@ -292,6 +315,8 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "0") == "1"
+CELERY_TASK_EAGER_PROPAGATES = True
 
 # Celery Beat — розклад задач.
 # send_reminder_notifications запускається кожні 60 секунд.

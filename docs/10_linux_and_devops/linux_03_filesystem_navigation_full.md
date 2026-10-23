@@ -32,6 +32,11 @@ flowchart TD
     Projects --> Django["my_django_app/"]
     Var --> Log["/var/log — логи"]
     Etc --> Nginx["/etc/nginx — конфіг Nginx"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class Root,Home,Etc,Var,Usr,Tmp,Opt,Srv,Projects,Log,Nginx step;
+    class Student,Django success;
 ```
 
 ### Найважливіші директорії

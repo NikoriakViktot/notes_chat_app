@@ -55,10 +55,16 @@ class HelloView(View):
 
 ```mermaid
 graph LR
-    A["HttpRequest\n(request)"] --> B["View\n(callable)"]
-    B --> C["HttpResponse\n(HTML / JSON / redirect)"]
-    B -.->|delegate| D["selectors.py\n(READ)"]
-    B -.->|delegate| E["services.py\n(WRITE)"]
+    A["HttpRequest<br>(request)"] --> B["View<br>(callable)"]
+    B --> C["HttpResponse<br>(HTML / JSON / redirect)"]
+    B -.->|delegate| D["selectors.py<br>(READ)"]
+    B -.->|delegate| E["services.py<br>(WRITE)"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class A,B,C step;
+    class D,E success;
 ```
 
 ---
@@ -105,12 +111,13 @@ sequenceDiagram
 ### URL Dispatch — як Django знаходить View
 
 ```python
-# notes_chat_app/urls.py  — головний роутер
+# notes_project/urls.py  — головний роутер
+from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('notes/', include('notes_app.urls', namespace='notes_app')),
+    path('', include('notes_app.urls', namespace='notes_app')),
 ]
 
 # notes_app/urls.py  — app-level роутер
@@ -120,11 +127,11 @@ from . import views
 app_name = 'notes_app'
 
 urlpatterns = [
-    path('',                 views.note_list,   name='note_list'),
-    path('<int:pk>/',        views.note_detail, name='note_detail'),
-    path('new/',             views.note_create, name='note_create'),
-    path('<int:pk>/edit/',   views.note_edit,   name='note_edit'),
-    path('<int:pk>/delete/', views.note_delete, name='note_delete'),
+    path('notes/',                 views.note_list,   name='note_list'),
+    path('notes/new/',             views.note_create, name='note_create'),
+    path('notes/<int:pk>/',        views.note_detail, name='note_detail'),
+    path('notes/<int:pk>/edit/',   views.note_edit,   name='note_edit'),
+    path('notes/<int:pk>/delete/', views.note_delete, name='note_delete'),
 ]
 ```
 
@@ -132,12 +139,22 @@ urlpatterns = [
 flowchart TD
     A["GET /notes/42/edit/"] --> B[Django URL Dispatcher]
     B --> C{Збіг з urlpatterns?}
-    C -->|"path('notes/', include(...))"| D[notes_app URLs]
-    D -->|"path('42/edit/', ...)"| E["views.note_edit(request, pk=42)"]
+    C -->|"path('', include(...))"| D[notes_app URLs]
+    D -->|"path('notes/42/edit/', ...)"| E["views.note_edit(request, pk=42)"]
     C -->|Немає збігу| F["404 Not Found"]
     E --> G["get_object_or_404(Note, pk=42, user=request.user)"]
     G -->|Знайдено| H["render form"]
     G -->|Не знайдено| F
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+
+    class A,B,D,E,G step;
+    class C decision;
+    class H success;
+    class F error;
 ```
 
 ---
@@ -192,13 +209,21 @@ def note_list(request):
 ```mermaid
 flowchart TD
     A[HTTP Request] --> B{request.method?}
-    B -->|GET| C["form = NoteForm(user=request.user)\n— порожня форма"]
-    B -->|POST| D["form = NoteForm(request.POST, user=request.user)\n— зв'язана форма"]
+    B -->|GET| C["form = NoteForm(user=request.user)<br>— порожня форма"]
+    B -->|POST| D["form = NoteForm(request.POST, user=request.user)<br>— зв'язана форма"]
     C --> Z["render(request, template, form) → 200"]
     D --> E{form.is_valid?}
     E -->|True| F["services.create_note(user, **cleaned_data)"]
-    F --> G["redirect('note_detail', pk=note.pk) → 302\nPRG: F5 безпечний!"]
+    F --> G["redirect('note_detail', pk=note.pk) → 302<br>PRG: F5 безпечний!"]
     E -->|False| Z
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class A,C,D,F,Z step;
+    class B,E decision;
+    class G success;
 ```
 
 ```python
@@ -389,6 +414,16 @@ flowchart TD
     F -->|Не визначений| J["405 Method Not Allowed"]
     G --> K["HttpResponse"]
     H --> K
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+
+    class A,B,C,D,E,G,H,I step;
+    class F decision;
+    class K success;
+    class J error;
 ```
 
 ### 4.3 FBV → CBV: порівняння
@@ -482,22 +517,21 @@ Django надає вбудовані CBV для найпоширеніших CRU
 
 ```mermaid
 graph TD
-    A[View] --> B[TemplateView\nстатична сторінка]
-    A --> C[ListView\nсписок об'єктів]
-    A --> D[DetailView\nодин об'єкт]
-    A --> E[FormView\nбудь-яка форма]
-    E --> F[CreateView\nстворення через ModelForm]
-    E --> G[UpdateView\nредагування через ModelForm]
-    A --> H[DeleteView\nвидалення]
+    A[View] --> B["TemplateView<br>статична сторінка"]
+    A --> C["ListView<br>список об'єктів"]
+    A --> D["DetailView<br>один об'єкт"]
+    A --> E["FormView<br>будь-яка форма"]
+    E --> F["CreateView<br>створення через ModelForm"]
+    E --> G["UpdateView<br>редагування через ModelForm"]
+    A --> H["DeleteView<br>видалення"]
 
-    style A fill:#e3f2fd
-    style B fill:#f1f8e9
-    style C fill:#f1f8e9
-    style D fill:#f1f8e9
-    style E fill:#fff3e0
-    style F fill:#fce4ec
-    style G fill:#fce4ec
-    style H fill:#fce4ec
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class A,B,C,D,H step;
+    class E decision;
+    class F,G success;
 ```
 
 ### 5.1 ListView
@@ -748,8 +782,13 @@ graph LR
     C --> D["View"]
     D --> E["object"]
 
-    style B fill:#fff3e0
-    style C fill:#f1f8e9
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class A,D,E step;
+    class C success;
+    class B warning;
 ```
 
 > **Чому:** Python MRO (C3 linearization) іде зліва направо.
@@ -893,6 +932,16 @@ flowchart TD
     H --> J["get_context_data(form=form)"]
     E --> K["render_to_response(context) → 200"]
     J --> K
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+
+    class A,C,D,E,J step;
+    class B,F decision;
+    class G,I,K success;
+    class H error;
 ```
 
 ### 7.4 FBV vs CBV для форм — порівняння
@@ -986,10 +1035,18 @@ flowchart TD
     B -->|Редагування| F[UpdateView]
     B -->|Видалення| G[DeleteView]
     B -->|Тільки форма| H[FormView]
-    B -->|Ні| I{Складна бізнес-логіка?}
-    I -->|Так| J[FBV — максимальний контроль]
+    B -->|ні| I{Складна бізнес-логіка?}
+    I -->|так| J[FBV — максимальний контроль]
     I -->|Спільна поведінка для кількох views| K[CBV + Mixin]
     I -->|Кілька форм на одній сторінці| J
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class A step;
+    class B,I decision;
+    class C,D,E,F,G,H,J,K success;
 ```
 
 | Ситуація | Рекомендація |

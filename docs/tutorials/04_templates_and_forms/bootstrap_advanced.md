@@ -254,7 +254,7 @@ hello_app/templates/
 ### `hello_app/templates/hello_app/note_list.html`
 
 ```html
-{% extends 'hello_app/base.html' %}
+{% extends 'base.html' %}
 {% load django_bootstrap5 %}
 
 {% block title %}Мої нотатки — Bootstrap Notes{% endblock %}
@@ -523,7 +523,7 @@ urlpatterns = [
 ### `note_detail.html`
 
 ```html
-{% extends 'hello_app/base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}{{ note.title }} — Bootstrap Notes{% endblock %}
 
@@ -585,7 +585,7 @@ urlpatterns = [
 ### `note_form.html`
 
 ```html
-{% extends 'hello_app/base.html' %}
+{% extends 'base.html' %}
 
 {% load django_bootstrap5 %}
 
@@ -667,7 +667,7 @@ urlpatterns = [
 ### `note_confirm_delete.html`
 
 ```html
-{% extends 'hello_app/base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}Видалити нотатку — Bootstrap Notes{% endblock %}
 

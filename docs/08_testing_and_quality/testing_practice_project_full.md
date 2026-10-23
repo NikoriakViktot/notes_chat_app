@@ -889,6 +889,13 @@ flowchart TD
     H --> M
     J --> M
     L --> N["Висока впевненість у головному user flow"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,C,E,G,I,K step;
+    class B,D,F,H,J,L warning;
+    class M,N success;
 ```
 
 ---
@@ -977,29 +984,29 @@ GitHub Actions читає `.yml` файли **тільки** з коренево
 Файл в будь-якому іншому місці — **ігнорується**:
 
 ```
-docs/08_testing_and_quality/crispy_notes_chat_app/.github/workflows/  ← НЕ ПРАЦЮЄ
+docs/08_testing_and_quality/.github/workflows/  ← НЕ ПРАЦЮЄ
 ```
 
-Правильна структура для нашого курсу (репозиторій `PY-Course-Victor-Nikoriak-23_02`):
+Правильна структура для нашого проєкту (репозиторій `notes_chat_app`, Django-проєкт лежить прямо в корені):
 
 ```text
-PY-Course-Victor-Nikoriak-23_02/       ← корінь репозиторію
+notes_chat_app/                        ← корінь репозиторію
 ├── .github/
 │   └── workflows/
-│       └── django-tests.yml           ← ТУТ, не всередині docs/08_testing_and_quality/
-├── docs/08_testing_and_quality/
-│   └── lesson_Django_Testing/
-│       └── crispy_notes_chat_app/
-│           ├── manage.py
-│           └── requirements.txt
+│       └── django-tests.yml           ← ТУТ, не всередині docs/
+├── manage.py
+├── requirements.txt
+├── notes_project/
+├── notes_app/
+└── docs/
 ```
 
-У workflow файлі вказуємо шлях до проєкту через `working-directory`:
+Оскільки `manage.py` лежить у корені репозиторію, наш workflow не потребує `working-directory`. Якщо ж Django-проєкт лежить у підпапці репозиторію, шлях до нього вказують через `working-directory`:
 
 ```yaml
 defaults:
   run:
-    working-directory: docs/08_testing_and_quality/crispy_notes_chat_app
+    working-directory: path/to/django_project   # тека, де лежить manage.py
 ```
 
 **YAML формат** — GitHub Actions використовує YAML для опису pipeline.
@@ -1197,14 +1204,18 @@ Settings → Branches → Add branch protection rule
 ```mermaid
 flowchart TD
     A["git push / PR"] --> B["GitHub Actions trigger"]
-    B --> C["Job 1: Unit + Integration\n123 тести\n~2-3 хвилини"]
-    C -->|pass| D["Job 2: Selenium E2E\n6 тестів\n~1-2 хвилини"]
-    C -->|fail| E["❌ Merge заблоковано\nPR отримує червоний хрест"]
-    D -->|pass| F["✅ Merge дозволений\nPR отримує зелену галочку"]
+    B --> C["Job 1: Unit + Integration<br>123 тести, ~2-3 хвилини"]
+    C -->|pass| D["Job 2: Selenium E2E<br>6 тестів, ~1-2 хвилини"]
+    C -->|fail| E["❌ Merge заблоковано<br>PR отримує червоний хрест"]
+    D -->|pass| F["✅ Merge дозволений<br>PR отримує зелену галочку"]
     D -->|fail| E
 
-    style E fill:#ffcdd2,stroke:#c62828
-    style F fill:#c8e6c9,stroke:#2e7d32
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A,B,C,D step;
+    class E error;
+    class F success;
 ```
 
 ### 19.9 Де зберігати секрети (SECRET_KEY, паролі)

@@ -498,24 +498,27 @@ Form errors: {
 ### Симптом 2: `notebook` або `tags` завжди "Виберіть правильний варіант"
 
 ```python
-# ❌ ПРИЧИНА — передано queryset від іншого user'а
+# ❌ ПРИЧИНА — під час POST queryset поля не містить надісланих pk.
+# Типовий випадок: за замовчуванням queryset порожній,
+# а реальний встановлюється лише тоді, коли передано user:
 class NoteForm(forms.ModelForm):
-    # Без __init__ → queryset = Tag.objects.all()
-    # Bob бачить теги Alice, і навпаки!
-    pass
+    tags = forms.ModelMultipleChoiceField(queryset=Tag.objects.none(), required=False)
 
-# ✅ РІШЕННЯ — фільтруй у __init__
-def __init__(self, *args, user=None, **kwargs):
-    super().__init__(*args, **kwargs)
-    if user is not None:
-        self.fields['tags'].queryset = Tag.objects.filter(user=user)
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if user is not None:
+            self.fields['tags'].queryset = Tag.objects.filter(user=user)
 
-# ✅ ПЕРЕДАЙ user у view при instantiation:
+form = NoteForm(user=request.user)   # GET  — варіанти видно
+form = NoteForm(request.POST)        # POST — user забули → queryset = none()
+                                     # → будь-який вибір невалідний
+
+# ✅ РІШЕННЯ — передавай той самий user і в GET, і в POST:
 form = NoteForm(request.POST, user=request.user)
 #               ↑ data        ↑ кастомний параметр
 ```
 
-Якщо не передати `user` при ініціалізації форми — queryset залишиться `Tag.objects.all()`. Validation перевірить що pk тегу є у queryset — і якщо Alice передає pk тегу що є в `all()` але не в `filter(user=alice)` — валідація пройде! А якщо передає тег що є тільки у неї — all() теж містить його. Тому: **завжди фільтруй queryset по user**.
+`ModelChoiceField` / `ModelMultipleChoiceField` під час валідації перевіряє, що надісланий pk є у `field.queryset` **на момент POST**. Якщо в POST queryset вужчий, ніж той, з якого рендерились варіанти, — отримуєш «Виберіть правильний варіант». Протилежна ситуація небезпечніша, бо тиха: без фільтра в `__init__` queryset = `Tag.objects.all()` — валідація пропускає pk будь-якого тегу, і Bob бачить і може прикріпити теги Alice. Тому: **завжди фільтруй queryset по user і передавай `user` в обох гілках view**.
 
 ### Симптом 3: CSRF 403 Forbidden
 
@@ -536,17 +539,21 @@ CSRF verification failed. Request aborted.
 
 Для Crispy: `{% crispy form %}` автоматично додає CSRF токен.
 
-### Симптом 4: `field.queryset has no attribute` при GET
+### Симптом 4: `'NoneType' object has no attribute` при GET
 
 ```
-AttributeError: 'NoneType' object has no attribute 'filter'
+AttributeError: 'NoneType' object has no attribute 'tags'
 ```
 
 ```python
-# ❌ ПРИЧИНА — user=None у __init__
-form = NoteForm(user=None)
+# ❌ ПРИЧИНА — user=None, а __init__ не має захисту від None
+form = NoteForm()   # user не передано → user=None
 
-# __init__ перевіряє if user is not None:
+def __init__(self, *args, user=None, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.fields['tags'].queryset = user.tags.all()   # None.tags → AttributeError
+
+# ✅ Захист у __init__ — перевірка if user is not None:
 def __init__(self, *args, user=None, **kwargs):
     super().__init__(*args, **kwargs)
     if user is not None:           # ← захист від None

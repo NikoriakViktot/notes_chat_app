@@ -12,14 +12,21 @@ flowchart TD
     Request([HTTP Request]) --> MW[Middleware stack]
     MW --> URLConf[URL Routing]
     URLConf --> View[View function]
-    View --> Selector[selectors.py\nread-only queries]
-    View --> Service[services.py\nmutating ops]
-    View --> Form[Forms\nvalidation]
+    View --> Selector["selectors.py<br>read-only queries"]
+    View --> Service["services.py<br>mutating ops"]
+    View --> Form["Forms<br>validation"]
     Selector --> DB[(PostgreSQL)]
     Service --> DB
-    View --> Template[Template\nrendering]
+    View --> Template["Template<br>rendering"]
     Template --> Response([HTTP Response])
     MW -.->|виходить у зворотньому порядку| Response
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class Request,MW,URLConf,Selector,Service,Form,DB,Template step;
+    class View warning;
+    class Response success;
 ```
 
 ---
@@ -230,6 +237,7 @@ print(response.status_code)    # 200
 print(response.context['notes'].count())
 
 # RequestFactory — без middleware (для unit tests)
+from django.contrib.auth.models import User
 from django.test import RequestFactory
 from notes_app import views
 

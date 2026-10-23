@@ -78,13 +78,15 @@ graph TD
         C1[Запит 1] --> EL[Event Loop]
         C2[Запит 2] --> EL
         C3[Запит 3] --> EL
-        EL --> D[Кооперативне перемикання\nОдин потік — всі запити]
+        EL --> D["Кооперативне перемикання<br>Один потік — всі запити"]
     end
 
-    style B1 fill:#ffebee,stroke:#c62828
-    style B2 fill:#ffebee,stroke:#c62828
-    style B3 fill:#ffebee,stroke:#c62828
-    style D fill:#e8f5e9,stroke:#2e7d32
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A1,A2,A3,C1,C2,C3,EL step;
+    class B1,B2,B3 error;
+    class D success;
 ```
 
 ---
@@ -133,7 +135,7 @@ sequenceDiagram
     N->>U: Передає запит через сокет
     U->>D: Передає ASGI scope + events
     D->>DB: await User.objects.aget(id=1)
-    Note over D: Event loop призупиняє view\n(потік НЕ блокується)
+    Note over D: Event loop призупиняє view<br>(потік НЕ блокується)
     DB-->>D: Дані готові
     D-->>U: HttpResponse
     U-->>N: Потік відповіді
@@ -164,7 +166,7 @@ daphne -b 0.0.0.0 -p 8000 myproject.asgi:application
 
 - Офіційний ASGI-сервер від Django/Channels
 - Ідеальний для WebSocket-додатків
-- Встановлюється разом з `django-channels`
+- З Channels 4 не встановлюється автоматично: окремо `pip install daphne` або `pip install "channels[daphne]"` (у нашому `requirements.txt` — `daphne>=4.0`)
 
 ### Hypercorn
 

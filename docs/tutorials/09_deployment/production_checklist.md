@@ -6,7 +6,7 @@
 
 ## Чому потрібен checklist
 
-Dev і production — різні середовища. Django має безпечні defaults для dev (DEBUG=True, SQLite, InMemory channels), але вони абсолютно небезпечні для production. Checklist допомагає не пропустити жодну критичну зміну.
+Dev і production — різні середовища. Django має зручні defaults для dev (DEBUG=True, SQLite, InMemory channels), але вони абсолютно небезпечні для production. Checklist допомагає не пропустити жодну критичну зміну.
 
 ```
 Dev:   DEBUG=True   → видно stack trace з SECRET_KEY → хакер підробляє cookies

@@ -10,6 +10,8 @@
 > [`docs/reference/legacy_source/orm_laboratory_reference.md`](../reference/legacy_source/orm_laboratory_reference.md) —
 > кожна mermaid-діаграма має відповідний code cell де виконується реальний SQL.
 >
+> ⚠️ Сам notebook не входить до цього репозиторію: файл за посиланням лише пояснює це. Назви розділів у таблиці нижче — орієнтири з оригінальної структури ноутбука, а не якорі. Ці ж запити можна виконати самостійно в `python manage.py shell` або в [ORM-лабораторії](../labs/orm_lab.md).
+>
 > | Mermaid-схема в цьому файлі | Розділ ноутбука |
 > |-----------------------------|-----------------|
 > | ER-діаграма / схема таблиць | `## 0. 🧱 Що таке object в Django ORM?` |
@@ -133,22 +135,28 @@ erDiagram
 graph LR
     subgraph "1:1 — OneToOneField"
         U1[User id=5] <-->|user_id FK + UNIQUE| UP1[UserProfile user_id=5]
-        N1["FK в UserProfile\n(FK + UNIQUE = 1:1)"]
+        N1["FK в UserProfile<br>(FK + UNIQUE = 1:1)"]
     end
 
     subgraph "1:N — ForeignKey"
         NB[Notebook id=1] -->|"contains"| NO1[Note notebook_id=1]
         NB --> NO2[Note notebook_id=1]
         NB --> NO3[Note notebook_id=1]
-        N2["FK в Note\n(сторона Many)"]
+        N2["FK в Note<br>(сторона Many)"]
     end
 
     subgraph "M:N — ManyToManyField"
-        N[Note id=1] -->|through| JT[note_tags\nnote_id=1, tag_id=10\nnote_id=1, tag_id=11]
+        N[Note id=1] -->|through| JT["note_tags<br>(note_id=1, tag_id=10), (note_id=1, tag_id=11)"]
         JT -->|"tagged"| T1[Tag id=10]
         JT --> T2[Tag id=11]
-        N3["Junction table\n(автоматично Django)"]
+        N3["Junction table<br>(автоматично Django)"]
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class U1,UP1,NB,NO1,NO2,NO3,N,JT,T1,T2 step;
+    class N1,N2,N3 warning;
 ```
 
 ---
@@ -161,11 +169,11 @@ graph LR
 ```mermaid
 graph TD
 
-    A["Python QuerySet
-Note.objects.filter(user=alice)
-select_related(notebook)
-prefetch_related(tags)
-order_by(updated_at DESC)"]
+    A["Python QuerySet:<br>Note.objects.filter(user=alice)"]
+
+    A2[".select_related(notebook)<br>.prefetch_related(tags)"]
+
+    A3[".order_by(updated_at DESC)"]
 
     B["QuerySet object created"]
 
@@ -173,33 +181,27 @@ order_by(updated_at DESC)"]
 
     D["SQLCompiler.as_sql()"]
 
-    E["SQL #1
-SELECT notes + notebooks
-JOIN notebook table
-WHERE user_id=5"]
+    E["SQL #1: SELECT notes + notebooks<br>JOIN notebook table WHERE user_id=5"]
 
-    F["SQL #2
-Prefetch tags
-WHERE note_id IN (...)"]
+    F["SQL #2: Prefetch tags<br>WHERE note_id IN (...)"]
 
-    G["psycopg2
-TCP connection
-PostgreSQL"]
+    G["psycopg2<br>TCP connection → PostgreSQL"]
 
-    H["ModelIterable
-Create Note objects"]
+    H["ModelIterable<br>Create Note objects"]
 
-    I["Related objects loaded
-notebook cached
-tags prefetched"]
+    I["Related objects loaded:<br>notebook cached, tags prefetched"]
 
-    A --> B
+    A --> A2
+
+    A2 --> A3
+
+    A3 --> B
 
     B --> C
 
-    C -->|"No"| B
+    C -->|"ні"| B
 
-    C -->|"Yes"| D
+    C -->|"так"| D
 
     D --> E
 
@@ -211,9 +213,13 @@ tags prefetched"]
 
     H --> I
 
-    style A fill:#0C4B33,color:#fff
-    style G fill:#336791,color:#fff
-    style C fill:#8B5E3C,color:#fff
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class A,A2,A3,B,D,E,F,G,H step;
+    class C decision;
+    class I success;
 ```
 
 ---
@@ -246,11 +252,13 @@ graph LR
         QS --> E7["bool(qs)"]
     end
 
-    style E1 fill:#8B0000,color:#fff
-    style E2 fill:#8B0000,color:#fff
-    style E3 fill:#8B0000,color:#fff
-    style E4 fill:#8B0000,color:#fff
-    style E5 fill:#8B0000,color:#fff
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+
+    class L1,L2,L3,L4,L5,L6,L7 step;
+    class QS decision;
+    class E1,E2,E3,E4,E5,E6,E7 error;
 ```
 
 ---
@@ -291,8 +299,9 @@ sequenceDiagram
 graph TD
     subgraph "select_related → SQL JOIN"
         A1["Note.objects.select_related('user', 'notebook')"] --> B1[1 SQL з JOIN]
-        B1 --> C1["SELECT n.*, u.*, nb.*\nFROM notes n\nLEFT JOIN users u ON n.user_id=u.id\nLEFT JOIN notebooks nb ON n.notebook_id=nb.id"]
-        C1 --> D1["Всі дані в одному рядку результату"]
+        B1 --> C1["SELECT n.*, u.*, nb.*<br>FROM notes n"]
+        C1 --> C1b["LEFT JOIN users u ON n.user_id=u.id<br>LEFT JOIN notebooks nb ON n.notebook_id=nb.id"]
+        C1b --> D1["Всі дані в одному рядку результату"]
         D1 --> E1["✅ Для FK та OneToOne"]
     end
 
@@ -300,11 +309,18 @@ graph TD
         A2["Note.objects.prefetch_related('tags')"] --> B2[SQL #1: Fetch Notes]
         B2 --> C2["SELECT * FROM notes"]
         A2 --> B3[SQL #2: Fetch Tags]
-        B3 --> C3["SELECT t.*, nt.note_id\nFROM tags t INNER JOIN note_tags nt\nWHERE nt.note_id IN (1,2,3,...,100)"]
-        C2 --> D2["Python: obj._prefetched_objects_cache\nзаповнюється dict note_id → [tags]"]
-        C3 --> D2
+        B3 --> C3["SELECT t.*, nt.note_id<br>FROM tags t INNER JOIN note_tags nt"]
+        C3 --> C3b["WHERE nt.note_id IN (1,2,3,...,100)"]
+        C2 --> D2["Python: obj._prefetched_objects_cache<br>заповнюється dict note_id → [tags]"]
+        C3b --> D2
         D2 --> E2["✅ Для ManyToMany та reverse FK"]
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class A1,B1,C1,C1b,D1,A2,B2,C2,B3,C3,C3b,D2 step;
+    class E1,E2 success;
 ```
 
 ---
@@ -347,17 +363,21 @@ sequenceDiagram
 
 ```mermaid
 graph TD
-    A["notes_app 0001_initial\nCREATE TABLE notes"] --> B["notes_app 0002_extended\nCREATE TABLE notebooks, tags..."]
-    A --> C["notes_app 0002_extended\nalso depends on:"]
-    D["auth 0001_initial\nCREATE TABLE auth_user"] --> B
-    B --> E["notes_app 0003_add_index\nCREATE INDEX"]
-    B --> F["notes_app 0004_add_word_count\nADD COLUMN word_count"]
-    E --> G["notes_app 0005_add_constraint\nADD CONSTRAINT CHECK"]
+    A["notes_app 0001_initial<br>CREATE TABLE notes"] --> B["notes_app 0002_extended<br>CREATE TABLE notebooks, tags..."]
+    A --> C["notes_app 0002_extended<br>also depends on:"]
+    D["auth 0001_initial<br>CREATE TABLE auth_user"] --> B
+    B --> E["notes_app 0003_add_index<br>CREATE INDEX"]
+    B --> F["notes_app 0004_add_word_count<br>ADD COLUMN word_count"]
+    E --> G["notes_app 0005_add_constraint<br>ADD CONSTRAINT CHECK"]
     F --> G
 
-    style A fill:#2C7A2C,color:#fff
-    style D fill:#2C7A2C,color:#fff
-    style G fill:#336791,color:#fff
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class B,C,E,F step;
+    class A,D success;
+    class G warning;
 ```
 
 ---
@@ -368,27 +388,33 @@ graph TD
 
 ```mermaid
 graph TD
-    A["SQL: SELECT * FROM notes\nWHERE user_id=5 ORDER BY updated_at DESC"] --> B
+    A["SQL: SELECT * FROM notes<br>WHERE user_id=5 ORDER BY updated_at DESC"] --> B
 
-    B["1. PARSING\nLexer + Parser\nTokenize SQL\nBuild AST"] --> C
+    B["1. PARSING: Lexer + Parser<br>Tokenize SQL → Build AST"] --> C
 
-    C["2. SEMANTIC ANALYSIS\nПеревірити таблиці\nПеревірити права\nSystem catalog lookup"] --> D
+    C["2. SEMANTIC ANALYSIS<br>Перевірити таблиці, права, system catalog lookup"] --> D
 
-    D["3. REWRITER\nView expansion\nRule system application"] --> E
+    D["3. REWRITER<br>View expansion, rule system application"] --> E
 
-    E["4. PLANNER: Enumerate plans\nPlan A: Seq Scan\nPlan B: Index Scan user_id\nPlan C: Index Scan updated_at"] --> F
+    E["4. PLANNER: Enumerate plans<br>Seq Scan / Index Scan user_id / Index Scan updated_at"] --> F
 
-    F["5. OPTIMIZER: Choose cheapest\ncost(Seq Scan)=5000 ← відхилено\ncost(Index Scan)=23 ← обрано!\n(based on table statistics)"] --> G
+    F["5. OPTIMIZER: Choose cheapest<br>(based on table statistics)"] --> F2
 
-    G["6. EXECUTION PLAN\nIndex Scan on note_user_updated_idx\n→ Heap fetch"] --> H
+    F2["cost(Seq Scan)=5000 ← відхилено<br>cost(Index Scan)=23 ← обрано!"] --> G
 
-    H["7. EXECUTION ENGINE\nRead index pages\nFetch heap tuples\nApply remaining filters"] --> I
+    G["6. EXECUTION PLAN<br>Index Scan on note_user_updated_idx → Heap fetch"] --> H
 
-    I["8. RESULT\nRows → psycopg2 cursor\n→ Django ModelIterable\n→ List[Note]"]
+    H["7. EXECUTION ENGINE<br>Read index pages → fetch heap tuples → apply remaining filters"] --> I
 
-    style A fill:#4A90D9,color:#fff
-    style F fill:#0C4B33,color:#fff
-    style I fill:#336791,color:#fff
+    I["8. RESULT<br>Rows → psycopg2 cursor → Django ModelIterable → List[Note]"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class A,B,C,D,E,G,H step;
+    class I success;
+    class F,F2 warning;
 ```
 
 ---
@@ -400,19 +426,24 @@ graph TD
 
 ```mermaid
 graph TD
-    Root["Root Node\n[250, 500, 750]"] --> B1["Branch\n[10, 50, 100]"]
-    Root --> B2["Branch\n[260, 300, 400]"]
-    Root --> B3["Branch\n[510, 600, 700]"]
-    Root --> B4["Branch\n[760, 800, 900]"]
+    Root["Root Node<br>[250, 500, 750]"] --> B1["Branch<br>[10, 50, 100]"]
+    Root --> B2["Branch<br>[260, 300, 400]"]
+    Root --> B3["Branch<br>[510, 600, 700]"]
+    Root --> B4["Branch<br>[760, 800, 900]"]
 
-    B1 --> L1["Leaf [1,2,3,4,5]\nTID→heap"]
-    B1 --> L2["Leaf [6,7,8,9]\nTID→heap"]
-    B1 --> L3["Leaf [11,12,15]\nTID→heap"]
+    B1 --> L1["Leaf [1,2,3,4,5]<br>TID→heap"]
+    B1 --> L2["Leaf [6,7,8,9]<br>TID→heap"]
+    B1 --> L3["Leaf [11,12,15]<br>TID→heap"]
 
-    L2 -.->|"двозв'язний список\n(для range scans)"| L3
+    L2 -.->|"двозв'язний список<br>(для range scans)"| L3
 
-    style Root fill:#8B5E3C,color:#fff
-    style L2 fill:#2C7A2C,color:#fff
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class B1,B2,B3,B4,L1,L3 step;
+    class L2 success;
+    class Root warning;
 ```
 
 > **Пошук user_id=7:**
@@ -498,9 +529,20 @@ graph LR
     end
 
     subgraph "Рішення: стабільний порядок"
-        S1["T1 і T2: завжди lock\norder_by('id') ASC"] --> S2["T1: lock(1) → lock(2)\nT2: lock(1) ← чекає T1\n(НЕ бере lock(2) першим!)"]
-        S2 --> S3["T1 завершує → T2 продовжує\nDeadlock неможливий!"]
+        S1["T1 і T2: завжди lock<br>order_by('id') ASC"] --> S2["T1: lock(1) → lock(2)<br>T2: lock(1) ← чекає T1"]
+        S2 --> S2b["T2 НЕ бере lock(2) першим!"]
+        S2b --> S3["T1 завершує → T2 продовжує<br>Deadlock неможливий!"]
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class S2 step;
+    class S3 success;
+    class T1A,T1B,T2A,T2B error;
+    class S1,S2b warning;
 ```
 
 ---
@@ -513,14 +555,24 @@ graph LR
 ```mermaid
 graph TD
     subgraph "Таблиця notes (внутрішньо)"
-        T1["Tuple v1\nid=42, title='Django'\nxmin=100, xmax=NULL\nВидимий: txid >= 100"]
-        T2["Tuple v2\nid=42, title='Django ORM'\nxmin=200, xmax=NULL\nВидимий: txid >= 200"]
-        T3["Tuple v1 (мертвий)\nid=42, title='Django'\nxmin=100, xmax=200\nВидимий: 100 <= txid < 200"]
+        T1["Tuple v1: id=42, title='Django'<br>xmin=100, xmax=NULL · видимий: txid >= 100"]
+        T2["Tuple v2: id=42, title='Django ORM'<br>xmin=200, xmax=NULL · видимий: txid >= 200"]
+        T3["Tuple v1 (мертвий): id=42, title='Django'<br>xmin=100, xmax=200 · видимий: 100 <= txid < 200"]
     end
 
-    TX150["Транзакція txid=150\n(почалась до UPDATE)"] -->|"бачить"| T3
-    TX250["Транзакція txid=250\n(почалась після UPDATE)"] -->|"бачить"| T2
-    VACUUM["VACUUM\n(прибирає мертві tuple)"] -->|"видаляє"| T3
+    TX150["Транзакція txid=150<br>(почалась до UPDATE)"] -->|"бачить"| T3
+    TX250["Транзакція txid=250<br>(почалась після UPDATE)"] -->|"бачить"| T2
+    VACUUM["VACUUM<br>(прибирає мертві tuple)"] -->|"видаляє"| T3
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class T1,TX150,TX250 step;
+    class T2 success;
+    class T3 error;
+    class VACUUM warning;
 ```
 
 ---
@@ -533,19 +585,27 @@ graph TD
 graph LR
     subgraph "❌ N+1 (101 запит)"
         Q1["SELECT * FROM notes LIMIT 100"] --> R1["100 рядків"]
-        R1 -->|"for note in notes:"| Q2["SELECT * FROM users WHERE id=X\n× 100 разів"]
+        R1 -->|"for note in notes:"| Q2["SELECT * FROM users WHERE id=X<br>× 100 разів"]
     end
 
     subgraph "✅ select_related (1 запит)"
-        Q3["SELECT n.*, u.*, nb.*\nFROM notes JOIN users JOIN notebooks\nLIMIT 100"] --> R3["100 рядків (з user+notebook)"]
+        Q3["SELECT n.*, u.*, nb.* FROM notes JOIN users JOIN notebooks<br>LIMIT 100"] --> R3["100 рядків (з user+notebook)"]
     end
 
     subgraph "✅ prefetch_related (2 запити)"
         Q4["SELECT * FROM notes LIMIT 100"] --> R4["100 рядків"]
-        Q5["SELECT t.*, nt.note_id FROM tags\nINNER JOIN note_tags\nWHERE note_id IN (1..100)"] --> R5["теги в кеші"]
+        Q5["SELECT t.*, nt.note_id FROM tags INNER JOIN note_tags<br>WHERE note_id IN (1..100)"] --> R5["теги в кеші"]
         R4 --> R6["Python join у пам'яті"]
         R5 --> R6
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+
+    class Q1,R1,Q3,Q4,Q5,R4,R5 step;
+    class R3,R6 success;
+    class Q2 error;
 ```
 
 ---
@@ -557,18 +617,22 @@ graph LR
 
 ```mermaid
 graph TD
-    Client["Django + psycopg2\nTCP connection"] --> PM["Postmaster :5432\nприймає з'єднання"]
-    PM -->|"fork()"| BP["Backend Process\n(ізольований процес\nдля кожного з'єднання)"]
-    BP --> QP["Parser → AST\n→ Planner → Optimizer\n→ Execution Plan"]
+    Client["Django + psycopg2<br>TCP connection"] --> PM["Postmaster :5432<br>приймає з'єднання"]
+    PM -->|"fork()"| BP["Backend Process<br>(ізольований процес для кожного з'єднання)"]
+    BP --> QP["Parser → AST → Planner → Optimizer<br>→ Execution Plan"]
     QP --> EE["Execution Engine"]
-    EE <-->|"read/write"| SB["Shared Buffers\n(25% RAM кеш\nspільний для всіх процесів)"]
-    SB -->|"dirty pages"| WW["WAL Writer\n(WRITE-AHEAD LOG)"]
-    WW -->|"fsync"| WAL["WAL Files\n/pg_wal/\n(журнал спочатку!)"]
-    WAL -.->|"checkpoint\n(async)"| DF["Data Files\n/base/\n(actual tables)"]
+    EE <-->|"read/write"| SB["Shared Buffers<br>(25% RAM кеш, спільний для всіх процесів)"]
+    SB -->|"dirty pages"| WW["WAL Writer<br>(WRITE-AHEAD LOG)"]
+    WW -->|"fsync"| WAL["WAL Files /pg_wal/<br>(журнал спочатку!)"]
+    WAL -.->|"checkpoint (async)"| DF["Data Files /base/<br>(actual tables)"]
 
-    style PM fill:#336791,color:#fff
-    style SB fill:#0C4B33,color:#fff
-    style WAL fill:#8B5E3C,color:#fff
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class Client,PM,BP,QP,EE,WW,DF step;
+    class SB success;
+    class WAL warning;
 ```
 
 ---
@@ -580,23 +644,25 @@ graph TD
 
 ```mermaid
 graph TD
-    REQ["HTTP Request\n(GET /notes/?q=python)"] --> VIEW["views.note_list()\nПарсить GET параметри"]
-    VIEW -->|"get_user_notes(user, search='python')"| SEL["selectors.py\nBUILDS QuerySet\nselect_related + prefetch_related"]
+    REQ["HTTP Request<br>(GET /notes/?q=python)"] --> VIEW["views.note_list()<br>Парсить GET параметри"]
+    VIEW -->|"get_user_notes(user, search='python')"| SEL["selectors.py: BUILDS QuerySet<br>select_related + prefetch_related"]
     SEL -->|"SQL"| DB[(PostgreSQL)]
     DB -->|"rows"| SEL
     SEL -->|"QuerySet[Note]"| VIEW
-    VIEW -->|"render(template, context)"| TMPL["note_list.html\nітерує notes\n0 нових SQL!"]
+    VIEW -->|"render(template, context)"| TMPL["note_list.html ітерує notes<br>0 нових SQL!"]
 
-    REQ2["HTTP Request\n(POST /notes/create/)"] --> VIEW2["views.note_create()\nПарсить form.cleaned_data"]
-    VIEW2 -->|"create_note(user, title, ...)"| SVC["services.py\ntransaction.atomic()\nNote.objects.create()\nnote.tags.set()"]
+    REQ2["HTTP Request<br>(POST /notes/create/)"] --> VIEW2["views.note_create()<br>Парсить form.cleaned_data"]
+    VIEW2 -->|"create_note(user, title, ...)"| SVC["services.py: transaction.atomic()<br>Note.objects.create() + note.tags.set()"]
     SVC -->|"INSERT"| DB
     DB -->|"id=42"| SVC
     SVC -->|"Note instance"| VIEW2
-    VIEW2 -->|"redirect(note_detail)"| RESP["HTTP 302\nLocation: /notes/42/"]
+    VIEW2 -->|"redirect(note_detail)"| RESP["HTTP 302<br>Location: /notes/42/"]
 
-    style SEL fill:#2C7A2C,color:#fff
-    style SVC fill:#0C4B33,color:#fff
-    style DB fill:#336791,color:#fff
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class REQ,VIEW,REQ2,VIEW2,DB,RESP step;
+    class SEL,SVC,TMPL success;
 ```
 
 ---
@@ -607,17 +673,26 @@ graph TD
 
 ```mermaid
 graph LR
-    subgraph "❌ До нормалізації (3NF)"
-        T1["employees\nid | name | dept_id | dept_name | dept_location | salary\n───────────────────────────────────────────────────\n1  | Alice| 10     | Engineering | Kyiv         | 50000\n2  | Bob  | 10     | Engineering | Kyiv         | 45000\n3  | Carol| 20     | Design      | Lviv         | 48000"]
+    subgraph "❌ До нормалізації (порушує 3NF)"
+        T1["employees<br>id | name | dept_id | dept_name | dept_location | salary<br>───────────────────────────────────────────────────<br>1  | Alice| 10     | Engineering | Kyiv         | 50000<br>2  | Bob  | 10     | Engineering | Kyiv         | 45000<br>3  | Carol| 20     | Design      | Lviv         | 48000"]
     end
 
     subgraph "✅ Після нормалізації (3NF)"
-        T2["employees\nid | name | dept_id FK | salary\n─────────────────────────────\n1  | Alice| 10         | 50000\n2  | Bob  | 10         | 45000\n3  | Carol| 20         | 48000"]
-        T3["departments\nid | name        | location\n──────────────────────────\n10 | Engineering | Kyiv\n20 | Design      | Lviv"]
+        T2["employees<br>id | name | dept_id FK | salary<br>─────────────────────────────<br>1  | Alice| 10         | 50000<br>2  | Bob  | 10         | 45000<br>3  | Carol| 20         | 48000"]
+        T3["departments<br>id | name        | location<br>──────────────────────────<br>10 | Engineering | Kyiv<br>20 | Design      | Lviv"]
         T2 -->|"dept_id → id"| T3
     end
 
-    PROB["Engineering переїхала до Харкова:\n❌ UPDATE employees SET dept_location='Kharkiv'\n   WHERE dept_name='Engineering'\n   (1000 рядків!)\n\n✅ UPDATE departments SET location='Kharkiv'\n   WHERE id=10\n   (1 рядок!)"]
+    PROB["Engineering переїхала до Харкова"] --> PB1["❌ UPDATE employees SET dept_location='Kharkiv'<br>WHERE dept_name='Engineering' (1000 рядків!)"]
+    PROB --> PB2["✅ UPDATE departments SET location='Kharkiv'<br>WHERE id=10 (1 рядок!)"]
+
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class T2,T3,PB2 success;
+    class T1,PB1 error;
+    class PROB warning;
 ```
 
 ---
@@ -629,19 +704,25 @@ graph LR
 ```mermaid
 graph TD
     subgraph "OneToOneField 1:1"
-        U[User] <-->|"FK + UNIQUE\nuser_id → user.id\nOneToOneField cascade"| UP[UserProfile]
-        NOTE1["Вертикальне партиціонування\nUser: 5 основних полів\nUserProfile: 20 додаткових полів\nuser.profile ← related_name"]
+        U[User] <-->|"FK + UNIQUE: user_id → user.id<br>OneToOneField cascade"| UP[UserProfile]
+        NOTE1["Вертикальне партиціонування: User — 5 основних полів<br>UserProfile — 20 додаткових, user.profile ← related_name"]
     end
 
     subgraph "ForeignKey 1:N"
-        NB[Notebook] <---|"note.notebook_id → notebook.id\nForeignKey SET_NULL nullable"| NO[Note]
-        NOTE2["FK В NOTE (Many side)\nNotebook.notes.all() ← related_name\nнотатка без записника → NULL"]
+        NB[Notebook] <---|"note.notebook_id → notebook.id<br>ForeignKey SET_NULL nullable"| NT[Note]
+        NOTE2["FK В NOTE (Many side), нотатка без записника → NULL<br>Notebook.notes.all() ← related_name"]
     end
 
     subgraph "ManyToManyField M:N"
-        N[Note] <-->|"через автоматичну junction table\nnotes_app_note_tags\nnote_id, tag_id"| T[Tag]
-        NOTE3["Django автоматично:\nCREATE TABLE note_tags\nnote.tags.add(tag)\ntag.notes.all()"]
+        N[Note] <-->|"через автоматичну junction table<br>notes_app_note_tags (note_id, tag_id)"| T[Tag]
+        NOTE3["Django автоматично: CREATE TABLE note_tags<br>note.tags.add(tag), tag.notes.all()"]
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class U,UP,NB,NT,N,T step;
+    class NOTE1,NOTE2,NOTE3 warning;
 ```
 
 ---
@@ -663,7 +744,7 @@ sequenceDiagram
     PG-->>B: views=100
     A->>PG: UPDATE notes SET views_count=101 WHERE id=42
     B->>PG: UPDATE notes SET views_count=101 WHERE id=42
-    Note over A,PG: Результат: views=101 (999 переглядів загублено!)
+    Note over A,PG: Результат: views=101 замість 102 (один перегляд загублено!)
 
     Note over A,PG: ✅ БЕЗПЕЧНО F() Expression
     A->>PG: UPDATE notes SET views_count=views_count+1 WHERE id=42

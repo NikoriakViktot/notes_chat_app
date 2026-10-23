@@ -291,8 +291,17 @@ flowchart TD
     C --> D["Запустити методи test_*"]
     D --> E["Виконати assertions"]
     E --> F{"Усі очікування збіглись?"}
-    F -->|Так| G["OK"]
-    F -->|Ні| H["Показати failure або error"]
+    F -->|так| G["OK"]
+    F -->|ні| H["Показати failure або error"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A,B,C,D,E step;
+    class F decision;
+    class G success;
+    class H error;
 ```
 
 ---

@@ -26,7 +26,7 @@
 | **CheckConstraint** | Обмеження на рівні БД: перевіряє Q-вираз при INSERT/UPDATE. Наприклад, `Q(priority__gte=1)` |
 | **Consumer** | Channels-клас, що обробляє WebSocket lifecycle (connect / receive / disconnect) |
 | **CSRF** | Cross-Site Request Forgery — атака, де чужий сайт змушує браузер надіслати небажаний POST від імені залогіненого user |
-| **Crispy Forms** | Django-пакет для Bootstrap-стилізованого рендерингу форм через `CrispyFormHelper` |
+| **Crispy Forms** | Django-пакет для Bootstrap-стилізованого рендерингу форм через тег `{% crispy %}`, фільтр `crispy` і `FormHelper` |
 
 ## D
 

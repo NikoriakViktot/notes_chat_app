@@ -364,16 +364,19 @@ def test_create_note_assigns_tags(self):
 
 ```mermaid
 graph TD
-    A["End-to-End Tests<br>Selenium / Real Browser<br>Slow · Fragile · Expensive"]
-    B["Integration Tests<br>Django Test Client / DB / APIs<br>Medium Speed"]
-    C["Unit Tests<br>Isolated Logic / Models / Utils<br>Blazing Fast · Reliable · Cheap"]
+    A["End-to-End Tests (Selenium, real browser)<br>Slow · Fragile · Expensive"]
+    B["Integration Tests (Test Client, DB, APIs)<br>Medium Speed"]
+    C["Unit Tests (logic, models, utils)<br>Blazing Fast · Reliable · Cheap"]
 
     A --- B
     B --- C
 
-    style A fill:#ff9999,stroke:#333,stroke-width:2px
-    style B fill:#99ccff,stroke:#333,stroke-width:2px
-    style C fill:#99ff99,stroke:#333,stroke-width:2px
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A warning;
+    class B step;
+    class C success;
 ```
 
 ### Чому не робити все через E2E?
@@ -692,7 +695,7 @@ class NoteApplicationTests(TestCase):
         self.user1 = User.objects.create_user(username='alice', password='pass123')
         self.user2 = User.objects.create_user(username='bob',   password='pass123')
         self.note  = Note.objects.create(
-            author=self.user1, title="Alice's Note", content="Secret"
+            user=self.user1, title="Alice's Note", content="Secret"
         )
 
     def test_anonymous_user_redirected_to_login(self):
@@ -717,7 +720,7 @@ class NoteApplicationTests(TestCase):
         """Порожній title → валідаційна помилка у формі."""
         self.client.login(username='alice', password='pass123')
         response = self.client.post('/notes/new/', {'title': '', 'content': 'Body'})
-        self.assertFormError(response, 'form', 'title', 'This field is required.')
+        self.assertFormError(response.context['form'], 'title', 'This field is required.')
 ```
 
 ### BaseTestCase — уникаємо дублювання
@@ -905,7 +908,7 @@ E         where [] = <built-in method all of ManyRelatedManager object at 0x...>
 pytest tests/test_services.py::NoteServiceTest::test_create_note_assigns_tags
 
 # Зупинитись після першого провалу:
-pytest --failfast
+pytest -x            # або --exitfirst
 
 # Verbose — бачити кожен тест:
 pytest -v
@@ -972,9 +975,14 @@ graph LR
     C -->|Fail| B
     D --> A
 
-    style A fill:#ffcccc,stroke:#cc0000
-    style B fill:#ccffcc,stroke:#00cc00
-    style D fill:#ccccff,stroke:#0000cc
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A error;
+    class B success;
+    class C decision;
+    class D step;
 ```
 
 ### Layered архітектура (CrispyNotes)
@@ -1093,6 +1101,13 @@ graph TD
     E -->|Returns| F[HTTP Response / Template Context]
     F -->|Asserts Against| A
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,C,D,E step;
+    class B warning;
+    class F success;
 ```
 
 ### B. Unit vs Integration vs E2E
@@ -1114,6 +1129,13 @@ graph TD
     E3 --> E4[Backend Server]
     E4 --> E5[(Database)]
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class U1,I1,E1,E2,E3,E4 step;
+    class U2,I2 success;
+    class I3,E5 warning;
 ```
 
 ### C. Selenium E2E Flow
@@ -1148,6 +1170,15 @@ graph TD
     B -->|Yes| D{Owns the resource?}
     D -->|No| E[Assert HTTP 403 Forbidden]
     D -->|Yes| F[Assert HTTP 200 OK + Data]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A step;
+    class B,D decision;
+    class C,E error;
+    class F success;
 ```
 
 ### E. TDD Cycle
@@ -1160,9 +1191,14 @@ graph LR
     C -->|Fail| B
     D --> A
 
-    style A fill:#ffcccc,stroke:#cc0000
-    style B fill:#ccffcc,stroke:#00cc00
-    style D fill:#ccccff,stroke:#0000cc
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class A error;
+    class B success;
+    class C decision;
+    class D step;
 ```
 
 ---

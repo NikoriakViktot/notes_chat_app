@@ -461,12 +461,11 @@ graph TD
     D --> F["hello_app.0005_constraint<br/>ADD CONSTRAINT CHECK"]
     E --> F
 
-    style A fill:#e3f2fd,stroke:#1565c0
-    style B fill:#f1f8e9,stroke:#2e7d32
-    style C fill:#f1f8e9,stroke:#2e7d32
-    style D fill:#f1f8e9,stroke:#2e7d32
-    style E fill:#f1f8e9,stroke:#2e7d32
-    style F fill:#f1f8e9,stroke:#2e7d32
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class A step;
+    class B,C,D,E,F success;
 ```
 
 > **`django_migrations`** — спеціальна таблиця-журнал. `migrate` застосовує тільки ті вузли,  
@@ -689,17 +688,27 @@ erDiagram
 
 ```mermaid
 flowchart TD
-    A[Описати домен словами] --> B[Знайти сутності\nіменники у тексті]
-    B --> C[Визначити атрибути\nкожної сутності]
-    C --> D{Зв'язок між\nсутностями?}
-    D -->|"1:1"| E[OneToOneField\nFK + UNIQUE]
-    D -->|"1:N"| F[ForeignKey\nна стороні Many]
-    D -->|"M:N"| G[ManyToManyField\nDjango junction table]
+    A[Описати домен словами] --> B["Знайти сутності<br>іменники у тексті"]
+    B --> C["Визначити атрибути<br>кожної сутності"]
+    C --> D{"Зв'язок між<br>сутностями?"}
+    D -->|"1:1"| E["OneToOneField<br>FK + UNIQUE"]
+    D -->|"1:N"| F["ForeignKey<br>на стороні Many"]
+    D -->|"M:N"| G["ManyToManyField<br>Django junction table"]
     E --> H[Вибрати on_delete]
     F --> H
-    G --> I[Django створить\njunction table]
-    H --> J[Нормалізація:\nприбрати дублювання]
+    G --> I["Django створить<br>junction table"]
+    H --> J["Нормалізація:<br>прибрати дублювання"]
     J --> K[Написати Django модель]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class A,B,C,E,F,G,I step;
+    class D decision;
+    class H,J warning;
+    class K success;
 ```
 
 ---

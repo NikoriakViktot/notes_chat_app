@@ -54,15 +54,15 @@
 # docker-compose.yml (спрощено)
 services:
   db:
-    image: postgres:16
-    volumes: [pgdata:/var/lib/postgresql/data]
+    image: postgres:16-alpine
+    volumes: [postgres_data:/var/lib/postgresql/data]
 
   redis:
     image: redis:7-alpine
 
   web:
     build: .
-    command: ["/app/entrypoint.sh"]
+    command: ["sh", "./entrypoint.sh"]
     environment:
       DATABASE_URL: postgres://user:pass@db:5432/notes
       REDIS_URL: redis://redis:6379/0
@@ -70,44 +70,64 @@ services:
     ports: ["8001:8001"]
 
   nginx:
-    image: nginx:1.27
+    image: nginx:1.27-alpine
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
-      - staticfiles:/app/staticfiles
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - staticfiles:/staticfiles:ro
     ports: ["80:80"]
     depends_on: [web]
 
-  selenium:
+  celery-worker:
+    build: .
+    command: ["celery", "-A", "notes_project", "worker", "--loglevel=info"]
+    depends_on: [db, redis]
+
+  celery-beat:
+    build: .
+    command: ["celery", "-A", "notes_project", "beat", "--loglevel=info"]
+    depends_on: [db, redis]
+
+  selenium:                  # profiles: ["test"]
     image: selenium/standalone-chrome
     ports: ["4444:4444"]
 
+  selenium-tests:            # profiles: ["test"]
+    build: .
+    command: ["python", "manage.py", "test", "notes_app.tests.test_selenium", "-v", "2"]
+    depends_on: [web, nginx, selenium]
+
 volumes:
-  pgdata:
+  postgres_data:
+  redis_data:
   staticfiles:
+  celerybeat_data:
 ```
 
 **entrypoint.sh — startup sequence:**
 
 ```bash
-#!/bin/bash
-set -e
+#!/bin/sh
+set -eu
 
-# 1. Чекаємо PostgreSQL
-until pg_isready -h db -p 5432; do sleep 1; done
+# 1. PostgreSQL і Redis уже healthy: це гарантує depends_on + healthcheck у docker-compose.yml
 
 # 2. Застосовуємо міграції
-python manage.py migrate --noinput
-
-# 3. Збираємо статику
-python manage.py collectstatic --noinput
-
-# 4. Seed demo data (якщо SEED_DEMO_DATA=1)
-if [ "$SEED_DEMO_DATA" = "1" ]; then
-    python manage.py seed_demo_data
+if [ "${RUN_MIGRATIONS:-1}" = "1" ]; then
+    python manage.py migrate --noinput
 fi
 
-# 5. Запускаємо Daphne ASGI server
-exec daphne -b 0.0.0.0 -p 8001 notes_project.asgi:application
+# 3. Збираємо статику
+if [ "${RUN_COLLECTSTATIC:-1}" = "1" ]; then
+    python manage.py collectstatic --noinput
+fi
+
+# 4. Seed demo data (якщо SEED_DEMO_DATA=1)
+if [ "${SEED_DEMO_DATA:-0}" = "1" ]; then
+    python manage.py seed_demo_data ${seed_args}   # --force або --force --reset
+fi
+
+# 5. Запускаємо Uvicorn ASGI server (у dev — з --reload)
+exec python -m uvicorn notes_project.asgi:application --host 0.0.0.0 --port 8001 --proxy-headers
 ```
 
 **Nginx конфігурація для WebSocket:**
@@ -139,7 +159,7 @@ server {
 
     # Static files — Nginx роздає напряму (не Django)
     location /static/ {
-        alias /app/staticfiles/;
+        alias /staticfiles/;
     }
 }
 ```
@@ -154,9 +174,11 @@ REDIS_URL=redis://redis:6379/0
 DEBUG=False
 ALLOWED_HOSTS=notes.example.com,www.notes.example.com
 
-# В Python:
+# В Python (production-підхід):
 import os
 SECRET_KEY = os.environ['SECRET_KEY']   # ← Exception якщо відсутній (не default!)
+# Навчальний проєкт зараз використовує os.environ.get("SECRET_KEY", "django-insecure-...")
+# з dev-дефолтом — у production цей дефолт треба прибрати.
 ```
 
 **Production checklist:**
@@ -168,7 +190,7 @@ SECRET_KEY = os.environ['SECRET_KEY']   # ← Exception якщо відсутн�
 ✓ ALLOWED_HOSTS — конкретні домени
 ✓ HTTPS — CSRF_TRUSTED_ORIGINS, SESSION_COOKIE_SECURE
 ✓ Static files — Nginx, не Django
-✓ DebugExceptionMiddleware — тільки if DEBUG  (вже виправлено у Batch N)
+✓ DebugExceptionMiddleware — тільки if DEBUG
 ✓ Logrotate / log aggregation
 ✓ Health check endpoint
 ✓ CI: тести зелені перед деплоєм
@@ -180,12 +202,12 @@ SECRET_KEY = os.environ['SECRET_KEY']   # ← Exception якщо відсутн�
 
 | Файл | Що показує |
 |------|-----------|
-| `docker-compose.yml` | повний стек: db, redis, web, nginx, ngrok, selenium |
-| `Dockerfile` | multi-stage build: `FROM python:3.12-slim` |
-| `entrypoint.sh` | startup: wait-for-db → migrate → collectstatic → daphne |
+| `docker-compose.yml` | повний стек: db, redis, web, nginx, celery-worker, celery-beat, selenium, selenium-tests, ngrok |
+| `Dockerfile` | single-stage build: `FROM python:3.12-slim` |
+| `entrypoint.sh` | startup: migrate → collectstatic → seed_demo_data → uvicorn |
 | `nginx/nginx.conf` | proxy_pass, WebSocket upgrade, static alias |
 | `.github/workflows/django-tests.yml` | GitHub Actions CI |
-| `notes_project/settings.py` | `SECRET_KEY = os.environ['SECRET_KEY']`, `DATABASE_URL` parsing |
+| `notes_project/settings.py` | `SECRET_KEY = os.environ.get("SECRET_KEY", ...)`, `DATABASE_URL` parsing |
 
 ---
 

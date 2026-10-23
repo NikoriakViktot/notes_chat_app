@@ -111,18 +111,27 @@ django.db.utils.OperationalError: could not connect to server: Connection refuse
 
 ```mermaid
 flowchart TD
-    Problem["Сайт не відкривається"] --> SSH{Сервер доступний\nпо SSH?}
-    SSH -->|НІ| FixSSH["Проблема з сервером\nабо мережею — зверніться до хостингу"]
-    SSH -->|ТАК| Nginx{Nginx запущений?}
-    Nginx -->|НІ| StartNginx["sudo systemctl start nginx"]
-    Nginx -->|ТАК| Gunicorn{Gunicorn запущений?}
-    Gunicorn -->|НІ| StartGunicorn["sudo systemctl start myapp"]
-    Gunicorn -->|ТАК| Logs["Дивись логи: journalctl -u myapp -n 50"]
+    Problem["Сайт не відкривається"] --> SSH{"Сервер доступний<br>по SSH?"}
+    SSH -->|ні| FixSSH["Проблема з сервером або мережею<br>— зверніться до хостингу"]
+    SSH -->|так| Nginx{Nginx запущений?}
+    Nginx -->|ні| StartNginx["sudo systemctl start nginx"]
+    Nginx -->|так| Gunicorn{Gunicorn запущений?}
+    Gunicorn -->|ні| StartGunicorn["sudo systemctl start myapp"]
+    Gunicorn -->|так| Logs["Дивись логи: journalctl -u myapp -n 50"]
     Logs --> DB{Помилка БД?}
-    DB -->|ТАК| FixDB["Перевір DATABASE_URL і статус PostgreSQL"]
-    DB -->|НІ| Static{404 для статики?}
-    Static -->|ТАК| FixStatic["collectstatic + перевір Nginx alias"]
-    Static -->|НІ| Config["Перевір ALLOWED_HOSTS і .env"]
+    DB -->|так| FixDB["Перевір DATABASE_URL і статус PostgreSQL"]
+    DB -->|ні| Static{404 для статики?}
+    Static -->|так| FixStatic["collectstatic + перевір Nginx alias"]
+    Static -->|ні| Config["Перевір ALLOWED_HOSTS і .env"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class Logs step;
+    class SSH,Nginx,Gunicorn,DB,Static decision;
+    class StartNginx,StartGunicorn,FixDB,FixStatic,Config success;
+    class Problem,FixSSH error;
 ```
 
 ### Повний checklist у тексті

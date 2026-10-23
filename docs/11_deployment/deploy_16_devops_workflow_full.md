@@ -37,17 +37,28 @@
 
 ```mermaid
 flowchart LR
-    Dev["1. Розробник\nпише код"] --> Push["2. git push\nна GitHub"]
-    Push --> CI["3. CI:\nтести + лінтер"]
-    CI -->|"провалились"| Notify["Сповіщення\nрозробнику"]
-    CI -->|"пройшли"| Build["4. Build:\ndocker build"]
-    Build --> Registry["5. Push image\nдо Registry"]
-    Registry --> Staging["6. Deploy\nна Staging"]
-    Staging --> ManualQA{Ручне QA\n(або auto E2E)}
-    ManualQA -->|"OK"| Production["7. Deploy\nна Production"]
-    Production --> Monitor["8. Monitoring\nлоги, метрики"]
-    Monitor -->|"є проблеми"| Rollback["Rollback\nдо попередньої версії"]
+    Dev["Розробник<br>пише код"] --> Push["git push<br>на GitHub"]
+    Push --> CI["CI:<br>тести + лінтер"]
+    CI -->|"провалились"| Notify["Сповіщення<br>розробнику"]
+    CI -->|"пройшли"| Build["Build:<br>docker build"]
+    Build --> Registry["Push image<br>до Registry"]
+    Registry --> Staging["Deploy<br>на Staging"]
+    Staging --> ManualQA{"Ручне QA<br>(або auto E2E)"}
+    ManualQA -->|"OK"| Production["Deploy<br>на Production"]
+    Production --> Monitor["Monitoring<br>логи, метрики"]
+    Monitor -->|"є проблеми"| Rollback["Rollback<br>до попередньої версії"]
     Monitor --> Dev
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class Dev,Push,CI,Build,Registry,Staging step;
+    class ManualQA decision;
+    class Production success;
+    class Notify,Rollback error;
+    class Monitor warning;
 ```
 
 ---

@@ -160,7 +160,7 @@ MIDDLEWARE = [
 Коли користувач вводить адресу (наприклад, `/books/42/`), цей "лист" (запит) проходить такі етапи сортування:
 
 1. **Головний центр (`include`)**: Спочатку запит потрапляє у ваш головний файл `myproject/urls.py`. "Сортувальник" бачить частину `books/` і каже: "Ага, це до відділу книг!", перенаправляючи запит для подальшої обробки у файл `books.urls`.
-2. **Відділ книг (`<int:pk>`)**: Файл `books.urls` дивиться на залишок адреси — `42/`. Вираз `<int:pk>` працює як розумний сканер: він розуміє, що `42` — це числове значення (первинний ключ або ID книги), "захоплює" його і передає безпосередньо функції `BookDetailView`, щоб вона дістала з бази даних саме 42-гу книгу.
+2. **Відділ книг (`<int:pk>`)**: Файл `books.urls` дивиться на залишок адреси — `42/`. Вираз `<int:pk>` працює як розумний сканер: він розуміє, що `42` — це числове значення (первинний ключ або ID книги), "захоплює" його і передає безпосередньо в class-based view `BookDetailView` (підключений через `.as_view()`), щоб він дістав з бази даних саме 42-гу книгу.
 
 **Чому порядок такий важливий?**
 Маршрутизатор читає ваш список `urlpatterns` суворо зверху вниз і припиняє пошук на **першому ж збігу**, який відповідає правилу. Якщо він доходить до кінця списку і жоден рядок не підійшов, він повертає відповідь `404 Not Found` (сторінка не знайдена).
@@ -168,6 +168,7 @@ MIDDLEWARE = [
 
 ```python
 # myproject/urls.py
+from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
@@ -177,6 +178,9 @@ urlpatterns = [
 ]
 
 # books/urls.py
+from django.urls import path
+from .views import BookListView, BookDetailView
+
 urlpatterns = [
     path('', BookListView.as_view(), name='book-list'),
     path('<int:pk>/', BookDetailView.as_view(), name='book-detail'),  # ← pk=42
@@ -202,7 +206,7 @@ Django перебирає `urlpatterns` зверху вниз. Перший зб
 from django.shortcuts import render, get_object_or_404
 from .models import Book
 
-def book_detail(request, pk):
+def book_detail(request, pk):  # function-based еквівалент BookDetailView
     # ORM: SELECT * FROM books_book WHERE id=42
     book = get_object_or_404(Book, pk=pk)
     

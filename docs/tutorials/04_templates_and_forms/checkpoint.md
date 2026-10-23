@@ -89,7 +89,7 @@ crispy_notes_project/
 | `403 Forbidden` після POST | Відсутній `{% csrf_token %}` у формі | Додай `{% csrf_token %}` всередину `<form>` |
 | Crispy не застосовує Bootstrap стилі | Не вказано `CRISPY_TEMPLATE_PACK` | Додай `CRISPY_TEMPLATE_PACK = 'bootstrap5'` у settings.py |
 | Sidebar порожній | Context Processor не зареєстрований | Перевір `TEMPLATES OPTIONS context_processors` |
-| `AppRegistryNotReady` | Неправильний порядок імпортів | Перевір `INSTALLED_APPS` — crispy до hello_app |
+| `AppRegistryNotReady` | Моделі імпортуються до завершення ініціалізації Django (напр. у `settings.py` або `hello_app/__init__.py`) | Прибери імпорт моделей з рівня модуля в цих файлах; порядок `crispy_forms`/`hello_app` у `INSTALLED_APPS` цю помилку не викликає |
 | Active state не спрацьовує | `request` не в context | Додай `django.template.context_processors.request` |
 | Debug Toolbar не з'являється | Не виконано умови | Перевір `DEBUG=True`, `INTERNAL_IPS`, `<body>` тег |
 | Cards різної висоти | Немає `h-100` на `.card` | Додай `h-100` до `<div class="card">` |

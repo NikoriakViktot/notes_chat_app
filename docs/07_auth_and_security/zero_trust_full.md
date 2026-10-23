@@ -255,7 +255,7 @@ class RequireAuthMiddleware:
 Проблема JWT: токен дійсний до закінчення терміну, навіть якщо юзера заблоковано.
 
 ```python
-# Рішення: blacklist + Redis перевірка при кожному запиті
+# Рішення: blacklist відкликаних refresh-токенів у БД (таблиці token_blacklist, потрібен migrate)
 # pip install djangorestframework-simplejwt[crypto]
 
 # settings.py:
@@ -267,7 +267,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 def logout_api(request):
     refresh_token = request.data.get('refresh')
     token = RefreshToken(refresh_token)
-    token.blacklist()   # Redis: занести в список відкликаних
+    token.blacklist()   # БД: запис у таблицю BlacklistedToken
 ```
 
 ### 6.4 Перевірка на рівні об'єктів (IDOR Prevention)

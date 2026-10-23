@@ -13,7 +13,8 @@
 | `test_forms.py` | `TestCase` | валідація, scoped queryset у form fields (Tag, Notebook для поточного user) |
 | `test_views.py` | `TestCase` | HTTP статуси, redirect, IDOR захист, `force_login` |
 | `test_consumers.py` | `TransactionTestCase` | WebSocket connect, receive, disconnect, auth |
-| `test_selenium.py` | `StaticLiveServerTestCase` | E2E browser flows через Chrome |
+| `test_tasks.py` | `TestCase` | Celery-задача нагадувань, email, повторення, JSON endpoint |
+| `test_selenium.py` | `StaticLiveServerTestCase` / `ChannelsLiveServerTestCase` | E2E browser flows через Chrome |
 
 ---
 
@@ -25,7 +26,7 @@
 
 `TransactionTestCase` не загортає → всі потоки бачать дані.
 
-`setUp` у `TransactionTestCase` — **sync**, не async (до Django 5.1 `asyncSetUp` не підтримувався; цей проєкт на Django 5.2).
+`setUp` у `TransactionTestCase` — **sync**, не async: Django test cases не викликають `asyncSetUp` (це API `unittest.IsolatedAsyncioTestCase`), тому підготовку даних робимо у звичайному `setUp`, навіть коли самі тести `async def`.
 
 ---
 
@@ -59,7 +60,10 @@ docker compose exec web python manage.py test \
 ### Усі тести (крім Selenium)
 
 ```bash
-docker compose run --rm web python manage.py test notes_app.tests -v 2
+docker compose run --rm web python manage.py test \
+  notes_app.tests.test_models notes_app.tests.test_services \
+  notes_app.tests.test_forms notes_app.tests.test_views \
+  notes_app.tests.test_consumers notes_app.tests.test_tasks -v 2
 ```
 
 ---

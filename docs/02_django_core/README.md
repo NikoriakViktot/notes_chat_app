@@ -87,7 +87,7 @@ def note_create(request):
 | Server | Gunicorn, uWSGI | Daphne, Uvicorn |
 | WebSocket | ❌ | ✅ |
 | Async views | обмежено | ✅ |
-| Notes Chat App | ✅ (використовує ASGI) | `notes_project/asgi.py` |
+| Notes Chat App | ❌ (`wsgi.py` не використовується) | ✅ `notes_project/asgi.py` (Uvicorn у Docker) |
 
 ```python
 # notes_project/asgi.py

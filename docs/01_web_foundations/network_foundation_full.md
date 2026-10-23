@@ -163,7 +163,7 @@ HTTP (HyperText Transfer Protocol) — текстовий протокол пр�
 ### Структура HTTP-запиту
 
 ```
-GET /api/users/42/ HTTP/1.1
+PATCH /api/users/42/ HTTP/1.1
 Host: example.com
 Accept: application/json
 Authorization: Bearer eyJhbGc...
@@ -174,7 +174,7 @@ Content-Type: application/json
 
 | Частина | Що це |
 |---------|-------|
-| `GET` | Метод (дія) |
+| `PATCH` | Метод (дія) |
 | `/api/users/42/` | Шлях (ресурс) |
 | `HTTP/1.1` | Версія протоколу |
 | `Host`, `Accept`... | Заголовки (метадані) |
@@ -312,8 +312,8 @@ HTTP за своєю природою **stateless** — без пам'яті. К
 6. Nginx отримує запит
 7. Nginx пересилає до uWSGI через Unix socket
 8. uWSGI перетворює HTTP в Python dict (WSGI environ)
-9. Django URL Dispatcher: /products/ → ProductListView
-10. Middleware: SecurityMiddleware → SessionMiddleware → AuthMiddleware
+9. Middleware: SecurityMiddleware → SessionMiddleware → AuthMiddleware
+10. Django URL Dispatcher: /products/ → ProductListView
 11. View: Product.objects.all() → SQL SELECT → Python objects
 12. Template: рендеринг HTML з даними
 13. HttpResponse 200 OK з HTML
@@ -397,7 +397,7 @@ async def my_view(request):
 
 ### 3. Відсутність HTTPS
 
-Ніколи не деплой продакшн без TLS. Пам'ятки, паролі, токени — все йде відкритим текстом.
+Ніколи не деплой продакшн без TLS. Сесійні cookie, паролі, токени — все йде відкритим текстом.
 
 ---
 

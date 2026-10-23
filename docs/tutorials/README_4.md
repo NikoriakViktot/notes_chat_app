@@ -151,6 +151,12 @@ graph TD
     FV --> CV[CreateView]
     FV --> UV[UpdateView]
     FV --> DEL[DeleteView]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class V,FV step;
+    class TV,LV,DV,CV,UV,DEL success;
 ```
 
 ### Що кожна Generic View робить автоматично
@@ -230,11 +236,21 @@ flowchart TD
 
     D --> A{"Користувач автентифікований?"}
 
-    A -->|"Так"| C["super dispatch\nListView get"]
+    A -->|"так"| C["super dispatch<br>ListView get"]
 
-    A -->|"Ні"| L["redirect\n/accounts/login/"]
+    A -->|"ні"| L["redirect<br>/accounts/login/"]
 
     C --> T["рендерить шаблон"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class R,D,C step;
+    class A decision;
+    class L warning;
+    class T success;
 ```
 
 > За замовчуванням редірект — `/accounts/login/?next=/notes/`. Можна змінити через `login_url` і `redirect_field_name` на класі.

@@ -9,38 +9,67 @@
 
 ```sh
 #!/bin/sh
-set -e   # зупинитись при будь-якій помилці (exit code ≠ 0)
+set -eu  # -e: зупинитись при будь-якій помилці (exit code ≠ 0)
+         # -u: помилка при використанні неоголошеної змінної
 # Без set -e: uvicorn стартує навіть якщо migrate провалилась → 500 на всіх запитах
 
-echo "=== Running migrations ==="
-python manage.py migrate --noinput
-# --noinput: не питати підтвердження в інтерактивному режимі
-# Застосовує всі нові міграції з попередньої версії коду
+log() {
+    printf '[entrypoint] %s\n' "$1"
+}
 
-echo "=== Collecting static files ==="
-python manage.py collectstatic --noinput
-# Збирає static з усіх installed apps у STATIC_ROOT (/app/staticfiles)
-# Потрібно при кожному deploy (якщо змінились CSS/JS)
-
-echo "=== Seeding demo data (if enabled) ==="
-if [ "${SEED_DEMO_DATA}" = "1" ]; then
-    python manage.py seed_demo_data --force
-    # --force: без підтвердження, навіть якщо БД не порожня
+if [ "${RUN_MIGRATIONS:-1}" = "1" ]; then
+    log "Applying database migrations..."
+    python manage.py migrate --noinput
+    # --noinput: не питати підтвердження в інтерактивному режимі
+    # Застосовує всі нові міграції з попередньої версії коду
 fi
 
-echo "=== Starting uvicorn ==="
-exec python -m uvicorn notes_project.asgi:application \
-    --host 0.0.0.0 \
-    --port 8001 \
-    --reload
+if [ "${RUN_COLLECTSTATIC:-1}" = "1" ]; then
+    log "Collecting static files..."
+    python manage.py collectstatic --noinput
+    # Збирає static з усіх installed apps у STATIC_ROOT (/app/staticfiles)
+    # Потрібно при кожному deploy (якщо змінились CSS/JS)
+fi
+
+if [ "${CREATE_SUPERUSER:-0}" = "1" ]; then
+    log "Creating/updating Django superuser ${DJANGO_SUPERUSER_USERNAME:-admin}..."
+    python manage.py shell -c "..."
+    # ... створює або оновлює суперкористувача з
+    # DJANGO_SUPERUSER_USERNAME / _EMAIL / _PASSWORD
+fi
+
+if [ "${SEED_DEMO_DATA:-0}" = "1" ]; then
+    seed_args="--force"
+    # --force: дозволити seed навіть при DEBUG=False
+    if [ "${SEED_DEMO_RESET:-0}" = "1" ]; then
+        seed_args="--force --reset"
+        # --reset: спочатку видалити наявні демо-дані
+    fi
+    log "Seeding demo data with args: ${seed_args}"
+    python manage.py seed_demo_data ${seed_args}
+fi
+
+port="${PORT:-8001}"
+set -- --host 0.0.0.0 --port "${port}" --proxy-headers --forwarded-allow-ips '*'
+# set -- ...: формує список аргументів для uvicorn ("$@")
+# --proxy-headers: довіряти X-Forwarded-* від nginx
+
+if [ "${UVICORN_RELOAD:-1}" = "1" ]; then
+    set -- "$@" --reload
     # --reload: авто-перезапуск при зміні файлів (ТІЛЬКИ ДЛЯ DEV!)
-    # У production: прибрати --reload + додати --workers 4
+    # У production: UVICORN_RELOAD=0
+fi
+
+log "Starting ASGI web server on port ${port}..."
+exec python -m uvicorn notes_project.asgi:application "$@"
 
 # exec: замінює shell процес uvicorn'ом
 # Без exec: shell → uvicorn як child process
 # SIGTERM від Docker → shell → shell може ігнорувати → uvicorn не отримує сигнал
 # З exec: SIGTERM → uvicorn → graceful shutdown ✓
 ```
+
+Кожен крок керується змінною оточення з `docker-compose.yml` / `.env` (`RUN_MIGRATIONS`, `RUN_COLLECTSTATIC`, `CREATE_SUPERUSER`, `SEED_DEMO_DATA`, `SEED_DEMO_RESET`, `UVICORN_RELOAD`, `PORT`), тому той самий скрипт працює і для dev, і для production.
 
 ---
 
@@ -180,6 +209,8 @@ exec python -m uvicorn notes_project.asgi:application \
     --workers 4        # ← 4 паралельних worker (2 × CPU cores)
     # Без --reload: статичний запуск, вища продуктивність
 ```
+
+У реальному `entrypoint.sh` `--reload` додається лише коли `UVICORN_RELOAD=1` (значення за замовчуванням), тому для production достатньо задати `UVICORN_RELOAD=0`. `--workers` у скрипті немає — його треба додати самостійно.
 
 `--reload` у production — антипатерн:
 - Uvicorn стежить за файловою системою → зайве навантаження

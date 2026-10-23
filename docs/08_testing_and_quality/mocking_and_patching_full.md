@@ -187,6 +187,13 @@ def test_checkout_payment_failed(mock_charge):
 Іноді зовнішній сервіс падає.
 
 ```python
+from unittest.mock import patch
+
+import pytest
+
+from shop.services import checkout
+
+
 @patch("shop.services.PaymentGateway.charge")
 def test_checkout_gateway_error(mock_charge):
     mock_charge.side_effect = TimeoutError("gateway timeout")
@@ -306,10 +313,19 @@ def test_note_create(mock_email, mock_note, mock_form):
 ```mermaid
 flowchart TD
     A["Код викликає зовнішній сервіс"] --> B{"Це email/API/payment/повільна залежність?"}
-    B -->|Так| C["Підмінити через mock"]
-    B -->|Ні| D["Викликати реальну логіку у test database"]
+    B -->|так| C["Підмінити через mock"]
+    B -->|ні| D["Викликати реальну логіку у test database"]
     C --> E["Задати return_value або side_effect"]
     E --> F["Перевірити результат і аргументи виклику"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,D,E step;
+    class B decision;
+    class C warning;
+    class F success;
 ```
 
 ---

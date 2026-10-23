@@ -1,6 +1,6 @@
 # PostgreSQL Advanced — Архітектура, Docker та Production патерни
 
-> Продовження після `DJANGO_ORM_DEEP.md`.
+> Продовження після [`django_orm_full.md`](django_orm_full.md).
 > Тут: внутрішня механіка PostgreSQL, чому він такий швидкий, як підключити через Docker,
 > специфічні PostgreSQL поля та production-оптимізація.
 
@@ -8,6 +8,8 @@
 
 > 🔬 **SQL інспекція в ноутбуку:**
 > [`docs/reference/legacy_source/orm_laboratory_reference.md`](../reference/legacy_source/orm_laboratory_reference.md)
+>
+> ⚠️ Сам notebook не входить до цього репозиторію: файл за посиланням лише пояснює це. Назви розділів у таблиці нижче — орієнтири з оригінальної структури ноутбука, а не якорі. Ці ж запити можна виконати самостійно в `python manage.py shell` або в [ORM-лабораторії](../labs/orm_lab.md).
 >
 > | Концепція | Розділ ноутбука |
 > |-----------|-----------------|
@@ -74,7 +76,7 @@ PostgreSQL (Client-Server):
 >
 > **📚 Чому fork() а не threads:** PostgreSQL використовує процеси (не threads) для ізоляції. Якщо backend process падає — він не вбиває весь сервер. Shared Buffers — спільна пам'ять (не копії): всі процеси бачать один і той самий кеш.
 >
-> **🌐 CONN_MAX_AGE в Django:** Кожен новий Python процес → нове підключення до PostgreSQL → fork() на боці PostgreSQL. Це дорого (10-100ms). `CONN_MAX_AGE=60` → тримати підключення між HTTP запитами → не vitko fork() щоразу → 5-10x менше overhead на DB connections.
+> **🌐 CONN_MAX_AGE в Django:** Кожен новий Python процес → нове підключення до PostgreSQL → fork() на боці PostgreSQL. Це дорого (10-100ms). `CONN_MAX_AGE=60` → тримати підключення між HTTP запитами → не виконувати fork() щоразу → 5-10x менше overhead на DB connections.
 >
 > **❌ Типова помилка:** `CONN_MAX_AGE=None` (persistent) без PgBouncer. При 100 Gunicorn воркерах = 100 постійних підключень до PostgreSQL. PostgreSQL тримає 100 backend процесів. При `max_connections=100` → 101-й клієнт отримує "too many connections" помилку.
 ---
@@ -155,7 +157,7 @@ VACUUM прибирає "мертві" тупліі (xmax != NULL і недос�
 ```
 Шлях даних від COMMIT до диску:
 
-1. Django: session.commit()
+1. Django: вихід з transaction.atomic() (або autocommit)
            │
 2. SQL: COMMIT
            │
@@ -321,7 +323,7 @@ __pycache__/
 >
 > **📚 Проблема без PgBouncer:** Gunicorn з 10 воркерами + 5 threads = 50 паралельних підключень. PostgreSQL fork()-ує 50 backend процесів. При 100 воркерах → 100 backend процесів → `max_connections=100` → 101-й отримає помилку. PgBouncer → 1000 Django підключень → 20 реальних з'єднань з PostgreSQL.
 >
-> **🌐 Режими PgBouncer:** Session pooling (1 з'єднання до PostgreSQL на Django session), Transaction pooling (1 реальне з'єднання з PostgreSQL на транзакцію — найефективніше), Statement pooling (найефективніше але не підтримує multi-statement transactions).
+> **🌐 Режими PgBouncer:** Session pooling (1 з'єднання до PostgreSQL на Django session), Transaction pooling (1 реальне з'єднання з PostgreSQL на транзакцію — найкращий баланс для Django), Statement pooling (найагресивніше перевикористання з'єднань, але не підтримує multi-statement transactions).
 >
 > **❌ Типова помилка:** Transaction pooling + `CONN_MAX_AGE` у Django. При Transaction pooling — кожна транзакція може йти через різне фізичне з'єднання. Persistent з'єднань з PostgreSQL тоді немає сенсу. З PgBouncer: `CONN_MAX_AGE=0`.
 ---
@@ -495,7 +497,7 @@ ALTER TABLE notes_note
 >
 > **🌐 Як читати план:** `Seq Scan` = читає всю таблицю O(N). `Index Scan` = використовує B-Tree O(log N). `Index Only Scan` = покриваючий індекс (не читає heap). `Hash Join` = ефективний JOIN для великих таблиць. `Nested Loop Join` = ефективний для малих таблиць з індексом.
 >
-> **❌ Типова помилка:** Ігнорувати `Seq Scan` на великих таблицях. `Seq Scan on notes_note (cost=0.00..5000.00 rows=100000)` = читання мільйона рядків. Потрібен індекс на поле в WHERE clause.
+> **❌ Типова помилка:** Ігнорувати `Seq Scan` на великих таблицях. `Seq Scan on notes_note (cost=0.00..5000.00 rows=100000)` = читання всіх ~100 000 рядків. Потрібен індекс на поле в WHERE clause.
 ---
 
 ```python
@@ -617,7 +619,8 @@ DATABASES = {
     }
 }
 
-# Логування повільних запитів у розробці
+# Логування SQL-запитів: django.db.backends пише їх лише при DEBUG=True,
+# тому в production цей блок нічого не покаже — тримай його в dev-налаштуваннях
 LOGGING = {
     'version': 1,
     'handlers': {
@@ -660,7 +663,7 @@ T1 виконує SELECT о 10:00:02
 
 > Відповідь (залежить від isolation level):
 > - `READ COMMITTED` (за замовчуванням в PostgreSQL) → **ТАК** бачить. Кожен запит в T1 бачить свіжі закомічені дані.
-> - `REPEATABLE READ` або `SERIALIZABLE` → **НЕ бачить**. Snapshot T1 зафіксований на момент START TRANSACTION.
+> - `REPEATABLE READ` або `SERIALIZABLE` → **НЕ бачить**. Snapshot T1 фіксується на момент першого запиту в транзакції (не на BEGIN/START TRANSACTION). Тобто T1 не бачить рядок, якщо вже виконала хоча б один запит до COMMIT T2 о 10:00:01; якщо SELECT о 10:00:02 — її перший запит, вона його побачить.
 
 ---
 

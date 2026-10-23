@@ -50,7 +50,7 @@ Django:
 ```
 notes_chat_app — що вміє:
   ✓ Реєстрація та авторизація (сесії, cookies, CSRF)
-  ✓ Нотатки з тегами, підручниками, нагадуваннями
+  ✓ Нотатки з тегами, записниками, нагадуваннями
   ✓ Todo списки та Shopping lists
   ✓ Групи з спільним доступом до даних
   ✓ Груповий чат у реальному часі (WebSocket)
@@ -127,7 +127,7 @@ admin.site.register(Note)
 
 ```
 django.contrib.admin          → автогенерована адмін-панель
-django.contrib.auth           → авторизація, сесії, паролі (bcrypt)
+django.contrib.auth           → авторизація, сесії, паролі (PBKDF2 за замовчуванням)
 django.contrib.contenttypes   → generic relationships
 django.contrib.messages       → flash messages (одноразові нотифікації)
 django.contrib.staticfiles    → збирання і роздача static files
@@ -155,7 +155,7 @@ notes_chat_app/
 │   └── routing.py          ← WebSocket URL patterns
 │
 ├── notes_app/              ← Django додаток (основна логіка)
-│   ├── models.py           ← 9 моделей: Note, Notebook, Tag, UserProfile, ChatMessage...
+│   ├── models.py           ← 10 моделей: Note, Notebook, Tag, UserProfile, ChatMessage...
 │   ├── views.py            ← HTTP views (тонкий шар)
 │   ├── consumers.py        ← WebSocket consumer (async)
 │   ├── selectors.py        ← Тільки SELECT (read-only ORM)

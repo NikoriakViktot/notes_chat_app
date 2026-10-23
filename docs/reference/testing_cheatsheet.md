@@ -127,7 +127,7 @@ class ConsumerTest(TransactionTestCase):
 
 ## Selenium тести
 
-```python
+```bash
 # ВАЖЛИВО: exec, не run!
 docker compose up -d
 docker compose exec web python manage.py test notes_app.tests.test_selenium -v 2

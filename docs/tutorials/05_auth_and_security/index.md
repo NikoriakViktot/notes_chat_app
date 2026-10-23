@@ -21,7 +21,7 @@
 | Запуск | `python manage.py runserver` | `docker compose up --build` |
 | База даних | SQLite | PostgreSQL (Docker) |
 | Auth | Login / Logout / Register / Password Reset | Те саме + UserCreationForm auto-login |
-| Session storage | Файлова (SQLite) | БД (PostgreSQL) через Redis |
+| Session storage | Файлова (SQLite) | БД (PostgreSQL), `django.contrib.sessions` |
 | Group FK | `Note.group`, `ShoppingList.group` | Те саме + `ChatMessage.group` |
 | Docker | Немає | PostgreSQL + Redis + Web + Nginx + Selenium |
 | ngrok | Немає | Так — публічний URL + `CSRF_TRUSTED_ORIGINS` |

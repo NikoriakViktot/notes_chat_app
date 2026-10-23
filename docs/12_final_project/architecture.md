@@ -28,24 +28,34 @@
 ```mermaid
 flowchart TD
     Browser --> Nginx["Nginx :80"]
-    Nginx -->|HTTP| Uvicorn["Uvicorn :8001\nASGI server"]
+    Nginx -->|HTTP| Uvicorn["Uvicorn :8001<br>ASGI server"]
     Nginx -->|WebSocket| Uvicorn
 
-    Uvicorn --> ASGI["ProtocolTypeRouter\nnotes_project/asgi.py"]
-    ASGI -->|http| DjangoHTTP["Django HTTP stack\n→ views.py"]
-    ASGI -->|websocket| AuthMW["AuthMiddlewareStack\n→ routing.py\n→ GroupChatConsumer"]
+    Uvicorn --> ASGI["ProtocolTypeRouter<br>notes_project/asgi.py"]
+    ASGI -->|http| DjangoHTTP["Django HTTP stack<br>→ views.py"]
+    ASGI -->|websocket| AuthMW["AuthMiddlewareStack<br>→ routing.py"]
 
     DjangoHTTP --> Views["views.py"]
     Views --> Forms["forms.py"]
-    Views --> Selectors["selectors.py\n(read)"]
-    Views --> Services["services.py\n(write)"]
+    Views --> Selectors["selectors.py<br>(read)"]
+    Views --> Services["services.py<br>(write)"]
     Selectors --> ORM["Django ORM"]
     Services --> ORM
-    ORM --> PostgreSQL[("PostgreSQL\n:5432")]
+    ORM --> PostgreSQL[("PostgreSQL<br>:5432")]
 
-    AuthMW --> Consumer["GroupChatConsumer\nconsumers.py"]
+    AuthMW --> Consumer["GroupChatConsumer<br>consumers.py"]
     Consumer -->|database_sync_to_async| ORM
-    Consumer --> ChannelLayer["Channel Layer\nRedis :6379"]
+    Consumer --> ChannelLayer["Channel Layer<br>Redis :6379"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class Browser,Nginx,Uvicorn,DjangoHTTP,Forms,Selectors,Services,ORM,AuthMW,Consumer step;
+    class ASGI decision;
+    class PostgreSQL,ChannelLayer success;
+    class Views warning;
 ```
 
 ---
@@ -74,20 +84,35 @@ WebSocket URL: `/ws/groups/<group_pk>/chat/` → `GroupChatConsumer`.
 
 ```mermaid
 flowchart LR
-    db[(PostgreSQL\ndb:5432)]
-    redis[(Redis\nredis:6379)]
-    web[web\nuvicorn :8001]
-    nginx[nginx\n:80]
+    db[("PostgreSQL<br>db:5432")]
+    redis[("Redis<br>redis:6379")]
+    web["web<br>uvicorn :8001"]
+    nginx["nginx<br>:80"]
     ngrok[ngrok]
-    selenium[selenium\nchrome]
+    worker[celery-worker]
+    beat[celery-beat]
+    selenium["selenium<br>chrome"]
+    stests[selenium-tests]
 
     db --> web
     redis --> web
     web --> nginx
     nginx --> ngrok
+    db --> worker
+    redis --> worker
+    db --> beat
+    redis --> beat
+    selenium --> stests
+    nginx --> stests
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class db,redis,ngrok,worker,beat,selenium,stests step;
+    class web,nginx success;
 ```
 
-Залежності: `web` стартує лише після health check `db` і `redis`.
+Залежності: `web`, `celery-worker` і `celery-beat` стартують лише після health check `db` і `redis`; `selenium-tests` (profile `test`) чекає ще `web`, `nginx` і `selenium`.
 
 ---
 

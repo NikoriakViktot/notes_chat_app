@@ -42,7 +42,7 @@ docker compose up --build     # перший запуск (3–7 хвилин)
 ### Спосіб B — Локально без Docker
 
 !!! warning "Без PostgreSQL застосунок не запуститься"
-    `manage.py migrate` падає з `OperationalError` якщо немає `DATABASE_URL`.
+    Без `DATABASE_URL` будь-яка команда `manage.py` падає вже під час завантаження `settings.py` (`Exception: DATABASE_URL не встановлено...`).
     Цей спосіб для досвідчених розробників з власним PostgreSQL і Redis.
 
 ```bash

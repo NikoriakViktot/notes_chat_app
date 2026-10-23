@@ -93,12 +93,14 @@ Browser → Server: ACK (підтверджую)
 Для `https://` додається TLS handshake після TCP:
 
 ```
-Browser → Server: ClientHello (підтримую TLS 1.3, cipher suites список)
-Browser ← Server: ServerHello (вибрав cipher), Certificate, ServerHelloDone
-Browser: Перевіряє certificate у системних CA
-Browser → Server: ClientKeyExchange (shared secret через Diffie-Hellman)
+Browser → Server: ClientHello (підтримую TLS 1.3, cipher suites список, key_share)
+Browser ← Server: ServerHello (вибрав cipher, key_share), Certificate, CertificateVerify, Finished
+Browser: Перевіряє certificate через локальне сховище довірених CA
+Browser → Server: Finished (shared secret вже обчислено через Diffie-Hellman)
 ← шифрований канал встановлений →
 ```
+
+У TLS 1.2 обмін інший: сервер завершує свою частину повідомленням `ServerHelloDone`, а клієнт надсилає `ClientKeyExchange` — тому потрібен додатковий round trip.
 
 **Час:** 1 RTT (TLS 1.3) або 2 RTT (TLS 1.2).
 
@@ -183,8 +185,8 @@ application = ProtocolTypeRouter({
 # settings.py
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',    # HTTP → HTTPS redirect, HSTS
-    'whitenoise.middleware.WhiteNoiseMiddleware',       # static файли в dev
-    'django.contrib.sessions.middleware.SessionMiddleware',  # session cookie → user
+    'debug_toolbar.middleware.DebugToolbarMiddleware',  # Django Debug Toolbar (dev)
+    'django.contrib.sessions.middleware.SessionMiddleware',  # session cookie → request.session
     'django.middleware.common.CommonMiddleware',        # trailing slash redirect
     'django.middleware.csrf.CsrfViewMiddleware',        # ← ПЕРЕВІРЯЄ CSRF TOKEN
     'django.contrib.auth.middleware.AuthenticationMiddleware',  # ← request.user
@@ -226,7 +228,7 @@ urlpatterns = [
 # notes_app/views.py
 @login_required
 def note_list(request):
-    # Якщо не залогінений — SessionMiddleware вже set request.user = AnonymousUser
+    # Якщо не залогінений — AuthenticationMiddleware вже set request.user = AnonymousUser
     # @login_required перенаправить на /accounts/login/
 
     # Selector: читання з БД
@@ -264,7 +266,7 @@ ORDER BY notes.updated_at DESC;
 Django компілює шаблон і підставляє контекст:
 
 ```html
-<!-- templates/notes_app/note_list.html -->
+<!-- notes_app/templates/notes_app/note_list.html -->
 {% extends 'base.html' %}
 {% block content %}
 {% for note in notes %}
@@ -393,7 +395,7 @@ F12 → Network → перезавантаж сторінку
 | URL routing | `notes_project/urls.py`, `notes_app/urls.py` |
 | View | `notes_app/views.py` |
 | DB query | `notes_app/selectors.py` |
-| Template | `templates/notes_app/*.html` |
+| Template | `notes_app/templates/notes_app/*.html` |
 | Static files | `notes_app/static/` → `staticfiles/` (після collectstatic) |
 
 ---

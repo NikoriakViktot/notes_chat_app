@@ -293,7 +293,7 @@ from django.shortcuts import get_object_or_404
 # Базовий синтаксис:
 note = get_object_or_404(Note, pk=pk)
 # SQL: SELECT * FROM note WHERE id=42
-# Якщо не знайдено → Http404 (403 = видно хто запитував неіснуючий запис)
+# Якщо не знайдено → Http404 (сторінка 404 Not Found)
 
 # З перевіркою прав (ОБОВ'ЯЗКОВО для приватних даних!):
 note = get_object_or_404(Note, pk=pk, user=request.user)
@@ -316,7 +316,7 @@ note = get_object_or_404(Note, pk=pk, user=request.user)
 **Варіанти синтаксису:**
 
 ```python
-# 1. За pk через позиційний аргумент:
+# 1. За pk через іменований (keyword) аргумент:
 note = get_object_or_404(Note, pk=pk)
 
 # 2. За queryset — більш гнучко (дозволяє filter, select_related):
@@ -431,7 +431,7 @@ from django.views.decorators.http import require_POST, require_GET, require_http
 @require_POST
 def note_pin(request, pk):
     note = get_object_or_404(Note, pk=pk, user=request.user)
-    services.toggle_pin(note)
+    services.toggle_pin_note(note)
     return redirect('notes_app:note_detail', pk=pk)
 
 # GET запит до цього view → 405 Method Not Allowed

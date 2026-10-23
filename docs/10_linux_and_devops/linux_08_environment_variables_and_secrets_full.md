@@ -106,16 +106,19 @@ ALLOWED_HOSTS=localhost
 ### Пакет python-decouple
 
 ```bash
-pip install python-decouple
+pip install python-decouple dj-database-url
 ```
 
 ```python
 # settings.py
+import dj_database_url
 from decouple import config
 
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
 DATABASE_URL = config('DATABASE_URL')
+# decouple лише читає рядок — DATABASES з нього треба зібрати окремо:
+DATABASES = {'default': dj_database_url.parse(DATABASE_URL)}
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost').split(',')
 ```
 
@@ -224,7 +227,7 @@ docker run --env-file .env django-app
 **Помилка 2:** `KeyError: 'SECRET_KEY'` при запуску Django
 > Змінна не встановлена. Перевір: чи є `.env` файл? Чи правильно читається?
 
-**Помилка 3:** Різні значення DEBUG на різних серверах не відрізняються
+**Помилка 3:** Однакове значення `DEBUG=True` на dev і на production
 > На production завжди `DEBUG=False`. Якщо `DEBUG=True` на production — Django показує stack traces всім користувачам.
 
 ---

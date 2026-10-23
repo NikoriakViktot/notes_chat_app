@@ -56,9 +56,9 @@ Ninja використовує Python type hints напряму. Немає `ser
 ---
 
 ---
-- **🧠 Ментальна модель:** NinjaAPI — це "головний диспетчер", а Router — це "відділ". Ви реєструєте відділи (роутери) в диспетчері, і він знає, куди направляти запити. Django взагалі нічого не знає про Ninja — він бачить тільки `api.get_urls()` як звичайний список URL-патернів.
+- **🧠 Ментальна модель:** NinjaAPI — це "головний диспетчер", а Router — це "відділ". Ви реєструєте відділи (роутери) в диспетчері, і він знає, куди направляти запити. Django взагалі нічого не знає про Ninja — він бачить тільки `api.urls` як звичайний набір URL-патернів (як `admin.site.urls`).
 - **📚 Чому це існує:** Ninja має власну систему маршрутизації, незалежну від Django URL patterns. Це дозволяє йому додавати middleware для валідації, автоматично збирати OpenAPI-специфікацію, і виконувати Pydantic-перевірку до того, як запит дійде до вашого коду. Django отримує вже оброблений запит.
-- **🌐 Що відбувається під капотом:** `api.get_urls()` повертає звичайний Django URLconf список. Всередині кожного URL — Ninja's view function, яка запускає роутер, виконує валідацію параметрів через Pydantic, викликає вашу функцію і серіалізує результат.
+- **🌐 Що відбувається під капотом:** `api.urls` повертає звичайний для Django кортеж `(список URL-патернів, app_name, namespace)` — той самий формат, що й `admin.site.urls`. Всередині кожного URL — Ninja's view function, яка запускає роутер, виконує валідацію параметрів через Pydantic, викликає вашу функцію і серіалізує результат.
 - **❌ Типова помилка початківця:** Намагатися додати Ninja endpoints прямо в `urls.py` як звичайні Django views. Ninja endpoints ПОВИННІ бути зареєстровані через `router.get()` / `router.post()` і підключені до `NinjaAPI` через `api.add_router()`.
 ---
 
@@ -66,7 +66,7 @@ Ninja використовує Python type hints напряму. Немає `ser
 
 > Зверніть увагу на різницю між `NinjaAPI` (головний об'єкт) і `Router` (модульний роутер для окремих ресурсів). `NinjaAPI` — один на проект, `Router` — один на "bounded context" або ресурс (notes, users, tags тощо). Це забезпечує масштабованість: кожен розробник у команді працює зі своїм роутером.
 
-> Паттерн `api.get_urls()` — ключовий момент інтеграції. Ви не додаєте Ninja views по одному в `urlpatterns`. Натомість, ви передаєте Django весь список Ninja URLs одним викликом. Чому окремі роутери на кожну фічу? Тому що це "bounded contexts" — кожен роутер відповідає за одну предметну область і може бути в окремому файлі, тестуватися незалежно, і вимикатися без впливу на інші.
+> Паттерн `path('api/', api.urls)` — ключовий момент інтеграції. Ви не додаєте Ninja views по одному в `urlpatterns`. Натомість, ви передаєте Django весь список Ninja URLs одним викликом. Чому окремі роутери на кожну фічу? Тому що це "bounded contexts" — кожен роутер відповідає за одну предметну область і може бути в окремому файлі, тестуватися незалежно, і вимикатися без впливу на інші.
 
 ```bash
 pip install django-ninja
@@ -228,7 +228,7 @@ A/B тести, аналітику) — без зміни view коду.
 ---
 - **🧠 Ментальна модель:** SSR (Server-Side Rendering) — це як замовити готову піцу (HTML), а не купити інгредієнти (JSON) і готувати вдома (JavaScript). Ninja додає до цього процесу "охоронця на вході": Pydantic-валідацію, яка перевіряє запит ще до того, як ваш код взагалі виконується.
 - **📚 Чому це існує:** MVT (Model-View-Template) — архітектурний патерн Django. Model знає про дані, View знає про бізнес-логіку, Template знає про відображення. Ninja вписується в цю схему як "розумний диспетчер" перед View — він обробляє валідацію, щоб View міг зосередитися тільки на бізнес-логіці.
-- **🌐 Що відбувається під капотом:** Кожен крок у lifecycle — окремий модуль Django. Middleware — ланцюжок WSGI-обгорток. URL Dispatcher — `RegexURLResolver`. Template Engine — окремий модуль з власним кешем. Розуміння цього pipeline допоможе вам правильно розміщувати логіку.
+- **🌐 Що відбувається під капотом:** Кожен крок у lifecycle — окремий модуль Django. Middleware — ланцюжок обгорток навколо `get_response` (працює і під WSGI, і під ASGI). URL Dispatcher — `URLResolver` (раніше `RegexURLResolver`). Template Engine — окремий модуль з власним кешем. Розуміння цього pipeline допоможе вам правильно розміщувати логіку.
 - **❌ Типова помилка початківця:** Розміщувати бізнес-логіку в шаблоні (через template tags або методи моделі, що роблять запити). Вся логіка — у View. Шаблон тільки відображає готові дані.
 ---
 
@@ -679,8 +679,8 @@ def environment(**options):
 
     # Додаємо Django функції в Jinja2
     env.globals.update({
-        'static': staticfiles_storage.url,   # {% static('path') %} → url
-        'url': reverse,                        # {% url('name') %} → url
+        'static': staticfiles_storage.url,   # {{ static('path') }} → url
+        'url': reverse,                        # {{ url('name') }} → url
     })
 
     # Autoescape для HTML (захист від XSS)
@@ -903,6 +903,7 @@ NINJA_PAGINATION_PER_PAGE = 20
 
 ```python
 # notes_chat_app/urls.py — production config
+from django.conf import settings
 from ninja import NinjaAPI
 
 api = NinjaAPI(
@@ -984,13 +985,14 @@ def note_list_cached(request):
 
 ### Pydantic Schemas для вхідних і вихідних даних
 
-> Зверніть на `@validator('title')` — це Pydantic v1 синтаксис (Pydantic v2 використовує `@field_validator`). У Django Ninja 1.x підтримуються обидва. Validator автоматично викликається при валідації і або повертає очищене значення, або кидає `ValueError` з людськозрозумілим повідомленням. Це повідомлення потрапить у `422` відповідь автоматично.
+> Зверніть на `@field_validator('title')` — це синтаксис Pydantic v2, на якому працює Django Ninja 1.x (у Pydantic v1 був `@validator`; у v2 він ще працює, але позначений як deprecated). Validator автоматично викликається при валідації і або повертає очищене значення, або кидає `ValueError` з людськозрозумілим повідомленням. Це повідомлення потрапить у `422` відповідь автоматично.
 
 ```python
 # notes_app/schemas.py
 from ninja import Schema, ModelSchema
 from typing import Optional, List
 from datetime import datetime
+from pydantic import ConfigDict, field_validator
 from .models import Note
 
 
@@ -999,7 +1001,8 @@ class NoteCreateSchema(Schema):
     title: str
     content: str = ""
 
-    @validator('title')
+    @field_validator('title')
+    @classmethod
     def title_min_length(cls, v):
         if len(v.strip()) < 3:
             raise ValueError('Мінімум 3 символи')
@@ -1018,8 +1021,7 @@ class NoteOutSchema(Schema):
     content: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True  # Pydantic v2: читати з ORM об'єктів
+    model_config = ConfigDict(from_attributes=True)  # Pydantic v2: читати з ORM об'єктів
 
 
 # ModelSchema — автоматично з Django Model

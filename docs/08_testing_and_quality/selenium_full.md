@@ -191,7 +191,7 @@ python -c "import selenium; print(selenium.__version__)"
 
 ```
 # requirements.txt
-selenium>=4.16
+selenium>=4.6.0
 ```
 
 ---
@@ -952,6 +952,20 @@ def _make_headless_driver():
 
 ## 16. Розбір test_selenium.py по класах
 
+### Mixin _DockerLiveServerMixin
+
+Усі live-server класи у файлі успадковують `_DockerLiveServerMixin`. Він розв'язує мережеву проблему: Remote Selenium у окремому контейнері не бачить `127.0.0.1` контейнера `web`.
+
+```
+Змінна:     WEB_HOST (з оточення)
+Локально:   WEB_HOST порожній → host = '127.0.0.1' → live_server_url = 'http://127.0.0.1:PORT'
+У Docker:   WEB_HOST=web → host = '0.0.0.0' (bind на всі інтерфейси),
+            після setUpClass() у URL підставляється ім'я хоста → 'http://web:PORT'
+У CI:       WEB_HOST=host.docker.internal → Chrome у selenium-контейнері бачить runner
+```
+
+`ChannelsLiveServerTestCase` обчислює `live_server_url` заздалегідь і зберігає рядок у `cls.__dict__`, тому mixin додатково замінює в ньому `0.0.0.0` на `WEB_HOST`.
+
 ### Клас SeleniumLoginFlowTest
 
 ```
@@ -1003,6 +1017,40 @@ def test_created_note_appears_in_list(self):
 ```
 
 Це перевіряє не бізнес-логіку (яка перевірена у unit тестах), а що **шаблон правильно рендерить дані** — `{% for note in notes %}` відображає `note.title`.
+
+---
+
+### Клас SeleniumGroupChatPageTest
+
+```
+Тестує:  Сторінку групового чату /groups/<pk>/chat/
+Сервер:  StaticLiveServerTestCase (без ASGI → WebSocket НЕ підключається)
+Тести:
+  test_chat_page_loads_for_member      — член групи відкриває чат
+  test_chat_page_shows_group_name      — назва групи видна
+  test_chat_input_element_present      — є #chat-input
+  test_chat_send_button_present        — є #chat-send-btn
+  test_chat_messages_feed_present      — є #chat-messages
+  test_non_member_redirected_from_chat — не-член групи отримує redirect
+  test_group_detail_has_chat_link      — group_detail містить посилання на чат
+```
+
+Цей клас перевіряє тільки HTML-розмітку і права доступу. Саме WebSocket-з'єднання тут не встановлюється.
+
+### Клас SeleniumWebSocketChatTest
+
+```
+Тестує:  Реальний WebSocket-чат у браузері
+Сервер:  ChannelsLiveServerTestCase (Daphne ASGI у дочірньому процесі)
+Тести:
+  test_websocket_connects_and_enables_input         — після onopen #chat-input стає enabled
+  test_send_message_appears_in_chat_feed            — повідомлення з'являється у #chat-messages
+  test_status_shows_connected_after_websocket_opens — #status-text показує 'Підключено'
+```
+
+Повний шлях: браузер → WebSocket → `GroupChatConsumer` → БД → `group_send` → DOM. Клас підміняє `ProtocolServerProcess` на `_FreshConnectionDaphneProcess`, який закриває успадковані після fork з'єднання з БД і виставляє `TEST["NAME"]`, щоб дочірній процес Daphne працював із тією самою тестовою базою.
+
+Крім цих класів, у файлі є `SeleniumReminderToastTest` (toast-нагадування з `reminders.js`) і `SeleniumDockerStackSmokeTest` (smoke-тести проти вже запущеного Docker stack; запускаються лише коли задано `SELENIUM_EXTERNAL_BASE_URL`).
 
 ---
 

@@ -209,7 +209,7 @@ Docker — це **не** віртуальна машина. Це найпоши�
 |-----|-----------|----------------------|
 | **Named volume** | `mydata:/app/data` | Продакшн БД, постійні дані додатку |
 | **Bind mount** | `/host/path:/container/path` | Розробка — live перезавантаження коду |
-| **tmpfs mount** | `tmpfs:/app/cache` | Чутливі дані, які не повинні потрапити на диск |
+| **tmpfs mount** | `--tmpfs /app/cache` | Чутливі дані, які не повинні потрапити на диск |
 
 ---
 
@@ -239,20 +239,14 @@ Docker — це **не** віртуальна машина. Це найпоши�
 
 ```mermaid
 flowchart TD
-    classDef user fill:#263238,stroke:#90a4ae,color:#fff
-    classDef cli fill:#1b5e20,stroke:#4caf50,color:#fff
-    classDef daemon fill:#37474f,stroke:#64b5f6,color:#fff
-    classDef resource fill:#4a3b00,stroke:#ff9800,color:#fff
-    classDef registry fill:#4e1f1f,stroke:#f44336,color:#fff
-
-    User([Розробник / CI Pipeline]):::user
-    CLI[Docker CLI\ndocker build / run / push]:::cli
-    Daemon[Docker Daemon\ndockerd]:::daemon
-    Registry[(Docker Registry\nHub / ECR / GHCR)]:::registry
-    Images[(Images\nнезмінні шари)]:::resource
-    Containers[(Containers\nзапущені процеси)]:::resource
-    Volumes[(Volumes\nпостійне сховище)]:::resource
-    Networks[(Networks\nвіртуальні LAN)]:::resource
+    User(["Розробник / CI Pipeline"])
+    CLI["Docker CLI<br>docker build / run / push"]
+    Daemon["Docker Daemon<br>dockerd"]
+    Registry[("Docker Registry<br>Hub / ECR / GHCR")]
+    Images[("Images<br>незмінні шари")]
+    Containers[("Containers<br>запущені процеси")]
+    Volumes[("Volumes<br>постійне сховище")]
+    Networks[("Networks<br>віртуальні LAN")]
 
     User --> CLI
     CLI -->|REST API / Unix socket| Daemon
@@ -262,6 +256,13 @@ flowchart TD
     Containers -->|монтує| Volumes
     Containers -->|підключається до| Networks
     Images -->|незмінна основа для| Containers
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class User,CLI,Registry step;
+    class Images,Containers,Volumes,Networks success;
+    class Daemon warning;
 ```
 
 ### Пояснення діаграми
@@ -289,23 +290,26 @@ Daemon використовує образи як незмінні базові 
 
 ```mermaid
 flowchart LR
-    classDef step fill:#263238,stroke:#90a4ae,color:#fff
-    classDef action fill:#1b5e20,stroke:#4caf50,color:#fff
-    classDef artifact fill:#4a3b00,stroke:#ff9800,color:#fff
-
-    Code([1. Пишемо код\n+ Dockerfile]):::step
-    Build([2. docker build\nСтворюємо Image]):::action
-    Image[(Image\nv1.0)]:::artifact
-    Run([3. docker run\nЗапускаємо контейнер]):::action
-    Container([4. Запущений\nконтейнер]):::step
-    Debug([5. Дебаг\ndocker logs / exec]):::step
-    Fix([6. Виправляємо код]):::step
-    Push([7. docker push\nДо реєстру]):::action
-    Registry[(Registry\nHub / ECR)]:::artifact
+    Code(["Пишемо код<br>+ Dockerfile"])
+    Build(["docker build<br>Створюємо Image"])
+    Image[("Image<br>v1.0")]
+    Run(["docker run<br>Запускаємо контейнер"])
+    Container(["Запущений<br>контейнер"])
+    Debug(["Дебаг<br>docker logs / exec"])
+    Fix(["Виправляємо код"])
+    Push(["docker push<br>До реєстру"])
+    Registry[("Registry<br>Hub / ECR")]
 
     Code --> Build --> Image --> Run --> Container
     Container --> Debug --> Fix --> Build
     Image --> Push --> Registry
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class Code,Build,Run,Push,Fix step;
+    class Image,Container,Registry success;
+    class Debug warning;
 ```
 
 ### Покроково: реальний процес розробника
@@ -565,10 +569,10 @@ docker stats api-server         # конкретний контейнер
 # Видалити зупинені контейнери
 docker container prune
 
-# Видалити невикористані образи (не посилаються жодним контейнером)
+# Видалити dangling образи (без тегів, від старих збірок)
 docker image prune
 
-# Видалити dangling образи (без тегів, від старих збірок)
+# Видалити всі невикористані образи (на які не посилається жоден контейнер)
 docker image prune -a
 
 # Видалити невикористані volumes
@@ -615,28 +619,29 @@ Docker Compose вирішує це за допомогою **єдиного `doc
 
 ```mermaid
 flowchart TD
-    classDef service fill:#263238,stroke:#90a4ae,color:#fff
-    classDef data fill:#1b5e20,stroke:#4caf50,color:#fff
-    classDef proxy fill:#4a3b00,stroke:#ff9800,color:#fff
-
-    Nginx[Nginx\nПорт 80/443]:::proxy
-    WebApp[FastAPI\nПорт 8000]:::service
-    Worker[Celery Worker\nбез порту]:::service
-    Database[(PostgreSQL\nПорт 5432)]:::data
-    Redis[(Redis\nПорт 6379)]:::data
+    Nginx["Nginx<br>Порт 80/443"]
+    WebApp["FastAPI<br>Порт 8000"]
+    Worker["Celery Worker<br>без порту"]
+    Database[("PostgreSQL<br>Порт 5432")]
+    Redis[("Redis<br>Порт 6379")]
 
     Nginx -->|proxy_pass| WebApp
     WebApp -->|SQL запити| Database
     WebApp -->|черга задач| Redis
     Worker -->|обробка задач| Redis
     Worker -->|SQL запис| Database
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class WebApp,Worker step;
+    class Database,Redis success;
+    class Nginx warning;
 ```
 
 ### Реальний `docker-compose.yml`
 
 ```yaml
-version: "3.9"
-
 services:
   api:
     build: ./services/api          # збірка з локального Dockerfile
@@ -748,24 +753,28 @@ docker run postgres → [Контейнер B] стартує ПОРОЖНІМ
 
 ```mermaid
 flowchart LR
-    classDef container fill:#263238,stroke:#90a4ae,color:#fff
-    classDef volume fill:#1b5e20,stroke:#4caf50,color:#fff
-    classDef host fill:#4a3b00,stroke:#ff9800,color:#fff
-    classDef lost fill:#4e1f1f,stroke:#f44336,color:#fff
-
     subgraph "Контейнер (ефемерний)"
-        App[Додаток]:::container
-        WritableLayer[Шар запису\nвтрачається при rm]:::lost
+        App["Додаток"]
+        WritableLayer["Шар запису<br>втрачається при rm"]
     end
 
     subgraph "Постійне сховище"
-        NamedVolume[(Named Volume\npgdata)]:::volume
-        BindMount[Bind Mount\n./code → /app]:::host
+        NamedVolume[("Named Volume<br>pgdata")]
+        BindMount["Bind Mount<br>./code → /app"]
     end
 
     App -->|читає/пише| WritableLayer
     App -->|зберігає дані БД| NamedVolume
     App -->|живий код| BindMount
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class App step;
+    class NamedVolume success;
+    class WritableLayer error;
+    class BindMount warning;
 ```
 
 ### Named Volumes vs Bind Mounts
@@ -827,25 +836,27 @@ docker volume prune              # видалити всі невикорист�
 
 ```mermaid
 flowchart TD
-    classDef host fill:#4a3b00,stroke:#ff9800,color:#fff
-    classDef network fill:#263238,stroke:#90a4ae,color:#fff
-    classDef container fill:#1b5e20,stroke:#4caf50,color:#fff
-    classDef external fill:#4e1f1f,stroke:#f44336,color:#fff
-
-    Internet([Інтернет]):::external
-    HostPort["Порт хоста :80\n(опублікований)"]:::host
-    HostPort2["Порт хоста :8000\n(опублікований)"]:::host
-    Bridge["bridge мережа\n172.17.0.0/16"]:::network
-    Nginx["nginx\n172.17.0.2"]:::container
-    API["api\n172.17.0.3"]:::container
-    DB["postgres\n172.17.0.4\n(без опублікованого порту)"]:::container
-    Redis["redis\n172.17.0.5\n(без опублікованого порту)"]:::container
+    Internet(["Інтернет"])
+    HostPort["Порт хоста :80<br>(опублікований)"]
+    HostPort2["Порт хоста :8000<br>(опублікований)"]
+    Bridge["bridge мережа<br>172.17.0.0/16"]
+    Nginx["nginx<br>172.17.0.2"]
+    API["api<br>172.17.0.3"]
+    DB["postgres 172.17.0.4<br>(без опублікованого порту)"]
+    Redis["redis 172.17.0.5<br>(без опублікованого порту)"]
 
     Internet --> HostPort --> Nginx
     Internet --> HostPort2 --> API
     Nginx -->|внутрішньо: api:8000| API
     API -->|внутрішньо: postgres:5432| DB
     API -->|внутрішньо: redis:6379| Redis
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class Internet,Bridge,Nginx,API step;
+    class DB,Redis success;
+    class HostPort,HostPort2 warning;
 ```
 
 ### Публікація портів vs внутрішня мережа
@@ -899,7 +910,7 @@ FROM python:latest
 FROM node:latest
 ```
 
-Тег `latest` означає "що завгодно, що є поточним latest під час збірки". Сьогодні це Python 3.12. Наступного тижня може бути Python 3.13 з незворотними змінами. Ваші збірки стають нереспектованими.
+Тег `latest` означає "що завгодно, що є поточним latest під час збірки". Сьогодні це Python 3.12. Наступного тижня може бути Python 3.13 з незворотними змінами. Ваші збірки стають невідтворюваними.
 
 ```dockerfile
 # ДОБРЕ: фіксуємо точну версію
@@ -976,7 +987,7 @@ docker exec api-server pip install missing-package
 docker exec -it api-server vim /app/main.py
 ```
 
-`docker exec` — це **інструмент діагностики лише для читання**. Він для інспекції того, що відбувається — перевірки логів, запуску `psql` для запиту БД, налагодження мережевої проблеми.
+`docker exec` — це **інструмент діагностики**, а не спосіб змінювати контейнер (технічно він може змінювати файли, але ці зміни зникнуть після перезапуску). Він для інспекції того, що відбувається — перевірки логів, запуску `psql` для запиту БД, налагодження мережевої проблеми.
 
 ```bash
 # ДОБРЕ використання docker exec:
@@ -1181,7 +1192,7 @@ ENV DATABASE_PASSWORD=supersecret
 **Використовуйте файлову систему тільки для читання де можливо:**
 
 ```bash
-docker run --read-only -v /tmp:/tmp myapi    # файлова система лише для читання крім /tmp
+docker run --read-only --tmpfs /tmp myapi    # файлова система лише для читання крім /tmp (у пам'яті)
 ```
 
 **Скануйте образи на вразливості:**

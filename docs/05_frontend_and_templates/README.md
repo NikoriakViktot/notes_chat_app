@@ -58,7 +58,7 @@ templates/base.html
 {% include 'notes_app/_note_card.html' with note=note %}
 
 {# URL reverse #}
-<a href="{% url 'note_edit' note.pk %}">Редагувати</a>
+<a href="{% url 'notes_app:note_edit' note.pk %}">Редагувати</a>
 ```
 
 **Static files:**
@@ -147,7 +147,7 @@ collectstatic (Частина V) → Nginx роздає /static/ (Частина
 ## Контрольні питання
 
 - Яка різниця між `{% extends %}` і `{% include %}`?
-- Чому `{% url 'note_edit' note.pk %}` краще ніж hard-coded `/notes/42/edit/`?
+- Чому `{% url 'notes_app:note_edit' note.pk %}` краще ніж hard-coded `/notes/42/edit/`?
 - Що таке context processor? Де визначається `{{ user }}` у шаблоні?
 - Навіщо `collectstatic` у production? Хто роздає static файли у Notes Chat App?
 - Чому у `group_chat.js` використовується `textContent` а не `innerHTML`? (XSS!)

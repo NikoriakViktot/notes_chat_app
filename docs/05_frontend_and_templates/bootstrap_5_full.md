@@ -12,7 +12,7 @@
 - 🧠 Ментальна модель: **Bootstrap** — це готовий набір LEGO. Без нього ти ліпиш деталі з глини (сирий CSS). З ним — клацаєш готові блоки разом.
 - 📚 Чому це існує: **До Bootstrap (2011)** кожна команда будувала власну сітку, власні кнопки, власні модальні вікна — всі трохи різні, всі з багами. Twitter Bootstrap з'явився щоб стандартизувати UI-розробку.
 - 🌐 Що Bootstrap робить під капотом: **Bootstrap** — це один великий CSS-файл (~190KB до мінімізації) з тисячами готових класів + один JS-файл що додає поведінку до компонентів (Modal, Dropdown, Tooltip тощо). Ти просто підключаєш їх і використовуєш класи.
-- ❌ Типова помилка початківця: **Думати що Bootstrap — це "просто стилі"**. Bootstrap також надає JavaScript-поведінку (hamburger-меню, модальні вікна, тобтаб), систему сітки та доступність з коробки.
+- ❌ Типова помилка початківця: **Думати що Bootstrap — це "просто стилі"**. Bootstrap також надає JavaScript-поведінку (hamburger-меню, модальні вікна, вкладки), систему сітки та доступність з коробки.
  
 ---
 
@@ -415,7 +415,7 @@ Bootstrap використовує `min-width` media queries. Це означа�
 | 800px | `col-md-6` | 50% | **2** (6+6=12) |
 | 1200px | `col-lg-4` | 33% | **3** (4+4+4=12) |
 
-**Відповідь: Б** — Планшет: 2 блоки, Монітор: 3 блоки.
+**Відповідь:** мобільний (480px): 1 блок, планшет (800px): 2 блоки, монітор (1200px): 3 блоки.
 
 ---
 
@@ -445,7 +445,7 @@ Bootstrap використовує шкалу де базова одиниця =
 
 ### Відступи — spacing scale
 
-Bootstrap використовує шкалу від 0 до 5, де 1 одиниця = 4px (`$spacer * 0.25`):
+Bootstrap використовує шкалу від 0 до 5, похідну від `$spacer` (1rem = 16px). Шкала нелінійна: `1` = `$spacer * .25`, `2` = `* .5`, `3` = `* 1`, `4` = `* 1.5`, `5` = `* 3`:
 
 | Клас | Значення |
 |------|---------|
@@ -1049,18 +1049,19 @@ MESSAGE_TAGS = {
 - **🧠 Ментальна модель:** Modal — це діалогове вікно що з'являється ПОВЕРХ сторінки. Сторінка стає некліковою (backdrop). Користувач зосереджується на одній задачі — підтвердити, заповнити форму, переглянути деталі.
 - **📚 Чому це існує:** Модальні вікна дозволяють виконати дію без переходу на нову сторінку. "Ти впевнений що хочеш видалити?" — не потрібна окрема сторінка підтвердження, достатньо modal.
 - **🌐 Що Bootstrap робить під капотом:** Bootstrap JS додає modal-backdrop (темне накладення) прямо у `<body>`, встановлює `overflow: hidden` на `<body>` (scrollbar зникає), керує z-index щоб modal завжди був поверх всього, і відстежує клік за межами modal щоб закрити його.
-- **❌ Типова помилка початківця:** Розміщувати Modal всередині `.container`, `.card` або будь-якого елемента з `overflow: hidden` або `position: relative`. Modal буде обрізаний або матиме проблеми з z-index. ЗАВЖДИ перед `</body>`.
+- **❌ Типова помилка початківця:** Розміщувати Modal всередині `.card` або елемента з `transform`, `filter` чи власним z-index-контекстом. Modal може опинитися під backdrop або позиціонуватися відносно батька. Bootstrap радить розміщувати Modal якомога ближче до верхнього рівня DOM: у Django — в кінці `{% block content %}` поза картками або в окремому блоці перед `</body>`.
 ---
 
-**Чому Modal ОБОВ'ЯЗКОВО на верхньому рівні DOM:**
+**Чому Modal краще тримати на верхньому рівні DOM:**
 
 ```
-Якщо Modal знаходиться всередині:
-.container → overflow: hidden → Modal ОБРІЗАЄТЬСЯ!
-.card → z-index проблеми → Modal з'являється ЗА іншими елементами!
-position: relative батько → Modal позиціонується відносно батька, не viewport!
+.modal має position: fixed, тому overflow: hidden або position: relative
+у звичайного батька зазвичай НЕ обрізають його. Проблеми дають інші батьки:
+батько з transform / filter (напр. .card-hover:hover) → Modal позиціонується відносно батька, не viewport, і може обрізатися!
+батько з власним z-index (stacking context) → Modal з'являється ПІД backdrop або ЗА іншими елементами!
 
-Рішення: ЗАВЖДИ розміщуй Modal як прямого нащадка <body>
+Рішення: розміщуй Modal якомога ближче до <body> — поза .card і обгортками з transform
+(у Django: кінець {% block content %} або окремий блок перед </body>)
 ```
 
 **Lifecycle Modal — від кліку до відображення:**
@@ -1090,8 +1091,8 @@ Bootstrap запускає подію shown.bs.modal (transition ЗАВЕРШЕ�
 Структура Modal з 3 шарів: `modal` (зовнішня обгортка, позиціонування), `modal-dialog` (центрування, розмір), `modal-content` (реальний вигляд — білий прямокутник). Ця 3-рівнева структура необхідна для правильного центрування і анімації.
 
 ```
-Modal ЗАВЖДИ розміщується на верхньому рівні DOM (прямо перед </body>)
-→ уникає конфліктів z-index та overflow: hidden від батьків
+Modal розміщується якомога ближче до верхнього рівня DOM (поради Bootstrap)
+→ уникає конфліктів z-index і transform/filter у батьків
 → Bootstrap підтримує лише ОДИН активний modal одночасно
 → При відкритті: body отримує overflow: hidden (scrollbar зникає)
 ```
@@ -1109,7 +1110,7 @@ Modal ЗАВЖДИ розміщується на верхньому рівні D
     Видалити нотатку
 </button>
 
-<!-- Modal — розміщуємо перед </body> -->
+<!-- Modal — поза картками, якомога ближче до верхнього рівня DOM -->
 <div
     class="modal fade"
     id="deleteModal"
@@ -1438,10 +1439,10 @@ CSS позиціонує елемент за межами viewport (1×1 пік�
 <!-- Заголовок секції що не потрібен візуально -->
 <h2 class="visually-hidden">Список нотаток</h2>
 
-<!-- CSS що стоїть за visually-hidden: -->
-/* position: absolute; width: 1px; height: 1px;
-   padding: 0; margin: -1px; overflow: hidden;
-   clip: rect(0,0,0,0); white-space: nowrap; border: 0; */
+<!-- CSS що стоїть за visually-hidden:
+     position: absolute; width: 1px; height: 1px;
+     padding: 0; margin: -1px; overflow: hidden;
+     clip: rect(0,0,0,0); white-space: nowrap; border: 0; -->
 ```
 
 ---
@@ -1538,24 +1539,25 @@ modal.dispose();
 1. Починай з `base.html` — він визначає загальну структуру: navbar зверху, flash messages, main-контент у середині, footer внизу
 2. `note_list.html` розширює (`{% extends %}`) `base.html` і заповнює `{% block content %}` своїм вмістом
 3. Зверни на `{% block extra_js %}` в кінці `note_list.html` — це місце де сторінко-специфічний JavaScript передається у base-шаблон
-4. Modal знаходиться всередині `{% block content %}` але Bootstrap JS знає як його правильно позиціонувати через z-index
+4. Modal знаходиться в кінці `{% block content %}`, поза картками. Це працює, бо `.modal` має `position: fixed`, а обгортки `<main>` і `.container` у цьому `base.html` не мають `transform` чи власного z-index-контексту. Якщо такі обгортки з'являться — винеси Modal в окремий блок перед `</body>`
 
 ## 13. Повний приклад — Django + Bootstrap 5
 
 ### Структура проєкту
 
 ```
-django_bootstrap_project/
-├── notes_chat_app/
-│   ├── settings.py    ← django-bootstrap5 в INSTALLED_APPS
+notes_chat_app/
+├── notes_project/
+│   ├── settings.py    ← crispy_forms + crispy_bootstrap5 в INSTALLED_APPS
 │   └── urls.py
+├── templates/
+│   └── base.html      ← Bootstrap navbar + структура (Bootstrap CSS/JS з CDN)
 └── notes_app/
     ├── views.py
     ├── urls.py
     ├── models.py
     └── templates/
         └── notes_app/
-            ├── base.html          ← Bootstrap navbar + структура
             ├── note_list.html     ← Grid сітка карток
             ├── note_detail.html   ← Одна нотатка
             └── note_form.html     ← Форма з Bootstrap
@@ -1758,3 +1760,5 @@ deleteModal.addEventListener('show.bs.modal', function(e) {
 8. Коли використовувати `container-fluid` замість `container`?
 9. Що таке Layout Thrashing і як він пов'язаний з Bootstrap JS?
 10. Чому Bootstrap Dropdown не відкривається по hover? Як це правильно?
+
+> Питання 9–10 виходять за межі розділу. Підказки: Layout Thrashing — це чергування читань геометрії DOM (`offsetHeight`, `getBoundingClientRect()`) і записів стилів, яке змушує браузер синхронно перераховувати layout; Bootstrap JS сам навмисно викликає один такий reflow (читає `offsetHeight`), щоб перезапустити CSS-transition у Modal/Collapse. Dropdown відкривається по кліку свідомо: hover не працює на сенсорних екранах і незручний для клавіатури, тому Bootstrap лишає клік (і керування `aria-expanded`).

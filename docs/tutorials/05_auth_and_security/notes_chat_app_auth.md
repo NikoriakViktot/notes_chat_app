@@ -46,7 +46,7 @@ docker compose exec web python manage.py seed_demo_data
 
 ---
 
-## Settings для Docker (settings.py)
+## Крок 1 — Settings для Docker (settings.py)
 
 На відміну від `crispy_notes_project` де `SECRET_KEY` може бути хардкодований для dev,
 у `notes_chat_app` всі чутливі дані виносяться у `.env`:

@@ -140,7 +140,7 @@ class TodoListSharingViewTest(BaseViewTest):  # ← share/unshare workflow
 
 ---
 
-## Три найважливіших паттерни
+## Чотири найважливіших паттерни
 
 ### Паттерн 1 — @login_required: redirect незалогінених
 
@@ -185,9 +185,10 @@ class NoteDetailViewTest(BaseViewTest):
     def test_non_owner_gets_404(self):
         """
         Bob намагається відкрити нотатку Alice.
-        get_object_or_404(Note, pk=pk, user=request.user):
-          → SELECT WHERE pk=alice_note.pk AND user_id=bob.id
-          → Не знайдено → 404
+        selectors.get_note_detail(request.user, pk):
+          → Note.objects.filter(Q(user=bob) | Q(group__in=bob_groups)).get(id=note_id)
+          → SELECT WHERE pk=alice_note.pk AND (user_id=bob.id OR group_id IN (...))
+          → Note.DoesNotExist → view піднімає Http404 → 404
 
         Чому 404 а не 403?
           403: "ресурс існує, але доступ заборонено" → хакер знає що id існує

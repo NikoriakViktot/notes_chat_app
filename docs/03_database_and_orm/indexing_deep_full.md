@@ -9,6 +9,8 @@
 > 🔬 **Побачити EXPLAIN ANALYZE у дії:**
 > [`docs/reference/legacy_source/orm_laboratory_reference.md`](../reference/legacy_source/orm_laboratory_reference.md)
 >
+> ⚠️ Сам notebook не входить до цього репозиторію: файл за посиланням лише пояснює це. Назви розділів у таблиці нижче — орієнтири з оригінальної структури ноутбука, а не якорі. Ці ж запити можна виконати самостійно в `python manage.py shell` або в [ORM-лабораторії](../labs/orm_lab.md).
+>
 > | Концепція | Розділ ноутбука |
 > |-----------|-----------------|
 > | `queryset.explain(analyze=True)` — Index Scan vs Seq Scan | `## 11. 🔬 SQL Inspection` |
@@ -33,7 +35,7 @@
 ---
 > **🧠 Ментальна модель:** Sequential Scan = читати книгу з першої сторінки до останньої щоб знайти один абзац. Index Scan = спочатку дивишся на зміст → знаходиш номер сторінки → відкриваєш одразу. Різниця: O(N) vs O(log N).
 >
-> **📚 Фізичний рівень:** Таблиця PostgreSQL зберігається у "сторінках" по 8KB. Sequential Scan = читати всі сторінки підряд. 1 мільйон рядків × 8KB/10rows = ~800MB прочитати. З індексом: B-Tree traversal (3-4 диск-I/O) → отримати heap tuple pointer → 1 читання heap. Всього: 4-5 I/O операцій замість мільйона.
+> **📚 Фізичний рівень:** Таблиця PostgreSQL зберігається у "сторінках" по 8KB. Sequential Scan = читати всі сторінки підряд. 1 мільйон рядків (≈10 рядків на сторінку → 100 000 сторінок × 8KB) = ~800MB прочитати. З індексом: B-Tree traversal (3-4 диск-I/O) → отримати heap tuple pointer → 1 читання heap. Всього: 4-5 I/O операцій замість мільйона.
 >
 > **🌐 Коли Planner обирає Sequential Scan замість індексу:** Якщо WHERE clause повертає >10-15% рядків — sequential scan буде ефективнішим (один прохід по диску vs багато випадкових I/O через індекс). Planner враховує це.
 >
@@ -75,7 +77,7 @@ B-Tree індекс на user_id:
 ## 2. B-Tree Index — внутрішня структура
 
 ---
-> **🧠 Ментальна модель:** B-Tree (Balanced Tree) — це впорядкована деревоподібна структура де пошук, вставка і видалення — O(log N). "Balanced" означає: всі листки на однаковій глибині. Для таблиці з 1 мільярдом рядків глибина B-Tree ≈ log₂(1,000,000,000) ≈ 30 рівнів. 30 порівнянь замість мільярда!
+> **🧠 Ментальна модель:** B-Tree (Balanced Tree) — це впорядкована деревоподібна структура де пошук, вставка і видалення — O(log N). "Balanced" означає: всі листки на однаковій глибині. Для таблиці з 1 мільярдом рядків бінарне дерево мало б глибину ≈ log₂(1,000,000,000) ≈ 30 рівнів. Але вузол B-Tree — це ціла сторінка з сотнями ключів, тому реальна глибина B-Tree лише 3–5 рівнів: кілька читань сторінок і ~30 порівнянь замість мільярда!
 >
 > **📚 Як B-Tree зберігається на диску:** Кожен вузол = одна сторінка (8KB). Кожна сторінка вміщає ~200-400 записів. Root → Branch nodes → Leaf nodes. Leaf nodes: зберігають значення + TID (tuple identifier = pointer на heap сторінку + offset). Sequential reads по leaf nodes = ефективна range scan.
 >
@@ -224,7 +226,7 @@ Index Only Scan using note_user_status_cover_idx
 >
 > **🌐 GIN в Django:** `GinIndex(fields=['tags'])` для ArrayField, `GinIndex(fields=['metadata'])` для JSONField. Для повнотекстового пошуку: `GinIndex(fields=['content'], opclasses=['gin_trgm_ops'])` потребує розширення `pg_trgm`.
 >
-> **❌ Типова помилка:** Не додавати GIN індекс для JSONField і фільтрувати по JSON полях. `Note.objects.filter(metadata__language='uk')` без GIN → sequential scan на мільярдах рядків. З GIN → millісекунди.
+> **❌ Типова помилка:** Не додавати GIN індекс для JSONField і фільтрувати по JSON полях. `Note.objects.filter(metadata__language='uk')` без GIN → sequential scan на мільярдах рядків. З GIN → мілісекунди.
 ---
 
 ```python
@@ -270,7 +272,7 @@ Note.objects.filter(metadata__has_key='word_count')
 ---
 > **🧠 Ментальна модель:** Trigram — розбивка тексту на групи по 3 символи. "Django" → ["Dja", "jan", "ang", "ngo"]. Trigram GIN індекс зберігає кожен trigram → список рядків що його містять. `LIKE '%django%'` → знайти всі рядки де є трайграми "dja", "jan", "ang", "ngo" → перетин списків → результат. Без trigram: sequential scan.
 >
-> **📚 Підключення pg_trgm:** `CREATE EXTENSION IF NOT EXISTS pg_trgm;` — або через Django міграцію: `BtreeGinExtension()` або `TrigramExtension()`.
+> **📚 Підключення pg_trgm:** `CREATE EXTENSION IF NOT EXISTS pg_trgm;` — або через Django міграцію: `TrigramExtension()` (`BtreeGinExtension()` вмикає інше розширення — `btree_gin`, а не `pg_trgm`).
 >
 > **🌐 icontains з trigram:** `Note.objects.filter(title__icontains='python')` без trigram → `LIKE '%python%'` → sequential scan. З trigram GIN → O(log N) пошук по трайграмах.
 >
@@ -378,8 +380,8 @@ class Migration(migrations.Migration):
      order_by('-updated_at') → індекс на updated_at DESC
 
   3. Foreign Key поля
-     Django автоматично НЕ додає індекс на FK в деяких версіях.
-     Явно: db_index=True або в Meta.indexes
+     Django автоматично створює індекс на FK (ForeignKey має db_index=True за замовчуванням).
+     Не вимикай його (db_index=False) без причини; для складених умов — Meta.indexes
 
   4. Поля у JOIN умовах
      JOIN ... ON note.user_id = user.id → індекс на user_id

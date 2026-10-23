@@ -32,12 +32,12 @@
 **Покрокова реалізація**
 1. [Крок 0 — Запуск тестів у Docker](#крок-0--запуск)
 2. [Крок 1 — Структура tests/ пакету](#крок-1--структура-tests)
-3. [Крок 2 — test_models.py](#крок-2--test_modelspy)
-4. [Крок 3 — test_services.py](#крок-3--test_servicespy)
-5. [Крок 4 — test_forms.py](#крок-4--test_formspy)
-6. [Крок 5 — test_views.py](#крок-5--test_viewspy)
-7. [Крок 6 — test_consumers.py](#крок-6--test_consumerspy)
-8. [Крок 7 — test_selenium.py](#крок-7--test_seleniumpy)
+3. [Крок 2 — test_models.py](#07--тестування-моделей)
+4. [Крок 3 — test_services.py](#08--тестування-сервісів)
+5. [Крок 4 — test_forms.py](#09--тестування-форм)
+6. [Крок 5 — test_views.py](#10--django-test-client)
+7. [Крок 6 — test_consumers.py](#11--consumers)
+8. [Крок 7 — test_selenium.py](#12--selenium)
 9. [Крок 8 — GitHub Actions CI](#крок-8--github-actions-ci)
 10. [Структура файлів](#структура-файлів)
 

@@ -256,7 +256,7 @@ def get_group_with_members(group_id, user):
 
 # Без select_related/prefetch_related → N+1 проблема:
 # 10 нотаток → 10 запитів для notebook + 10 для tags = 21 SQL запит!
-# З оптимізацією → 3 SQL запити (notes + notebooks + tags)
+# З оптимізацією → 2 SQL запити (notes JOIN notebooks + tags)
 ```
 
 ---
@@ -423,7 +423,7 @@ def group_detail(request, pk):
 def group_delete(request, pk):
     """
     Видалення групи.
-    Тільки якщо request.user є членом → 403 (ми знаємо що група існує).
+    Видалити може тільки член групи; не член → 403 (ми знаємо що група існує).
     """
     group = get_object_or_404(Group, pk=pk)
     if not group.user_set.filter(pk=request.user.pk).exists():
@@ -448,7 +448,7 @@ POST /groups/5/   {action: 'leave'}                       → поточний �
 
 Навіщо один view а не три URL?
   - Вся логіка управління групою в одному місці
-  - Спільний middleware check (membership)
+  - Спільна перевірка членства (membership) у view
   - Простіше для тестування (один тест класу TestCase)
   - Менше URL patterns
 ```

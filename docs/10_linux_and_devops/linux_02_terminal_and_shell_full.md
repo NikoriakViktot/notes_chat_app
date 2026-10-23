@@ -139,9 +139,16 @@ history
 
 ```mermaid
 flowchart LR
-    Input["stdin\nТе, що ти вводиш"] --> Command["Команда\n(програма)"]
-    Command --> Output["stdout\nНормальний вивід"]
-    Command --> Errors["stderr\nПовідомлення про помилки"]
+    Input["stdin<br>Те, що ти вводиш"] --> Command["Команда<br>(програма)"]
+    Command --> Output["stdout<br>Нормальний вивід"]
+    Command --> Errors["stderr<br>Повідомлення про помилки"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+    class Input,Command step;
+    class Output success;
+    class Errors error;
 ```
 
 **Приклад:**

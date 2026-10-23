@@ -60,7 +60,7 @@ print('Sent:', Reminder.objects.filter(is_sent=True).count())
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
 
-# Що повертає timedelta(days=30) для 31 грудня?
+# Що повертає timedelta(days=30) для 31 січня?
 d = datetime(2024, 1, 31)
 print(d + relativedelta(months=1))  # 2024-02-29 (правильно)
 print(d + __import__('datetime').timedelta(days=30))  # 2024-03-01 (неправильно!)

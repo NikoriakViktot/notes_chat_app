@@ -17,10 +17,16 @@ flowchart TD
     View --> Service["Service"]
     Selector --> ORM["ORM"]
     Service --> ORM
-    ORM --> DB["SQLite або PostgreSQL"]
+    ORM --> DB["PostgreSQL"]
     View --> Template["Template"]
     Template --> Response["HTML response"]
     Response --> Browser
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class Browser,DNS,TCP,Server,Middleware,URLDispatcher,View,Form,Selector,Service,ORM,DB,Template step;
+    class Response success;
 ```
 
 ## Django MVT
@@ -31,6 +37,12 @@ flowchart LR
     View --> Model["Model/ORM"]
     View --> Template["Template"]
     Template --> Browser["Browser"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class URL,View,Model,Template step;
+    class Browser success;
 ```
 
 ## CRUD flow
@@ -78,6 +90,16 @@ flowchart TD
     Lookup --> Allowed{"found?"}
     Allowed -->|yes| View["render or mutate"]
     Allowed -->|no| Deny["404 або PermissionDenied"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+
+    class PK,User,ScopedQS,Lookup step;
+    class Allowed decision;
+    class View success;
+    class Deny error;
 ```
 
 ## Testing pyramid
@@ -86,6 +108,14 @@ flowchart TD
 flowchart TD
     E2E["E2E: Selenium"] --> Integration["Integration: Django TestClient"]
     Integration --> Unit["Unit: models, services, forms"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+
+    class Integration step;
+    class Unit success;
+    class E2E warning;
 ```
 
 ## Async і WebSocket flow
@@ -123,6 +153,12 @@ flowchart LR
     Django --> Postgres["PostgreSQL"]
     Django --> Redis["Redis for Channels"]
     Nginx --> Static["Static files"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+
+    class Internet,DNS,HTTPS,Django,Postgres,Redis,Static step;
+    class Nginx,App success;
 ```
 
 Компоненти Nginx, Gunicorn/Uvicorn, PostgreSQL і Redis є рекомендованим production stack. Поточний Docker setup ще потребує виправлення перед використанням як готового deployment.

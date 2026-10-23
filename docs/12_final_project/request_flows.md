@@ -38,8 +38,18 @@ flowchart TD
     pk["URL pk"] --> Filter["selectors.get_note(user, pk)"]
     Filter --> Q["Q(user=user) | Q(group__in=user_groups)"]
     Q --> Found{"знайдено?"}
-    Found -->|Так| Render["render деталь / форму редагування"]
-    Found -->|Ні| 404["Http404"]
+    Found -->|так| Render["render деталь / форму редагування"]
+    Found -->|ні| 404["Http404"]
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef error    fill:#ffebee,stroke:#c62828,stroke-width:3px;
+
+    class pk,Filter,Q step;
+    class Found decision;
+    class Render success;
+    class 404 error;
 ```
 
 Mutable операції (edit/delete) — тільки власник (`Q(user=user)`).
@@ -106,13 +116,13 @@ sequenceDiagram
     participant B2 as Browser (receiver)
     participant DB as PostgreSQL
 
-    B1->>C1: {"message": "Привіт!"}
+    B1->>C1: {"content": "Привіт!"}
     C1->>DB: ChatMessage.objects.create(...) via database_sync_to_async
     C1->>RL: group_send(room_group_name, {type: "chat_message", ...})
     RL->>C1: chat_message event
     RL->>C2: chat_message event
-    C1-->>B1: {"message": "Привіт!", "author": "..."}
-    C2-->>B2: {"message": "Привіт!", "author": "..."}
+    C1-->>B1: {"type": "message", "content": "Привіт!", "author": "..."}
+    C2-->>B2: {"type": "message", "content": "Привіт!", "author": "..."}
 ```
 
 ---
@@ -126,9 +136,10 @@ Docker Compose up
   ↓ web: entrypoint.sh
       → manage.py migrate
       → manage.py collectstatic
-      → manage.py seed_demo_data  (якщо SEED_DEMO_DATA=1)
-      → exec uvicorn notes_project.asgi:application --host 0.0.0.0 --port 8001 --reload
+      → manage.py seed_demo_data --force  (якщо SEED_DEMO_DATA=1)
+      → exec python -m uvicorn notes_project.asgi:application --host 0.0.0.0 --port 8001 --reload
   ↓ nginx: forward :80 → web:8001
-  ↓ ngrok (dev тунель)
-  ↓ selenium (E2E тести)
+  ↓ celery-worker, celery-beat (після healthcheck db і redis)
+  ↓ ngrok (dev тунель, profile tunnel)
+  ↓ selenium, selenium-tests (E2E тести, profile test)
 ```

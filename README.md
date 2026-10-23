@@ -1,5 +1,7 @@
 # Notes Chat App
 
+**Українська** · [English](README.en.md)
+
 Навчальний Django-репозиторій, який веде студента від web foundations до фінального Django-застосунку з нотатками, списками, груповим доступом і WebSocket-чатом.
 
 ## Про проєкт
@@ -34,7 +36,7 @@ UI проєкту використовує назву `CrispyNotes`. Django proj
 - Bootstrap 5 і Bootstrap Icons.
 - `django-crispy-forms` + `crispy-bootstrap5`.
 - Django Channels, Daphne, Uvicorn, `channels-redis`.
-- SQLite локально без `DATABASE_URL`.
+- Тільки PostgreSQL: без `DATABASE_URL` `settings.py` піднімає виняток (SQLite не використовується).
 - PostgreSQL і Redis через environment variables.
 - Selenium, coverage, GitHub Actions.
 
@@ -94,7 +96,7 @@ flowchart TD
     Views --> Services["notes_app/services.py"]
     Selectors --> Models["notes_app/models.py"]
     Services --> Models
-    Models --> DB["SQLite або PostgreSQL"]
+    Models --> DB["PostgreSQL"]
     Browser --> JS["group_chat.js"]
     JS --> ASGI["notes_project/asgi.py"]
     ASGI --> Consumer["notes_app/consumers.py"]
@@ -322,8 +324,8 @@ ngrok http --url=fawn-natural-mayfly.ngrok-free.app 80
 ## Тести
 
 ```bash
-python manage.py check
-python manage.py test
+docker compose run --rm web python manage.py check
+docker compose run --rm web python manage.py test
 ```
 
 Async HTTP demo modules у поточному working tree відсутні і не описуються як активна feature. Реальний async-компонент проєкту - WebSocket chat через ASGI, Channels і `GroupChatConsumer`.
@@ -335,11 +337,14 @@ Async HTTP demo modules у поточному working tree відсутні і �
 | Сервіс | Роль |
 |--------|------|
 | `db` (PostgreSQL 16) | база даних |
-| `redis` (Redis 7) | channel layer для WebSocket |
+| `redis` (Redis 7) | channel layer для WebSocket і broker для Celery |
 | `web` (Uvicorn/ASGI) | Django-застосунок на порту 8001 |
 | `nginx` (1.27) | reverse proxy на порту 80, роздає staticfiles |
-| `ngrok` | публічний тунель → nginx:80 |
-| `selenium` | Chrome для E2E-тестів |
+| `celery-worker` | Celery worker для фонових задач (`notes_app/tasks.py`) |
+| `celery-beat` | Celery beat — планувальник періодичних задач |
+| `ngrok` | публічний тунель → nginx:80 (profile `tunnel`) |
+| `selenium` | Chrome для E2E-тестів (profile `test`) |
+| `selenium-tests` | одноразовий запуск Selenium E2E-тестів (profile `test`) |
 
 Всі сервіси підключені до спільної bridge-мережі `app-net`. Ланцюг залежностей зі health checks: `db` → `redis` → `web` → `nginx` → `ngrok`.
 

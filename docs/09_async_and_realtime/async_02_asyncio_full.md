@@ -75,19 +75,24 @@ async def view_handler():
 ```mermaid
 graph TD
     A[Event Loop запускається] --> B{Є задачі в черзі?}
-    B -->|Так| C[Бере наступну Task]
+    B -->|так| C[Бере наступну Task]
     C --> D[Виконує до першого await]
     D --> E[Task призупиняється]
     E --> F[Реєструє I/O callback]
     F --> B
-    B -->|Ні| G[Чекає на I/O події]
+    B -->|ні| G[Чекає на I/O події]
     G --> H[I/O завершився]
     H --> I[Task повертається в чергу]
     I --> B
 
-    style A fill:#e3f2fd,stroke:#1565c0
-    style E fill:#fff3e0,stroke:#e65100
-    style H fill:#e8f5e9,stroke:#2e7d32
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,C,D,F,G,I step;
+    class B decision;
+    class H success;
+    class E warning;
 ```
 
 Event loop ніколи не спить безцільно. Він або виконує задачу, або чекає на сигнал від ОС ("I/O завершився").
@@ -98,15 +103,18 @@ Event loop ніколи не спить безцільно. Він або вик
 
 ```mermaid
 graph LR
-    A[Coroutine створена\nasync def виклик] --> B[Pending\nу черзі]
-    B --> C[Running\nEvent loop виконує]
-    C --> D[Suspended\nhit await]
+    A["Coroutine створена<br>async def виклик"] --> B["Pending<br>у черзі"]
+    B --> C["Running<br>Event loop виконує"]
+    C --> D["Suspended<br>hit await"]
     D --> B
-    C --> E[Done\nповернула результат]
+    C --> E["Done<br>повернула результат"]
 
-    style C fill:#e8f5e9,stroke:#2e7d32
-    style D fill:#fff3e0,stroke:#e65100
-    style E fill:#e3f2fd,stroke:#1565c0
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class A,B,C step;
+    class E success;
+    class D warning;
 ```
 
 ---

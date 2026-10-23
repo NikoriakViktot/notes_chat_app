@@ -48,7 +48,7 @@ note = get_object_or_404(Note, pk=pk, user=request.user)  # тільки сво�
 ```python
 # Django автоматично хешує паролі через PBKDF2:
 user.set_password("new_password")
-# → pbkdf2_sha256$720000$salt$hash  (зберігається у БД)
+# → pbkdf2_sha256$1000000$salt$hash  (зберігається у БД)
 
 # Ніколи не зберігай:
 user.raw_password = "secret"    # НІКОЛИ!
@@ -125,7 +125,7 @@ AXES_FAILURE_LIMIT = 5    # 5 невдалих спроб → блокуванн
 AXES_COOLOFF_TIME = 1     # блокування на 1 годину
 
 # Або: django-ratelimit
-from ratelimit.decorators import ratelimit
+from django_ratelimit.decorators import ratelimit
 
 @ratelimit(key='ip', rate='5/m', block=True)
 def login_view(request):

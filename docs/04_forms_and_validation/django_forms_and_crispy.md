@@ -19,6 +19,13 @@
 ```mermaid
 flowchart LR
 POST --> Form --> is_valid --> cleaned_data --> Service --> Redirect
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef decision fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    class POST,Form,cleaned_data,Service step;
+    class is_valid decision;
+    class Redirect success;
 ```
 
 ## У проєкті

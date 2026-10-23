@@ -45,9 +45,9 @@ Production сервер:     Python 3.10, Django 4.1, PostgreSQL 14
 ```mermaid
 flowchart TD
     subgraph VM ["Virtual Machine"]
-        HW1["Hardware"] --> Hypervisor["Hypervisor\n(VMware/VirtualBox)"]
-        Hypervisor --> GuestOS1["Guest OS 1\n(ціле ядро)"]
-        Hypervisor --> GuestOS2["Guest OS 2\n(ціле ядро)"]
+        HW1["Hardware"] --> Hypervisor["Hypervisor<br>(VMware/VirtualBox)"]
+        Hypervisor --> GuestOS1["Guest OS 1<br>(ціле ядро)"]
+        Hypervisor --> GuestOS2["Guest OS 2<br>(ціле ядро)"]
         GuestOS1 --> App1["App"]
         GuestOS2 --> App2["App"]
     end
@@ -55,11 +55,18 @@ flowchart TD
     subgraph Docker ["Docker"]
         HW2["Hardware"] --> HostOS["Host OS + Linux Kernel"]
         HostOS --> DockerEngine["Docker Engine"]
-        DockerEngine --> C1["Container 1\n(процес)"]
-        DockerEngine --> C2["Container 2\n(процес)"]
+        DockerEngine --> C1["Container 1<br>(процес)"]
+        DockerEngine --> C2["Container 2<br>(процес)"]
         C1 --> App3["App"]
         C2 --> App4["App"]
     end
+
+    classDef step     fill:#eceff1,stroke:#546e7a,stroke-width:1px;
+    classDef success  fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef warning  fill:#fff8e1,stroke:#e65100,stroke-width:2px;
+    class HW1,App1,App2,HW2,HostOS,DockerEngine,App3,App4 step;
+    class C1,C2 success;
+    class Hypervisor,GuestOS1,GuestOS2 warning;
 ```
 
 | | VM | Docker Container |

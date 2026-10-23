@@ -2,7 +2,7 @@
 
 Цей маршрут проведе тебе від порожньої директорії до production-ready Django-застосунку з WebSocket-чатом, Docker Compose, автентифікацією та CI.
 
-Кожен крок вирішує **одну конкретну проблему** і залишає після себе рабочий застосунок.
+Кожен крок вирішує **одну конкретну проблему** і залишає після себе робочий застосунок.
 
 ---
 
@@ -42,10 +42,10 @@ notes_chat_app       ← Кроки 5–9 — auth, testing, WebSocket, Celery, 
 | 0 | [Середовище](#крок-0-середовище) | — | Python, pyenv, Docker | — | `python -c "import django; print(django.__version__)"` |
 | 1 | [Hello Django](#крок-1-hello-django) | hello_project | MTV, URLconf, HttpResponse | I, II | `curl http://127.0.0.1:8000/` → 200 |
 | 2 | [Перша модель](#крок-2-перша-модель) | bootstrap_notes | ORM, migration, Admin | III | запис у БД через Admin |
-| 3 | [CRUD + arch](#крок-3-crud--архітектура) | notes_project | selectors/services, PostgreSQL | VI | unit TestCase проходить |
+| 3 | [CRUD + arch](#крок-3-crud-і-архітектура) | notes_project | selectors/services, PostgreSQL | VI | unit TestCase проходить |
 | 4 | [Forms + UI](#крок-4-форми-та-bootstrap) | crispy_notes | ModelForm, Bootstrap 5 | IV, V | crispy форма у браузері |
 | 5 | [Auth + безпека](#крок-5-автентифікація-та-безпека) | notes_chat_app | IDOR, Q-filter, Groups | VII | IDOR-тест падає без fix, проходить після |
-| 6 | [Тестування](#крок-6-тестування) | notes_chat_app | TransactionTestCase, Selenium | VIII | 205 тестів зелені |
+| 6 | [Тестування](#крок-6-тестування) | notes_chat_app | TransactionTestCase, Selenium | VIII | 200+ тестів зелені |
 | 7 | [WebSocket](#крок-7-async-та-websocket) | notes_chat_app | Channels, Redis, ASGI | IX | consumer-тест проходить |
 | 8 | [Celery](#крок-8-celery-та-фонові-задачі) | notes_chat_app | Celery Worker, Beat, Redis broker, HTTP polling | IX | нагадування надходять по email + toast у браузері |
 | 9 | [Deployment](#крок-9-deployment-та-ci) | notes_chat_app | Docker Compose, Nginx, CI | X | GitHub Actions: green |
@@ -129,7 +129,7 @@ python manage.py createsuperuser
 - Забути `makemigrations` після зміни моделі
 - `IntegrityError: NOT NULL constraint` — обов'язкове поле без default
 
-**Notes Chat App:** `notes_app/models.py` має 8 моделей з ForeignKey, M2M та `on_delete=CASCADE` / `SET_NULL`. SQLite замінено PostgreSQL починаючи з Кроку 3.
+**Notes Chat App:** `notes_app/models.py` має 10 моделей з ForeignKey, M2M та `on_delete=CASCADE` / `SET_NULL`. SQLite замінено PostgreSQL починаючи з Кроку 3.
 
 ---
 
@@ -168,7 +168,7 @@ PostgreSQL: transactions, indexes, ON DELETE CASCADE/SET NULL, UNIQUE constraint
 
 **Нові концепти:** PRG (Post/Redirect/Get), тонкий view, selector (read-only), service (mutation), `get_object_or_404`.
 
-**Typicові помилки:**
+**Типові помилки:**
 - Повернути lazy QuerySet з selector → `SynchronousOnlyOperation` у async-контексті
 - Мутація у selector (порушення шару)
 - `TypeError` якщо параметри view і service не узгоджені
@@ -450,7 +450,7 @@ jobs:
 | 3 | PostgreSQL | — | raw HTML | TestCase | runserver | — |
 | 4 | PostgreSQL | — | ModelForm + crispy | Form tests | runserver | — |
 | 5 | PostgreSQL | login_required + Q-filter | ModelForm | IDOR test | runserver | — |
-| 6 | PostgreSQL | ✓ | ✓ | 205 tests | runserver | — |
+| 6 | PostgreSQL | ✓ | ✓ | 200+ tests | runserver | — |
 | 7 | PostgreSQL | ✓ | ✓ | + consumer | Daphne ASGI | — |
 | 8 | PostgreSQL | ✓ | ✓ | + test_tasks | Daphne ASGI | Celery Worker + Beat |
 | 9 | PostgreSQL | ✓ | ✓ | + Selenium | Docker + Nginx + CI | Celery Worker + Beat |

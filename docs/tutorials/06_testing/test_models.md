@@ -95,9 +95,10 @@ note = Note(user=user, title='Test', priority=5)  # ← НЕ зберігаєм�
 note.full_clean()   # ← тут запускаються validators → ValidationError
 
 # full_clean() виконує:
-# 1. validate_unique() — UniqueConstraint
-# 2. clean_fields()    — field validators (MinValueValidator, MaxValueValidator...)
-# 3. clean()           — custom model validation
+# 1. clean_fields()    — field validators (MinValueValidator, MaxValueValidator...)
+# 2. clean()           — custom model validation
+# 3. validate_unique() — unique / unique_together
+# 4. validate_constraints() — Meta.constraints (UniqueConstraint, CheckConstraint)
 
 # У тесті:
 def test_priority_above_4_raises_validation_error(self):
@@ -249,7 +250,7 @@ class NoteModelTest(TestCase):
 
     def test_str_pinned_note_has_pin_emoji(self):
         note = Note.objects.create(user=self.alice, title='Important', is_pinned=True)
-        self.assertIn('Important', str(note))
+        self.assertEqual(str(note), '📌 Important')
 
     def test_str_unpinned_note(self):
         note = Note.objects.create(user=self.alice, title='Normal')

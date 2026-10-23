@@ -122,7 +122,7 @@ def update_note(note, *, title=None, content=None, priority=None,
 
 | Файл | Що показує |
 |------|-----------|
-| `notes_app/selectors.py` | 13 функцій: `get_user_notes`, `get_note_detail`, `get_group_with_members`, ... |
+| `notes_app/selectors.py` | 15 функцій: `get_user_notes`, `get_note_detail`, `get_group_with_members`, ... |
 | `notes_app/services.py` | 30+ функцій: notes, notebooks, tags, todo, shopping, groups |
 | `notes_app/views.py` | кожен view — тільки координація: form → selector/service → render/redirect |
 | `notes_app/tests/test_services.py` | тести без HTTP: `create_note()` → перевірка return + persistence |
